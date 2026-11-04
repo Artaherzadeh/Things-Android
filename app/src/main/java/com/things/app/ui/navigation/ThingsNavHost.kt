@@ -17,6 +17,8 @@ import com.things.app.ui.home.CreationType
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.sampleHomeState
+import com.things.app.ui.logbook.LogbookScreen
+import com.things.app.ui.logbook.sampleLogbookState
 import com.things.app.ui.today.TodayScreen
 import com.things.app.ui.today.sampleTodayState
 import com.things.app.ui.upcoming.UpcomingScreen
@@ -28,6 +30,7 @@ object Routes {
     const val TODAY = "today"
     const val UPCOMING = "upcoming"
     const val ANYTIME = "anytime"
+    const val LOGBOOK = "logbook"
     // const val INBOX = "inbox"
     // const val PROJECT = "project/{projectId}"
 }
@@ -92,6 +95,7 @@ fun ThingsNavHost() {
                         SystemList.Today -> Routes.TODAY
                         SystemList.Upcoming -> Routes.UPCOMING
                         SystemList.Anytime -> Routes.ANYTIME
+                        SystemList.Logbook -> Routes.LOGBOOK
                         else -> null
                     }
                     if (route != null) navController.navigate(route) { launchSingleTop = true }
@@ -113,6 +117,12 @@ fun ThingsNavHost() {
         composable(Routes.ANYTIME) {
             AnytimeScreen(
                 state = sampleAnytimeState(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.LOGBOOK) {
+            LogbookScreen(
+                state = sampleLogbookState(),
                 onBack = { navController.popBackStack() },
             )
         }
