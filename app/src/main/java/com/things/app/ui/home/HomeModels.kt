@@ -1,7 +1,5 @@
 package com.things.app.ui.home
 
-import com.things.app.ui.components.TaskRowModel
-
 /** The fixed lists at the top of the home screen. */
 enum class SystemList(val title: String) {
     Inbox("Inbox"),
@@ -26,13 +24,12 @@ data class Area(
     val projects: List<Project>,
 )
 
+/** Home lists no to-dos: only the system lists, projects and areas. */
 data class HomeUiState(
     val inboxCount: Int = 0,
     val todayCount: Int = 0,
     /** Pink badge shown beside the Today count (overdue / newly added items). */
     val todayBadge: Int = 0,
-    /** To-dos that belong to no project and no area. Shown on their own, outside every list. */
-    val looseTasks: List<TaskRowModel> = emptyList(),
     /** Projects that don't belong to any area. */
     val looseProjects: List<Project> = emptyList(),
     val areas: List<Area> = emptyList(),
@@ -43,9 +40,6 @@ fun sampleHomeState() = HomeUiState(
     inboxCount = 2,
     todayCount = 7,
     todayBadge = 1,
-    looseTasks = listOf(
-        TaskRowModel("notebook", "Buy a new notebook"),
-    ),
     areas = listOf(
         Area(
             id = "family",

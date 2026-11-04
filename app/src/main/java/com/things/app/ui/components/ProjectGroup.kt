@@ -1,6 +1,8 @@
 package com.things.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,14 +11,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -41,6 +48,10 @@ data class TaskGroupModel(
 /**
  * A tappable project line: blue progress ring (24dp, at x = 20dp), bold name (at x = 52dp, in line
  * with the to-do titles and the names on Home) and a small chevron.
+ *
+ * Without [onToggleExpanded] the chevron only points right. With it, the chevron points down while
+ * the project is [expanded] and turns to the side when collapsed, like the areas on Home; tapping
+ * the chevron calls [onToggleExpanded] and tapping the rest of the line calls [onClick].
  */
 @Composable
 fun ProjectLinkRow(
@@ -48,6 +59,8 @@ fun ProjectLinkRow(
     progress: Float,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
+    expanded: Boolean = true,
+    onToggleExpanded: (() -> Unit)? = null,
 ) {
     Row(
         modifier
@@ -71,18 +84,43 @@ fun ProjectLinkRow(
             modifier = Modifier.weight(1f, fill = false),
         )
         Spacer(Modifier.width(4.dp))
-        Icon(
-            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-            contentDescription = null,
-            tint = ThingsColors.TextSecondary,
-            modifier = Modifier.size(24.dp),
-        )
+        if (onToggleExpanded != null) {
+            val rotation by animateFloatAsState(if (expanded) 0f else -90f, label = "projectChevron")
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(
+                        onClickLabel = if (expanded) "Collapse $title" else "Expand $title",
+                        role = Role.Button,
+                        onClick = onToggleExpanded,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = ThingsColors.TextSecondary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(rotation),
+                )
+            }
+        } else {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = ThingsColors.TextSecondary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
 /**
  * Header of a project block: the project line and a divider under it.
  * [topGap] is the space above the header (use 0.dp for the first block under the title).
+ * Pass [onToggleExpanded] to make the chevron open and close the project's to-dos.
  */
 @Composable
 fun ProjectGroupHeader(
@@ -91,10 +129,18 @@ fun ProjectGroupHeader(
     modifier: Modifier = Modifier,
     topGap: Dp = GroupGap,
     onClick: () -> Unit = {},
+    expanded: Boolean = true,
+    onToggleExpanded: (() -> Unit)? = null,
 ) {
     Column(modifier) {
         Spacer(Modifier.height(topGap))
-        ProjectLinkRow(title = title, progress = progress, onClick = onClick)
+        ProjectLinkRow(
+            title = title,
+            progress = progress,
+            onClick = onClick,
+            expanded = expanded,
+            onToggleExpanded = onToggleExpanded,
+        )
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = ThingsSpacing.PageMargin),
             thickness = 1.dp,

@@ -14,33 +14,47 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.things.app.ui.components.AddTarget
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
 import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.MenuDots
+import com.things.app.ui.components.NotesEditor
 import com.things.app.ui.components.RepeatIcon
+import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.TitleMenuButton
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.ProgressIcon
@@ -48,15 +62,21 @@ import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
+import java.util.UUID
 
 private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
 
 /**
- * Static project page: ring and title with the project menu, notes, the to-dos that are not under
- * a heading, then each heading with its to-dos, then two toggles that reveal later items (future
+ * Project page: ring and title with the project menu, notes, the to-dos that are not under a
+ * heading, then each heading with its to-dos, then two toggles that reveal later items (future
  * start dates, repeating templates) and logged items. Later and logged items are hidden until
  * revealed. Active and later to-dos open in place when tapped. Every action is a callback.
+ *
+ * The notes under the title can be edited in place; with no notes the line shows a grey "Notes".
+ *
+ * Add button: a tap adds a to-do at the top, outside every heading; drag it over a heading's area
+ * to add a to-do there; drag it to the left edge to add a heading at that spot.
  */
 @Composable
 fun ProjectScreen(
@@ -74,6 +94,63 @@ fun ProjectScreen(
     var showLogged by rememberSaveable { mutableStateOf(false) }
     val expansion = rememberTaskExpansion()
 
+    var tasks by remember(state) { mutableStateOf(state.tasks) }
+    var headings by remember(state) { mutableStateOf(state.headings) }
+    var editingHeadingId by remember { mutableStateOf<String?>(null) }
+    var notes by rememberSaveable(state.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(state.notes))
+    }
+
+    fun insertHeading(atKey: Any?) {
+        val id = "new-" + UUID.randomUUID()
+        val key = atKey as? String
+        val taskIndex = if (key != null && key.startsWith("task-")) {
+            tasks.indexOfFirst { "task-${it.id}" == key }
+        } else {
+            -1
+        }
+        when {
+            taskIndex >= 0 -> {
+                headings = listOf(ProjectHeadingModel(id, "", tasks.drop(taskIndex))) + headings
+                tasks = tasks.take(taskIndex)
+            }
+            key != null && key.startsWith("heading-") -> {
+                val at = headings.indexOfFirst { "heading-${it.id}" == key }.coerceAtLeast(0)
+                headings = headings.toMutableList().also { it.add(at, ProjectHeadingModel(id, "", emptyList())) }
+            }
+            key != null && key.startsWith("task-") -> {
+                val hi = headings.indexOfFirst { h -> h.tasks.any { "task-${it.id}" == key } }
+                if (hi >= 0) {
+                    val h = headings[hi]
+                    val ti = h.tasks.indexOfFirst { "task-${it.id}" == key }
+                    headings = headings.toMutableList().also {
+                        it[hi] = h.copy(tasks = h.tasks.take(ti))
+                        it.add(hi + 1, ProjectHeadingModel(id, "", h.tasks.drop(ti)))
+                    }
+                } else {
+                    headings = headings + ProjectHeadingModel(id, "", emptyList())
+                }
+            }
+            else -> headings = headings + ProjectHeadingModel(id, "", emptyList())
+        }
+        editingHeadingId = id
+    }
+
+    fun addTask(target: AddTarget) {
+        val task = TaskRowModel(id = "new-" + UUID.randomUUID(), title = "")
+        when (target) {
+            is AddTarget.Top -> tasks = listOf(task) + tasks
+            is AddTarget.InGroup -> headings = headings.map { h ->
+                if (h.id == target.groupId) h.copy(tasks = listOf(task) + h.tasks) else h
+            }
+            is AddTarget.Heading -> {
+                insertHeading(target.atKey)
+                return
+            }
+        }
+        expansion.expand(task.id)
+    }
+
     ListPageScaffold(
         title = state.title,
         icon = {
@@ -90,11 +167,29 @@ fun ProjectScreen(
         onBack = onBack,
         onMoreClick = onMoreClick,
         expansion = expansion,
-        onAddClick = onAddClick,
+        onAddClick = {
+            addTask(AddTarget.Top)
+            onAddClick()
+        },
+        onAddAt = { target -> addTask(target) },
+        groupForKey = { key ->
+            val s = key as? String
+            when {
+                s == null -> null
+                s.startsWith("heading-") -> s.removePrefix("heading-")
+                s.startsWith("task-") -> headings.firstOrNull { h -> h.tasks.any { "task-${it.id}" == s } }?.id
+                else -> null
+            }
+        },
     ) {
-        item(key = "notes") { NotesLine(state.notes) }
+        item(key = "notes") {
+            Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
+                NotesEditor(value = notes, onValueChange = { notes = it }, placeholder = "Notes")
+                Spacer(Modifier.height(44.dp))
+            }
+        }
 
-        items(state.tasks, key = { "task-${it.id}" }) { task ->
+        items(tasks, key = { "task-${it.id}" }) { task ->
             ExpandableTaskRow(
                 task = task,
                 expansion = expansion,
@@ -103,11 +198,25 @@ fun ProjectScreen(
             )
         }
 
-        state.headings.forEachIndexed { index, heading ->
+        headings.forEachIndexed { index, heading ->
             item(key = "heading-${heading.id}") {
                 HeadingRow(
                     title = heading.title,
-                    topGap = if (index == 0 && state.tasks.isEmpty()) 0.dp else HeadingGap,
+                    topGap = if (index == 0 && tasks.isEmpty()) 0.dp else HeadingGap,
+                    editing = editingHeadingId == heading.id,
+                    onTitleChange = { text ->
+                        headings = headings.map { if (it.id == heading.id) it.copy(title = text) else it }
+                    },
+                    onEditDone = {
+                        if (editingHeadingId == heading.id) {
+                            editingHeadingId = null
+                            if (heading.title.isBlank()) {
+                                headings = headings.map {
+                                    if (it.id == heading.id) it.copy(title = "New Heading") else it
+                                }
+                            }
+                        }
+                    },
                     onMenuClick = { onHeadingMenuClick(heading.id) },
                 )
             }
@@ -162,26 +271,21 @@ fun ProjectScreen(
     }
 }
 
-@Composable
-private fun NotesLine(notes: String) {
-    val isEmpty = notes.isBlank()
-    Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
-        Text(
-            text = if (isEmpty) "Notes" else notes,
-            style = ThingsType.RowTitle.copy(
-                color = if (isEmpty) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
-            ),
-        )
-        Spacer(Modifier.height(44.dp))
-    }
-}
-
 /**
  * A heading: blue bold title, menu dots at the end of the line, and a thin divider under it.
  * [topGap] is the space above the heading. The dots end 20dp from the screen edge.
+ * While [editing] the title is a text field that takes the keyboard.
  */
 @Composable
-private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
+private fun HeadingRow(
+    title: String,
+    topGap: Dp,
+    editing: Boolean,
+    onTitleChange: (String) -> Unit,
+    onEditDone: () -> Unit,
+    onMenuClick: () -> Unit,
+) {
+    val titleStyle = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
     Column {
         Spacer(Modifier.height(topGap))
         Row(
@@ -191,15 +295,44 @@ private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
                 .padding(start = ThingsSpacing.PageMargin, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                title,
-                style = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .semantics { heading() },
-            )
+            if (editing) {
+                val requester = remember { FocusRequester() }
+                var hadFocus by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) { requester.requestFocus() }
+                BasicTextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    singleLine = true,
+                    textStyle = titleStyle,
+                    cursorBrush = SolidColor(ThingsColors.ProjectBlue),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { onEditDone() }),
+                    decorationBox = { inner ->
+                        Box {
+                            if (title.isEmpty()) {
+                                Text("Heading", style = titleStyle.copy(color = ThingsColors.TextSecondary))
+                            }
+                            inner()
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(requester)
+                        .onFocusChanged { state ->
+                            if (state.isFocused) hadFocus = true else if (hadFocus) onEditDone()
+                        },
+                )
+            } else {
+                Text(
+                    title,
+                    style = titleStyle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { heading() },
+                )
+            }
             IconButton(
                 onClick = onMenuClick,
                 modifier = Modifier.semantics { contentDescription = "Heading menu: $title" },
