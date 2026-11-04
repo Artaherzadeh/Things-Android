@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.things.app.ui.theme.ThingsColors
@@ -100,14 +101,17 @@ fun rememberSelectionState(): SelectionState = remember { SelectionState() }
 val LocalSelection = compositionLocalOf<SelectionState?> { null }
 
 private val BarShape = RoundedCornerShape(28.dp)
+private val MoreShape = RoundedCornerShape(14.dp)
 private val DeleteTint = Color(0xFFFF453A)
 
 /**
- * The dark bar at the bottom of the select mode: When, Move and Delete (red), and a round button
- * that opens the rest of the actions. Give it the width of the page minus its side margins; the
- * buttons spread over it. Everything is dimmed while [enabled] is false (nothing ticked).
- * [completeLabel] is the name of the status entry of the menu (Mark as Completed, Undo or Switch
- * Status). [onMenuOpenChange] tells the page when the menu opens or closes so it can dim itself.
+ * The dark bar at the bottom of the select mode: When, Move and Delete (red), and a rounded square
+ * button that opens the rest of the actions. Give it the width of the page minus its side margins:
+ * the three buttons share the room that is left and the bar grows in height with the text size, so
+ * larger text never pushes it past the margins. The icon of each button sits 4dp from its label.
+ * Everything is dimmed while [enabled] is false (nothing ticked). [completeLabel] is the name of the
+ * status entry of the menu (Mark as Completed, Undo or Switch Status). [onMenuOpenChange] tells the
+ * page when the menu opens or closes so it can dim itself.
  */
 @Composable
 fun SelectionBottomBar(
@@ -132,24 +136,24 @@ fun SelectionBottomBar(
             )
             .clip(BarShape)
             .background(ThingsColors.MenuSurface)
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BarButton("When", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.When) }) { tint ->
+        BarButton("When", enabled, ThingsColors.MenuTitle, Modifier.weight(1f), { onAction(SelectionAction.When) }) { tint ->
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
         }
-        BarButton("Move", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.Move) }) { tint ->
+        BarButton("Move", enabled, ThingsColors.MenuTitle, Modifier.weight(1f), { onAction(SelectionAction.Move) }) { tint ->
             Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
         }
-        BarButton("Delete", enabled, DeleteTint, { onAction(SelectionAction.Delete) }) { tint ->
+        BarButton("Delete", enabled, DeleteTint, Modifier.weight(1f), { onAction(SelectionAction.Delete) }) { tint ->
             Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
         }
         Box {
             Box(
                 Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
+                    .size(44.dp)
+                    .clip(MoreShape)
                     .background(ThingsColors.MenuTitle.copy(alpha = 0.12f))
                     .clickable(enabled = enabled, onClickLabel = "More actions", role = Role.Button) {
                         moreOpen = true
@@ -181,20 +185,28 @@ private fun BarButton(
     label: String,
     enabled: Boolean,
     color: Color,
+    modifier: Modifier,
     onClick: () -> Unit,
     icon: @Composable (Color) -> Unit,
 ) {
     val tint = if (enabled) color else color.copy(alpha = 0.4f)
     Row(
-        Modifier
-            .clip(RoundedCornerShape(20.dp))
+        modifier
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(14.dp))
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 4.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         icon(tint)
-        Spacer(Modifier.width(8.dp))
-        Text(label, style = ThingsType.RowTitle.copy(color = tint, fontSize = 16.sp))
+        Spacer(Modifier.width(4.dp))
+        Text(
+            label,
+            style = ThingsType.RowTitle.copy(color = tint, fontSize = 16.sp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

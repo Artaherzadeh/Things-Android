@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,8 +83,9 @@ private val SelectShape = RoundedCornerShape(12.dp)
  * row, centered on the first line of the title, and the title has the same space above and below
  * so a one-line row is still 44dp high.
  *
- * In select mode ([selecting]) a ring appears at the end of the row, filled blue when [selected],
- * and a selected row gets a light blue rounded background. The row sits 8dp in from both edges.
+ * In select mode ([selecting]) a ring appears at the end of the row, centered in the 44dp of the
+ * first line, filled blue when [selected], and a selected row gets a light blue rounded background.
+ * The row sits 8dp in from both edges.
  */
 @Composable
 fun TaskRow(
@@ -178,7 +180,10 @@ fun TaskRow(
 
         if (selecting) {
             Spacer(Modifier.width(8.dp))
-            SelectRing(selected, task.title)
+            // A box as high as the first line, so the ring is exactly in the middle of it.
+            Box(Modifier.height(ThingsSpacing.RowHeight), contentAlignment = Alignment.Center) {
+                SelectRing(selected, task.title)
+            }
         }
     }
 }
