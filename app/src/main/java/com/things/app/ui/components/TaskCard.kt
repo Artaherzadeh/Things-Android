@@ -42,6 +42,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -62,6 +63,9 @@ private val CardShape = RoundedCornerShape(20.dp)
 /** Space the open card keeps from the row or heading above it and from the one below it. */
 private val CardGap = 16.dp
 
+/** Height of the line with the checkbox, in a card whose title is one line long. */
+private val TitleLineHeight = 44.dp
+
 /**
  * Text and icons inside the card start 32dp after the start of the card content. The card is 8dp
  * from the screen edge and has 12dp of padding, so this puts them at x = 52dp: in line with the
@@ -78,7 +82,8 @@ private val Indent = 32.dp
  * Everything except the title and the notes is optional. A line shows only when it is set, and the
  * button that sets it shows only while it is not: calendar (When), tag, checklist, flag (deadline).
  * The title is plain text; Markdown applies to the notes only. With [autoFocus] the title takes the
- * keyboard as soon as the card opens (a new to-do).
+ * keyboard as soon as the card opens (a new to-do). A long title goes on to the next lines while
+ * the checkbox stays centered on the first one.
  *
  * The notes area is 56dp high when the card ends under it, and only 32dp when a checklist or a
  * date, deadline or repeat line follows, so there is no big hole above them.
@@ -103,6 +108,9 @@ fun TaskCard(
     var addingChecklist by rememberSaveable(task.id) { mutableStateOf(false) }
     val showChecklist = details.checklist.isNotEmpty() || addingChecklist
     val titleRequester = remember { FocusRequester() }
+    val density = LocalDensity.current
+    var lineHeight by remember { mutableStateOf(24.dp) }
+    val titlePadding = ((TitleLineHeight - lineHeight) / 2).coerceAtLeast(0.dp)
     val somethingBelowNotes = showChecklist ||
         details.schedule != null || details.deadline != null || details.repeat != null
 
@@ -126,12 +134,12 @@ fun TaskCard(
             .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
             .testTag("task_card_${task.id}")
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.Top) {
             TaskCheckbox(
                 checked = task.checked,
                 title = task.title,
                 onToggle = onToggle,
-                modifier = Modifier.height(44.dp),
+                modifier = Modifier.height(TitleLineHeight),
                 startPadding = 0.dp,
                 slotWidth = Indent,
             )
@@ -144,6 +152,11 @@ fun TaskCard(
                 ),
                 cursorBrush = SolidColor(ThingsColors.Fab),
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                onTextLayout = { layout ->
+                    if (layout.lineCount > 0) {
+                        lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                    }
+                },
                 decorationBox = { inner ->
                     Box {
                         if (task.title.isEmpty()) {
@@ -154,7 +167,7 @@ fun TaskCard(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(top = 8.dp, bottom = 8.dp, end = 8.dp)
+                    .padding(top = titlePadding, bottom = titlePadding, end = 8.dp)
                     .focusRequester(titleRequester)
                     .testTag("task_title_field"),
             )
