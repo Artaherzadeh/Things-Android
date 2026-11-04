@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -72,6 +73,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -135,6 +137,7 @@ private const val SettingsKey = "settings"
  *   of any area. [onMoveProject] and [onMoveArea] get the held row and the row it passed.
  * - Swipe a project or an area to the left for a red cross that deletes it ([onDeleteProject],
  *   [onDeleteArea]; an area goes with its projects).
+ * - A long name goes on to the next lines; the icon stays level with the first line.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -557,9 +560,14 @@ private fun QuickFind(onClick: () -> Unit) {
     }
 }
 
+/** The space above and below a title line so that one line of it sits in the middle of a 48dp row. */
+private fun titlePadding(lineHeight: Dp): Dp = ((RowHeight - lineHeight) / 2).coerceAtLeast(0.dp)
+
 /**
- * One Home row. [titleSlot] replaces the title text, for example with a text field while a new
- * project or area is being named.
+ * One Home row, at least 48dp high. A long title goes on to the next lines; the icon and whatever is
+ * at the end (the chevron, the count) stay in a 48dp box at the top, level with the first line.
+ * [titleSlot] replaces the title text, for example with a text field while a new project or area is
+ * being named; it has to keep the first line in the middle of the 48dp itself.
  */
 @Composable
 private fun HomeRow(
@@ -571,26 +579,45 @@ private fun HomeRow(
     titleSlot: (@Composable RowScope.() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
+    val density = LocalDensity.current
+    var lineHeight by remember { mutableStateOf(24.dp) }
+
     Row(
         modifier
             .fillMaxWidth()
-            .height(RowHeight)
+            .heightIn(min = RowHeight)
             .clickable(onClick = onClick)
             .padding(horizontal = ScreenPadding),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
-        Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) { icon() }
+        Box(Modifier.size(width = IconSlot, height = RowHeight), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) { icon() }
+        }
         Spacer(Modifier.width(IconTextGap))
         if (titleSlot != null) {
             titleSlot()
         } else {
-            Text(title, style = titleStyle, modifier = Modifier.weight(1f))
+            Text(
+                title,
+                style = titleStyle,
+                onTextLayout = { layout ->
+                    if (layout.lineCount > 0) {
+                        lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = titlePadding(lineHeight)),
+            )
         }
-        trailing()
+        Row(Modifier.height(RowHeight), verticalAlignment = Alignment.CenterVertically) { trailing() }
     }
 }
 
-/** A title that is typed in place: the keyboard opens at once and the capital letter comes first. */
+/**
+ * A title that is typed in place: the keyboard opens at once and the capital letter comes first. A
+ * long name goes on to the next lines; Enter does not add a line, it ends the naming.
+ */
 @Composable
 private fun EditableTitle(
     title: String,
@@ -602,14 +629,22 @@ private fun EditableTitle(
 ) {
     val requester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
     var hadFocus by remember { mutableStateOf(false) }
+    var lineHeight by remember { mutableStateOf(24.dp) }
 
     LaunchedEffect(Unit) { requester.requestFocus() }
 
     BasicTextField(
         value = title,
-        onValueChange = onTitleChange,
-        singleLine = true,
+        onValueChange = { new ->
+            if (new.contains('\n')) {
+                onTitleChange(new.replace("\n", ""))
+                focusManager.clearFocus()
+            } else {
+                onTitleChange(new)
+            }
+        },
         textStyle = style,
         cursorBrush = SolidColor(ThingsColors.Fab),
         keyboardOptions = KeyboardOptions(
@@ -617,6 +652,11 @@ private fun EditableTitle(
             imeAction = ImeAction.Done,
         ),
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        onTextLayout = { layout ->
+            if (layout.lineCount > 0) {
+                lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+            }
+        },
         decorationBox = { inner ->
             Box {
                 if (title.isEmpty()) Text(placeholder, style = style.copy(color = ThingsColors.TextSecondary))
@@ -624,6 +664,7 @@ private fun EditableTitle(
             }
         },
         modifier = modifier
+            .padding(vertical = titlePadding(lineHeight))
             .focusRequester(requester)
             .onFocusChanged { state ->
                 if (state.isFocused) {
