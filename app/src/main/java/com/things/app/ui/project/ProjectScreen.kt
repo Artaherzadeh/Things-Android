@@ -1,5 +1,12 @@
 package com.things.app.ui.project
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -79,6 +86,25 @@ private const val TaskPrefix = "task-"
 private const val HeadingPrefix = "heading-"
 private const val TopLevel = ""
 
+/**
+ * How the later and the logged items open and close. Both use the same movement and the same time:
+ * the group unrolls from its top edge downwards (a cascade) and closing plays the same thing
+ * backwards. Each row also fades in a little after the one above it.
+ */
+private const val RevealMillis = 300
+private const val RevealStaggerMillis = 30
+private const val RevealMaxStaggered = 6
+
+private val RevealEnter = expandVertically(
+    expandFrom = Alignment.Top,
+    animationSpec = tween(RevealMillis, easing = FastOutSlowInEasing),
+) + fadeIn(tween(RevealMillis / 2))
+
+private val RevealExit = shrinkVertically(
+    shrinkTowards = Alignment.Top,
+    animationSpec = tween(RevealMillis, easing = FastOutSlowInEasing),
+) + fadeOut(tween(RevealMillis / 2))
+
 private fun <T> List<T>.move(from: Int, to: Int): List<T> =
     if (from == to || from !in indices || to !in indices) {
         this
@@ -90,7 +116,8 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * Project page: ring and title with the project menu, notes, the to-dos that are not under a
  * heading, then each heading with its to-dos, then two toggles that reveal later items (future
  * start dates, repeating templates) and logged items. Later and logged items are hidden until
- * revealed. Active and later to-dos open in place when tapped. Every action is a callback.
+ * revealed, with the same cascade animation in both directions. Active and later to-dos open in
+ * place when tapped. Every action is a callback.
  *
  * The ring next to the title shows how much of the project is done: the completed to-dos (the
  * logged ones and the ones that are ticked) over all of them. Five of ten is half full; untick one
@@ -360,21 +387,33 @@ fun ProjectScreen(
             }
         }
 
-        if (showLater) {
-            items(state.laterTasks, key = { "later-${it.id}" }) { task ->
-                ExpandableTaskRow(
-                    task = task,
-                    expansion = expansion,
-                    onOpen = { onTaskClick(task.id) },
-                    onToggle = { onToggleTask(task.id) },
-                )
-            }
-        }
-
         val hasLater = state.laterTasks.isNotEmpty()
         val hasLogged = state.loggedTasks.isNotEmpty()
 
         if (hasLater) {
+            item(key = "later-items") {
+                AnimatedVisibility(visible = showLater, enter = RevealEnter, exit = RevealExit) {
+                    Column {
+                        state.laterTasks.forEachIndexed { index, task ->
+                            ExpandableTaskRow(
+                                task = task,
+                                expansion = expansion,
+                                modifier = Modifier.animateEnterExit(
+                                    enter = fadeIn(
+                                        tween(
+                                            RevealMillis / 2,
+                                            delayMillis = minOf(index, RevealMaxStaggered) * RevealStaggerMillis,
+                                        )
+                                    ),
+                                    exit = fadeOut(tween(RevealMillis / 3)),
+                                ),
+                                onOpen = { onTaskClick(task.id) },
+                                onToggle = { onToggleTask(task.id) },
+                            )
+                        }
+                    }
+                }
+            }
             item(key = "later-toggle") {
                 ToggleRow(
                     text = if (showLater) "Hide later items" else "Show ${state.laterTasks.size} later items",
@@ -391,11 +430,27 @@ fun ProjectScreen(
                     onClick = { showLogged = !showLogged },
                 )
             }
-        }
-        if (hasLogged && showLogged) {
-            item(key = "logged-gap") { Spacer(Modifier.height(ToggleGap)) }
-            items(state.loggedTasks, key = { "logged-${it.id}" }) { task ->
-                LoggedRow(task, onClick = { onTaskClick(task.id) })
+            item(key = "logged-items") {
+                AnimatedVisibility(visible = showLogged, enter = RevealEnter, exit = RevealExit) {
+                    Column {
+                        Spacer(Modifier.height(ToggleGap))
+                        state.loggedTasks.forEachIndexed { index, task ->
+                            LoggedRow(
+                                task = task,
+                                onClick = { onTaskClick(task.id) },
+                                modifier = Modifier.animateEnterExit(
+                                    enter = fadeIn(
+                                        tween(
+                                            RevealMillis / 2,
+                                            delayMillis = minOf(index, RevealMaxStaggered) * RevealStaggerMillis,
+                                        )
+                                    ),
+                                    exit = fadeOut(tween(RevealMillis / 3)),
+                                ),
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -510,9 +565,9 @@ private fun ToggleRow(text: String, topGap: Dp, onClick: () -> Unit) {
 
 /** A completed to-do: filled checkbox at x = 20dp, blue date, grey title and grey markers. */
 @Composable
-private fun LoggedRow(task: LoggedTaskModel, onClick: () -> Unit) {
+private fun LoggedRow(task: LoggedTaskModel, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .heightIn(min = ThingsSpacing.RowHeight)
             .clickable(onClick = onClick)

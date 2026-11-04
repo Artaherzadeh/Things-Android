@@ -4,12 +4,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
@@ -22,11 +25,8 @@ import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SwapHoriz
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,10 +42,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 
@@ -100,18 +108,28 @@ fun rememberSelectionState(): SelectionState = remember { SelectionState() }
  */
 val LocalSelection = compositionLocalOf<SelectionState?> { null }
 
-private val BarShape = RoundedCornerShape(28.dp)
-private val MoreShape = RoundedCornerShape(14.dp)
+// The bar has 6dp of padding. A shape that sits inside another one looks right when its corner
+// radius is the outer radius minus that padding: 20dp outside, 14dp inside.
+private val BarPadding = 6.dp
+private val BarRadius = 20.dp
+private val InnerRadius = BarRadius - BarPadding
+private val BarShape = RoundedCornerShape(BarRadius)
+private val InnerShape = RoundedCornerShape(InnerRadius)
+
+/** Space between the bottom of the menu and the top of the bar. */
+private val MenuGap = 8.dp
 private val DeleteTint = Color(0xFFFF453A)
 
 /**
  * The dark bar at the bottom of the select mode: When, Move and Delete (red), and a rounded square
- * button that opens the rest of the actions. Give it the width of the page minus its side margins:
- * the three buttons share the room that is left and the bar grows in height with the text size, so
- * larger text never pushes it past the margins. The icon of each button sits 4dp from its label.
- * Everything is dimmed while [enabled] is false (nothing ticked). [completeLabel] is the name of the
- * status entry of the menu (Mark as Completed, Undo or Switch Status). [onMenuOpenChange] tells the
- * page when the menu opens or closes so it can dim itself.
+ * button that opens the rest of the actions. The bar is as wide as its buttons need and no wider;
+ * when the text is large the buttons shrink to fit the room [modifier] gives it (the page margins),
+ * and the bar grows in height instead of passing them. The icon of each button sits 4dp from its
+ * label. Everything is dimmed while [enabled] is false (nothing ticked). [completeLabel] is the name
+ * of the status entry of the menu (Mark as Completed, Undo or Switch Status). [onMenuOpenChange]
+ * tells the page when the menu opens or closes so it can dim itself.
+ *
+ * The menu opens above the bar, 8dp over it, with its right edge on the right edge of the bar.
  */
 @Composable
 fun SelectionBottomBar(
@@ -126,56 +144,61 @@ fun SelectionBottomBar(
 
     LaunchedEffect(moreOpen) { onMenuOpenChange(moreOpen) }
 
-    Row(
-        modifier
-            .shadow(
-                elevation = 6.dp,
-                shape = BarShape,
-                ambientColor = Color.Black.copy(alpha = 0.10f),
-                spotColor = Color.Black.copy(alpha = 0.16f),
-            )
-            .clip(BarShape)
-            .background(ThingsColors.MenuSurface)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BarButton("When", enabled, ThingsColors.MenuTitle, Modifier.weight(1f), { onAction(SelectionAction.When) }) { tint ->
-            Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
-        }
-        BarButton("Move", enabled, ThingsColors.MenuTitle, Modifier.weight(1f), { onAction(SelectionAction.Move) }) { tint ->
-            Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
-        }
-        BarButton("Delete", enabled, DeleteTint, Modifier.weight(1f), { onAction(SelectionAction.Delete) }) { tint ->
-            Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
-        }
+    Box(modifier, contentAlignment = Alignment.Center) {
+        // The menu is anchored to this box, which is exactly as big as the bar.
         Box {
-            Box(
+            Row(
                 Modifier
-                    .size(44.dp)
-                    .clip(MoreShape)
-                    .background(ThingsColors.MenuTitle.copy(alpha = 0.12f))
-                    .clickable(enabled = enabled, onClickLabel = "More actions", role = Role.Button) {
-                        moreOpen = true
-                    },
-                contentAlignment = Alignment.Center,
+                    .shadow(
+                        elevation = 6.dp,
+                        shape = BarShape,
+                        ambientColor = Color.Black.copy(alpha = 0.10f),
+                        spotColor = Color.Black.copy(alpha = 0.16f),
+                    )
+                    .clip(BarShape)
+                    .background(ThingsColors.MenuSurface)
+                    .padding(BarPadding),
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(
-                    Icons.Outlined.MoreHoriz,
-                    contentDescription = "More actions",
-                    tint = if (enabled) ThingsColors.MenuTitle else ThingsColors.MenuTitle.copy(alpha = 0.4f),
-                    modifier = iconSize,
+                BarButton("When", enabled, ThingsColors.MenuTitle, Modifier.weight(1f, fill = false), { onAction(SelectionAction.When) }) { tint ->
+                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
+                }
+                BarButton("Move", enabled, ThingsColors.MenuTitle, Modifier.weight(1f, fill = false), { onAction(SelectionAction.Move) }) { tint ->
+                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
+                }
+                BarButton("Delete", enabled, DeleteTint, Modifier.weight(1f, fill = false), { onAction(SelectionAction.Delete) }) { tint ->
+                    Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
+                }
+                Spacer(Modifier.width(2.dp))
+                Box(
+                    Modifier
+                        .size(44.dp)
+                        .clip(InnerShape)
+                        .background(ThingsColors.MenuTitle.copy(alpha = 0.12f))
+                        .clickable(enabled = enabled, onClickLabel = "More actions", role = Role.Button) {
+                            moreOpen = true
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Outlined.MoreHoriz,
+                        contentDescription = "More actions",
+                        tint = if (enabled) ThingsColors.MenuTitle else ThingsColors.MenuTitle.copy(alpha = 0.4f),
+                        modifier = iconSize,
+                    )
+                }
+            }
+            if (moreOpen) {
+                MoreMenu(
+                    completeLabel = completeLabel,
+                    onDismiss = { moreOpen = false },
+                    onAction = {
+                        moreOpen = false
+                        onAction(it)
+                    },
                 )
             }
-            MoreMenu(
-                expanded = moreOpen,
-                completeLabel = completeLabel,
-                onDismiss = { moreOpen = false },
-                onAction = {
-                    moreOpen = false
-                    onAction(it)
-                },
-            )
         }
     }
 }
@@ -193,9 +216,9 @@ private fun BarButton(
     Row(
         modifier
             .heightIn(min = 44.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(InnerShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -210,9 +233,22 @@ private fun BarButton(
     }
 }
 
+/** Puts a popup above its anchor with the right edges on one line and [gap] pixels between them. */
+private class AboveEndPositionProvider(private val gap: Int) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val x = (anchorBounds.right - popupContentSize.width).coerceAtLeast(0)
+        val y = (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(0)
+        return IntOffset(x, y)
+    }
+}
+
 @Composable
 private fun MoreMenu(
-    expanded: Boolean,
     completeLabel: String,
     onDismiss: () -> Unit,
     onAction: (SelectionAction) -> Unit,
@@ -229,32 +265,43 @@ private fun MoreMenu(
         ),
         listOf(SelectionAction.Share to Icons.Outlined.Share),
     )
-    DropdownMenu(
-        expanded = expanded,
+    val gapPx = with(LocalDensity.current) { MenuGap.roundToPx() }
+    val position = remember(gapPx) { AboveEndPositionProvider(gapPx) }
+
+    Popup(
+        popupPositionProvider = position,
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(24.dp),
-        containerColor = ThingsColors.MenuSurface,
-        tonalElevation = 0.dp,
-        shadowElevation = 8.dp,
+        properties = PopupProperties(focusable = true),
     ) {
-        groups.forEachIndexed { index, items ->
-            if (index > 0) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = ThingsColors.MenuTitle.copy(alpha = 0.15f),
-                )
-            }
-            items.forEach { (action, icon) ->
-                val label = if (action == SelectionAction.MarkCompleted) completeLabel else action.label
-                DropdownMenuItem(
-                    text = { Text(label, style = ThingsType.RowTitle.copy(color = Color.Unspecified)) },
-                    leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
-                    onClick = { onAction(action) },
-                    colors = MenuDefaults.itemColors(
-                        textColor = ThingsColors.MenuTitle,
-                        leadingIconColor = ThingsColors.Fab,
-                    ),
-                )
+        Column(
+            Modifier
+                .widthIn(min = 240.dp)
+                .clip(BarShape)
+                .background(ThingsColors.MenuSurface)
+                .padding(vertical = 6.dp),
+        ) {
+            groups.forEachIndexed { index, items ->
+                if (index > 0) {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        color = ThingsColors.MenuTitle.copy(alpha = 0.15f),
+                    )
+                }
+                items.forEach { (action, icon) ->
+                    val label = if (action == SelectionAction.MarkCompleted) completeLabel else action.label
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable(role = Role.Button) { onAction(action) }
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(icon, contentDescription = null, tint = ThingsColors.Fab, modifier = Modifier.size(24.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(label, style = ThingsType.RowTitle.copy(color = ThingsColors.MenuTitle))
+                    }
+                }
             }
         }
     }
