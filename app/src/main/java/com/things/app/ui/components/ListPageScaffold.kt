@@ -127,6 +127,7 @@ private fun shareText(context: Context, lines: List<String>) {
  * button, 20dp from the right and 20dp above the bottom edge.
  * [content] adds the rows.
  *
+ * A long title goes on to the next lines; the icon stays centered on the first line.
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
  * [titleBottomPadding] is the space between the title and the first row.
  * Pass [onTitleChange] to make the title editable (a project's name).
@@ -460,6 +461,10 @@ private fun SelectTopBar(onDone: () -> Unit) {
     }
 }
 
+/**
+ * The icon and the title. A long title goes on to the next lines; the icon sits in a box as high as
+ * the first line of the title, so it stays centered on that line.
+ */
 @Composable
 private fun TitleRow(
     title: String,
@@ -471,6 +476,9 @@ private fun TitleRow(
     onTitleChange: ((String) -> Unit)?,
 ) {
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+    var firstLine by remember { mutableStateOf(28.dp) }
+
     Column {
         Row(
             Modifier
@@ -481,9 +489,14 @@ private fun TitleRow(
                     top = 12.dp,
                     bottom = bottomPadding,
                 ),
-            verticalAlignment = Alignment.CenterVertically,
+            verticalAlignment = Alignment.Top,
         ) {
-            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
+            Box(
+                Modifier.size(width = 28.dp, height = maxOf(28.dp, firstLine)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
+            }
             Spacer(Modifier.width(12.dp))
             if (onTitleChange != null) {
                 BasicTextField(
@@ -496,6 +509,11 @@ private fun TitleRow(
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    onTextLayout = { layout ->
+                        if (layout.lineCount > 0) {
+                            firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .semantics { heading() }
@@ -505,6 +523,11 @@ private fun TitleRow(
                 Text(
                     title,
                     style = ThingsType.PageTitle,
+                    onTextLayout = { layout ->
+                        if (layout.lineCount > 0) {
+                            firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f, fill = false)
                         .semantics { heading() }
