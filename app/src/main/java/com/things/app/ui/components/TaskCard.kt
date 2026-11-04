@@ -60,8 +60,11 @@ import com.things.app.ui.theme.ThingsType
 
 private val CardShape = RoundedCornerShape(20.dp)
 
-/** Space the open card keeps from the row or heading above it. */
-private val CardGapTop = 16.dp
+/**
+ * Space the open card keeps from the row or heading above it. It is also how far the row's title
+ * moves down when the card opens, so a small number means a small jump.
+ */
+private val CardGapTop = 10.dp
 
 /**
  * Space the open card keeps from the row or heading below it. It is wider than the shadow reaches,
