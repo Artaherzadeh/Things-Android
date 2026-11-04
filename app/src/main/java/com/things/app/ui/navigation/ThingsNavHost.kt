@@ -23,6 +23,7 @@ import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.area.AreaScreen
 import com.things.app.ui.area.AreaUiState
 import com.things.app.ui.area.sampleAreaState
+import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.home.Area
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.HomeUiState
@@ -31,6 +32,7 @@ import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.sampleHomeState
 import com.things.app.ui.inbox.InboxScreen
 import com.things.app.ui.inbox.sampleInboxState
+import com.things.app.ui.logbook.LogbookEntry
 import com.things.app.ui.logbook.LogbookScreen
 import com.things.app.ui.logbook.sampleLogbookState
 import com.things.app.ui.project.ProjectScreen
@@ -82,6 +84,19 @@ private const val VacationProjectId = "rome"
 /** Ids of projects and areas created in the app start with this. They open empty. */
 private const val NewIdPrefix = "new-"
 
+/** A to-do that was taken out of the Logbook, and the name of the project it belongs to. */
+private class RestoredTask(val projectTitle: String?, val task: TaskRowModel)
+
+private fun LogbookEntry.restored() = RestoredTask(
+    projectTitle = subtitle,
+    task = TaskRowModel(
+        id = "restored-$id",
+        title = title,
+        isRecurring = isRecurring,
+        hasChecklist = hasChecklist,
+    ),
+)
+
 private fun routeFor(list: SystemList): String = when (list) {
     SystemList.Inbox -> Routes.INBOX
     SystemList.Today -> Routes.TODAY
@@ -99,15 +114,20 @@ private fun routeFor(target: QuickFindTarget): String = when (target) {
 
 /**
  * Static glue: finds the tapped project's title and progress in the Home data so the project page
- * matches what was tapped. A project created in the app opens empty. Replace with a repository
- * lookup once real data exists.
+ * matches what was tapped. A project created in the app opens empty. To-dos taken out of the
+ * Logbook come back to the project with the same name. Replace with a repository lookup once real
+ * data exists.
  */
-private fun projectStateFor(projectId: String, home: HomeUiState): ProjectUiState {
+private fun projectStateFor(
+    projectId: String,
+    home: HomeUiState,
+    restored: List<RestoredTask>,
+): ProjectUiState {
     val homeProject = (home.looseProjects + home.areas.flatMap { it.projects })
         .firstOrNull { it.id == projectId }
     val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
     val todayGroup = sampleTodayState().groups.firstOrNull { it.projectId == projectId }
-    return when {
+    val base = when {
         projectId.startsWith(NewIdPrefix) ->
             ProjectUiState(id = projectId, title = homeProject?.title.orEmpty(), progress = 0f)
         projectId == VacationProjectId ->
@@ -123,6 +143,8 @@ private fun projectStateFor(projectId: String, home: HomeUiState): ProjectUiStat
             sampleProjectState(todayGroup.projectId, todayGroup.projectTitle, todayGroup.projectProgress)
         else -> sampleProjectState()
     }
+    val back = restored.filter { it.projectTitle == base.title }.map { it.task }
+    return if (back.isEmpty()) base else base.copy(tasks = base.tasks + back)
 }
 
 /**
@@ -203,7 +225,8 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  * + add a row to the Home list and open it for naming in place; if it is left empty the row is
  * dropped again. Holding a project or an area on Home changes the order, swiping one to the left
  * deletes it. The ring of a project on Home follows the to-dos done on its page. Delete Area on an
- * area page removes it.
+ * area page removes it. A to-do unticked in the Logbook is kept here and shows up again on the page
+ * of the project with its name.
  */
 @Composable
 fun ThingsNavHost() {
@@ -212,6 +235,7 @@ fun ThingsNavHost() {
     var quickFindOpen by rememberSaveable { mutableStateOf(false) }
     var homeState by remember { mutableStateOf(sampleHomeState()) }
     var editingId by remember { mutableStateOf<String?>(null) }
+    var restoredTasks by remember { mutableStateOf(emptyList<RestoredTask>()) }
 
     /** Adds an empty project to an area (or to the loose projects), names it in place. */
     fun createProject(areaId: String?, index: Int?) {
@@ -366,6 +390,7 @@ fun ThingsNavHost() {
                 LogbookScreen(
                     state = sampleLogbookState(),
                     onBack = { navController.popBackStack() },
+                    onRestore = { entry -> restoredTasks = restoredTasks + entry.restored() },
                 )
             }
             composable(Routes.INBOX) {
@@ -386,7 +411,7 @@ fun ThingsNavHost() {
             ) { entry ->
                 val projectId = entry.arguments?.getString("projectId").orEmpty()
                 ProjectScreen(
-                    state = projectStateFor(projectId, homeState),
+                    state = projectStateFor(projectId, homeState, restoredTasks),
                     onBack = { navController.popBackStack() },
                     onProgressChange = { progress ->
                         val current = (homeState.looseProjects + homeState.areas.flatMap { it.projects })

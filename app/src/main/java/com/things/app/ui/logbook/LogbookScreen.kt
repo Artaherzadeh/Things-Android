@@ -1,8 +1,6 @@
 package com.things.app.ui.logbook
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,31 +12,42 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
+import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.RepeatIcon
+import com.things.app.ui.components.TaskCheckbox
+import com.things.app.ui.components.TaskRowModel
+import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.LogbookIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
-/** Static presentation only: does not complete, restore or delete tasks. */
+/**
+ * Logbook: the completed to-dos, a month at a time.
+ *
+ * - Tap a to-do: it opens in place as a card, like on the other pages.
+ * - Untick its checkbox (on the row or on the card): the to-do folds away and goes back to where it
+ *   was. [onRestore] gets the entry so the page that owns it can take it back. The entry is only
+ *   removed from this list; nothing else is stored here.
+ */
 @Composable
 fun LogbookScreen(
     state: LogbookUiState,
@@ -47,7 +56,16 @@ fun LogbookScreen(
     onMoreClick: () -> Unit = {},
     onAddClick: () -> Unit = {},
     onEntryClick: (String) -> Unit = {},
+    onRestore: (LogbookEntry) -> Unit = {},
 ) {
+    val expansion = rememberTaskExpansion()
+    var removed by remember { mutableStateOf(emptySet<String>()) }
+
+    // Months without any entry left are not drawn.
+    val months = state.months
+        .map { it to it.entries.filter { entry -> entry.id !in removed } }
+        .filter { it.second.isNotEmpty() }
+
     ListPageScaffold(
         title = "Logbook",
         icon = { LogbookIcon(Modifier.size(28.dp)) },
@@ -55,9 +73,10 @@ fun LogbookScreen(
         titleTag = "logbook_title",
         onBack = onBack,
         onMoreClick = onMoreClick,
+        expansion = expansion,
         onAddClick = onAddClick,
     ) {
-        state.months.forEachIndexed { index, month ->
+        months.forEachIndexed { index, (month, entries) ->
             item(key = "month-${month.id}") {
                 Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
                     Spacer(Modifier.height(if (index == 0) 12.dp else 40.dp))
@@ -72,36 +91,55 @@ fun LogbookScreen(
                     Spacer(Modifier.height(8.dp))
                 }
             }
-            items(month.entries, key = { "entry-${month.id}-${it.id}" }) { entry ->
-                LogbookRow(entry, onClick = { onEntryClick(entry.id) })
+            items(entries, key = { "entry-${month.id}-${it.id}" }) { entry ->
+                ExpandableTaskRow(
+                    task = entry.toTask(),
+                    expansion = expansion,
+                    onOpen = { onEntryClick(entry.id) },
+                    onToggle = {
+                        expansion.delete(entry.id)
+                        onRestore(entry)
+                    },
+                    onDelete = { removed = removed + entry.id },
+                    closedRow = { _, open, toggle -> LogbookRow(entry, open, toggle) },
+                )
             }
         }
     }
 }
 
-/** The checked box is at x = 20dp, in line with the checkboxes of the other pages. */
+/** The entry as a to-do, completed, so the card and the sheets can work on it. */
+private fun LogbookEntry.toTask() = TaskRowModel(
+    id = id,
+    title = title,
+    subtitle = subtitle,
+    checked = true,
+    isRecurring = isRecurring,
+    hasChecklist = hasChecklist,
+)
+
+/**
+ * One completed to-do: the checked box at x = 20dp, in line with the checkboxes of the other pages,
+ * then the date in blue and the title. Tapping the box takes the to-do out of the Logbook; tapping
+ * anywhere else opens it.
+ */
 @Composable
-private fun LogbookRow(entry: LogbookEntry, onClick: () -> Unit) {
+private fun LogbookRow(entry: LogbookEntry, onOpen: () -> Unit, onToggle: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = ThingsSpacing.RowHeight)
-            .clickable(onClick = onClick)
-            .padding(horizontal = ThingsSpacing.PageMargin, vertical = 4.dp)
-            .testTag("logbook_entry_${entry.id}")
-            .semantics { stateDescription = "Completed" },
+            .clickable(onClick = onOpen)
+            .padding(start = 8.dp, end = ThingsSpacing.PageMargin)
+            .testTag("logbook_entry_${entry.id}"),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(20.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(ThingsColors.ProjectBlue),
-            contentAlignment = Alignment.Center,
-        ) {
-            CheckMark(Modifier.size(20.dp))
-        }
-        Spacer(Modifier.width(8.dp))
+        TaskCheckbox(
+            checked = true,
+            title = entry.title,
+            onToggle = onToggle,
+            modifier = Modifier.heightIn(min = ThingsSpacing.RowHeight),
+        )
         Text(
             entry.dateLabel,
             style = ThingsType.RowSubtitle.copy(color = ThingsColors.ProjectBlue),
