@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -67,6 +66,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -74,7 +74,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
@@ -125,10 +124,11 @@ private const val SettingsKey = "settings"
  * - Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
  * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
  *   let go: next to the project or on the area under the finger, anywhere else it becomes the first
- *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position.
- *   While it is dragged the button's place shows a grey cross at three quarters of its size; bring
- *   the finger back onto it and the cross grows to full size and turns red: letting go there
- *   cancels and nothing is created.
+ *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position. A
+ *   small card, only as wide as its text, follows the finger over the whole screen. While it is
+ *   dragged the button's place shows a grey cross at three quarters of its size; bring the finger
+ *   back onto it and the cross grows to full size and turns red: letting go there cancels and
+ *   nothing is created.
  * - A project or area that was just created is named in place: the row with [editingId] is a text
  *   field with the keyboard open. [onTitleChange] reports each edit and [onEditDone] tells the page
  *   the cursor left the row, so it can drop the row if it is still empty.
@@ -493,32 +493,43 @@ fun HomeScreen(
             )
         }
 
-        // The new project under the finger while the + is dragged (not while it would cancel).
+        // The new project under the finger while the + is dragged (not while it would cancel). It is
+        // only as wide as its text, centered on the finger and kept on the screen.
         val p = dragPos
         if (p != null && !cancelling) {
             val local = p - rootOrigin
-            val half = with(density) { (RowHeight / 2).toPx() }
-            Row(
+            val top = (local.y - with(density) { RowHeight.toPx() } / 2f).roundToInt()
+            Box(
                 Modifier
-                    .offset { IntOffset(0, (local.y - half).roundToInt()) }
-                    .padding(horizontal = 8.dp)
-                    .fillMaxWidth()
-                    .height(RowHeight)
-                    .shadow(
-                        elevation = 10.dp,
-                        shape = RoundedCornerShape(20.dp),
-                        ambientColor = Color.Black.copy(alpha = 0.7f),
-                        spotColor = Color.Black.copy(alpha = 0.45f),
-                    )
-                    .background(ThingsColors.Background, RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .fillMaxSize()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                        layout(constraints.maxWidth, constraints.maxHeight) {
+                            val x = (local.x - placeable.width / 2f).roundToInt()
+                                .coerceIn(0, (constraints.maxWidth - placeable.width).coerceAtLeast(0))
+                            placeable.place(x, top)
+                        }
+                    }
             ) {
-                Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) {
-                    ProgressIcon(0f, Modifier.size(24.dp))
+                Row(
+                    Modifier
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.7f),
+                            spotColor = Color.Black.copy(alpha = 0.45f),
+                        )
+                        .background(ThingsColors.Background, RoundedCornerShape(20.dp))
+                        .height(RowHeight)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) {
+                        ProgressIcon(0f, Modifier.size(24.dp))
+                    }
+                    Spacer(Modifier.width(IconTextGap))
+                    Text("New Project", style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary))
                 }
-                Spacer(Modifier.width(IconTextGap))
-                Text("New Project", style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary))
             }
         }
 
