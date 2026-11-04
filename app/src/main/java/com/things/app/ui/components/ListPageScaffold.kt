@@ -9,19 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -40,11 +33,14 @@ import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 
 /**
- * Shared frame of every list page (Today, Upcoming, Anytime, ...): back and more buttons, an icon
- * plus large title that scroll with the list, and the floating add button. [content] adds the rows.
+ * Shared frame of every list page (Upcoming, Anytime, Inbox, ...): the top bar with the back button
+ * and the three-dots menu, an icon plus large title that scroll with the list, and the floating add
+ * button. [content] adds the rows.
  *
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
  * [titleBottomPadding] is the space between the title and the first row.
+ * [onMenuAction] reports the action chosen in the three-dots menu; [enabledMenuActions] says which
+ * of them can be chosen.
  */
 @Composable
 fun ListPageScaffold(
@@ -56,6 +52,8 @@ fun ListPageScaffold(
     titleBottomPadding: Dp = 24.dp,
     onBack: () -> Unit = {},
     onMoreClick: () -> Unit = {},
+    onMenuAction: (PageMenuAction) -> Unit = {},
+    enabledMenuActions: Set<PageMenuAction> = DefaultEnabledMenuActions,
     onAddClick: () -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
@@ -65,7 +63,12 @@ fun ListPageScaffold(
             .background(ThingsColors.Background)
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(onBack = onBack, onMoreClick = onMoreClick)
+            PageTopBar(
+                onBack = onBack,
+                onMoreClick = onMoreClick,
+                onMenuAction = onMenuAction,
+                enabledActions = enabledMenuActions,
+            )
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 140.dp),
@@ -84,34 +87,6 @@ fun ListPageScaffold(
                 .navigationBarsPadding()
                 .padding(end = 18.dp, bottom = 16.dp),
         )
-    }
-}
-
-@Composable
-private fun TopBar(onBack: () -> Unit, onMoreClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(56.dp)
-            .padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(34.dp),
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = onMoreClick,
-            modifier = Modifier.semantics { contentDescription = "More" },
-        ) {
-            MoreCircleIcon(Modifier.size(30.dp))
-        }
     }
 }
 

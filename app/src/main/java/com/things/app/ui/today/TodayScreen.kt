@@ -15,18 +15,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -35,7 +32,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -44,6 +40,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.things.app.ui.components.DefaultEnabledMenuActions
+import com.things.app.ui.components.PageMenuAction
+import com.things.app.ui.components.PageTopBar
 import com.things.app.ui.home.FabShadowColor
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.home.StarIcon
@@ -70,6 +69,8 @@ fun TodayScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
     onMoreClick: () -> Unit = {},
+    onMenuAction: (PageMenuAction) -> Unit = {},
+    enabledMenuActions: Set<PageMenuAction> = DefaultEnabledMenuActions,
     onProjectClick: (String) -> Unit = {},
     onItemClick: (String) -> Unit = {},
     onToggleItem: (String) -> Unit = {},
@@ -81,7 +82,12 @@ fun TodayScreen(
             .background(ThingsColors.Background)
     ) {
         Column(Modifier.fillMaxSize()) {
-            TopBar(onBack = onBack, onMoreClick = onMoreClick)
+            PageTopBar(
+                onBack = onBack,
+                onMoreClick = onMoreClick,
+                onMenuAction = onMenuAction,
+                enabledActions = enabledMenuActions,
+            )
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(bottom = 140.dp),
@@ -111,34 +117,6 @@ fun TodayScreen(
                 .navigationBarsPadding()
                 .padding(end = 18.dp, bottom = 16.dp),
         )
-    }
-}
-
-@Composable
-private fun TopBar(onBack: () -> Unit, onMoreClick: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .statusBarsPadding()
-            .height(56.dp)
-            .padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
-                contentDescription = "Back",
-                tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(34.dp),
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = onMoreClick,
-            modifier = Modifier.semantics { contentDescription = "More" },
-        ) {
-            MoreCircleIcon(Modifier.size(30.dp))
-        }
     }
 }
 
