@@ -71,7 +71,6 @@ import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
-import androidx.compose.ui.text.style.TextOverflow as Overflow
 import java.util.UUID
 
 private val ToggleGap = 24.dp
@@ -92,6 +91,11 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * heading, then each heading with its to-dos, then two toggles that reveal later items (future
  * start dates, repeating templates) and logged items. Later and logged items are hidden until
  * revealed. Active and later to-dos open in place when tapped. Every action is a callback.
+ *
+ * The ring next to the title shows how much of the project is done: the completed to-dos (the
+ * logged ones and the ones that are ticked) over all of them. Five of ten is half full; untick one
+ * of five of ten and it drops to forty percent. [onProgressChange] reports every change of it so
+ * Home can draw the same ring. Later items and deleted to-dos do not count.
  *
  * The project title, the heading titles and the notes under the title can be edited in place; with
  * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
@@ -116,6 +120,7 @@ fun ProjectScreen(
     onAddClick: () -> Unit = {},
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
+    onProgressChange: (Float) -> Unit = {},
 ) {
     var showLater by rememberSaveable { mutableStateOf(false) }
     var showLogged by rememberSaveable { mutableStateOf(false) }
@@ -130,6 +135,13 @@ fun ProjectScreen(
     var notes by rememberSaveable(state.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.notes))
     }
+
+    // How much of the project is done: logged to-dos count as done, ticked ones too.
+    val open = (tasks + headings.flatMap { it.tasks }).filter { !expansion.isDeleted(it.id) }
+    val total = open.size + state.loggedTasks.size
+    val done = open.count { expansion.resolve(it).checked } + state.loggedTasks.size
+    val progress = if (total == 0) 0f else done.toFloat() / total
+    LaunchedEffect(progress) { onProgressChange(progress) }
 
     fun containerOf(key: Any): String? {
         val s = key as? String ?: return null
@@ -252,13 +264,12 @@ fun ProjectScreen(
             }
         }
     }
-    val selecting = LocalSelection.current?.active == true
 
     ListPageScaffold(
         title = title,
         icon = {
             ProgressIcon(
-                progress = state.progress,
+                progress = progress,
                 modifier = Modifier.size(28.dp),
                 color = ThingsColors.ProjectBlue,
             )
