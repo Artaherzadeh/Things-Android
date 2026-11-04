@@ -36,6 +36,10 @@ object ThingsColors {
     val AreaIcon = Color(0xFFB9BBC2)
     val ProgressRing = Color(0xFFC4C6CC)
 
+    // Today page
+    val ProjectBlue = Color(0xFF2F5FBF)
+    val CheckboxStroke = Color(0xFFBFC1C7)
+
     // Add / create menu
     val MenuSurface = Color(0xFF383B42)
     val MenuTitle = Color(0xFFF4F5F7)
@@ -63,6 +67,13 @@ object ThingsType {
         color = ThingsColors.TextPrimary,
     )
     val RowTitle = RowTitleBold.copy(fontWeight = FontWeight.Normal)
+    val PageTitle = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
+        color = ThingsColors.TextPrimary,
+    )
     val Count = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
