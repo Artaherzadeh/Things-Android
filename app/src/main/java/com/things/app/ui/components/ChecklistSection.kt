@@ -90,10 +90,14 @@ private fun <T> List<T>.swap(a: Int, b: Int): List<T> =
  * space, the text, then the 24dp handle and 8dp of space. Place the section so that the circle lines
  * up with the to-do title.
  *
+ * A long item goes on to the next lines; the circle and the handle stay level with the first line.
+ * Swipe an item to the left for a red cross that deletes it.
+ *
  * The line being edited, new or old, has a grey rounded box behind it. Text starts with a capital.
- * Enter (Next on the keyboard) saves the line and opens a new empty one right under it; an empty
- * line is dropped when the cursor leaves it. When [adding] is true an empty line at the end takes
- * new items. Only the 16dp circle reacts when it is pressed, not the whole tap area around it.
+ * Enter saves the line and opens a new empty one right under it (the line is made of several rows
+ * of text, so Enter never adds a line break); an empty line is dropped when the cursor leaves it.
+ * When [adding] is true an empty line at the end takes new items. Only the 16dp circle reacts when
+ * it is pressed, not the whole tap area around it.
  *
  * Backspace on a line that is already empty deletes that line and puts the cursor at the end of
  * the line above it. Press and drag the handle to move a line up or down.
@@ -136,6 +140,7 @@ fun ChecklistSection(
                         focusAtEnd = fresh.id
                     },
                     onBlurBlank = { onItemsChange(items.filter { it.id != item.id }) },
+                    onDelete = { onItemsChange(items.filter { it.id != item.id }) },
                     dragging = draggingId == item.id,
                     dragOffset = if (draggingId == item.id) dragY else 0f,
                     onHeight = { heights[item.id] = it },
@@ -195,6 +200,7 @@ private fun ChecklistRow(
     onBackspaceOnEmpty: () -> Unit,
     onEnter: () -> Unit,
     onBlurBlank: () -> Unit,
+    onDelete: () -> Unit,
     dragging: Boolean,
     dragOffset: Float,
     onHeight: (Int) -> Unit,
@@ -205,6 +211,9 @@ private fun ChecklistRow(
     var value by remember { mutableStateOf(TextFieldValue(item.title, TextRange(item.title.length))) }
     var focused by remember { mutableStateOf(false) }
     var hadFocus by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    var lineHeight by remember { mutableStateOf(22.dp) }
+    val verticalPadding = ((ThingsSpacing.RowHeight - lineHeight) / 2).coerceAtLeast(0.dp)
     val currentDragStart by rememberUpdatedState(onDragStart)
     val currentDrag by rememberUpdatedState(onDrag)
     val currentDragEnd by rememberUpdatedState(onDragEnd)
@@ -220,95 +229,112 @@ private fun ChecklistRow(
         }
     }
 
-    Row(
-        Modifier
+    SwipeToDeleteRow(
+        onDelete = onDelete,
+        modifier = Modifier
             .zIndex(if (dragging) 1f else 0f)
             .graphicsLayer {
                 translationY = dragOffset
                 if (dragging) shadowElevation = 8.dp.toPx()
             }
-            .then(if (dragging) Modifier.background(ThingsColors.Background) else Modifier)
-            .onSizeChanged { onHeight(it.height) }
-            .fillMaxWidth()
-            .then(
-                if (focused) {
-                    Modifier
-                        .clip(FocusShape)
-                        .background(ThingsColors.SearchBackground)
-                } else {
-                    Modifier
-                }
-            )
-            .heightIn(min = ThingsSpacing.RowHeight)
-            .padding(start = 8.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .onSizeChanged { onHeight(it.height) },
     ) {
-        ChecklistMark(
-            done = item.done,
-            description = item.title,
-            onClick = { onChange(item.copy(done = !item.done)) },
-        )
-        Spacer(Modifier.width(12.dp))
-        BasicTextField(
-            value = value,
-            onValueChange = {
-                value = it
-                if (it.text != item.title) onChange(item.copy(title = it.text))
-            },
-            singleLine = true,
-            textStyle = ItemTextStyle.copy(
-                color = if (item.done) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
-            ),
-            cursorBrush = SolidColor(ThingsColors.Fab),
-            keyboardOptions = ItemKeyboard,
-            keyboardActions = KeyboardActions(
-                onNext = {
-                    if (value.text.isNotBlank()) onEnter() else onBlurBlank()
-                },
-            ),
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(requester)
-                .onFocusChanged { state ->
-                    focused = state.isFocused
-                    if (state.isFocused) {
-                        hadFocus = true
-                    } else if (hadFocus) {
-                        hadFocus = false
-                        if (value.text.isBlank()) onBlurBlank()
-                    }
-                }
-                .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && value.text.isEmpty()) {
-                        onBackspaceOnEmpty()
-                        true
-                    } else {
-                        false
-                    }
-                },
-        )
-        Box(
+        Row(
             Modifier
-                .size(width = 24.dp, height = ThingsSpacing.RowHeight)
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { currentDragStart() },
-                        onDrag = { change, amount ->
-                            change.consume()
-                            currentDrag(amount.y)
-                        },
-                        onDragEnd = { currentDragEnd() },
-                        onDragCancel = { currentDragEnd() },
-                    )
-                },
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .then(
+                    if (focused) {
+                        Modifier
+                            .clip(FocusShape)
+                            .background(ThingsColors.SearchBackground)
+                    } else {
+                        Modifier
+                    }
+                )
+                .heightIn(min = ThingsSpacing.RowHeight)
+                .padding(start = 8.dp, end = 8.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            Icon(
-                Icons.Rounded.DragHandle,
-                contentDescription = "Move ${item.title}",
-                tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(24.dp),
+            ChecklistMark(
+                done = item.done,
+                description = item.title,
+                onClick = { onChange(item.copy(done = !item.done)) },
             )
+            Spacer(Modifier.width(12.dp))
+            BasicTextField(
+                value = value,
+                onValueChange = { new ->
+                    if (new.text.contains('\n')) {
+                        // Enter: no line break, the line is saved and the next one opens.
+                        val cleaned = new.text.replace("\n", "")
+                        value = new.copy(text = cleaned, selection = TextRange(cleaned.length))
+                        if (cleaned != item.title) onChange(item.copy(title = cleaned))
+                        if (cleaned.isNotBlank()) onEnter() else onBlurBlank()
+                    } else {
+                        value = new
+                        if (new.text != item.title) onChange(item.copy(title = new.text))
+                    }
+                },
+                textStyle = ItemTextStyle.copy(
+                    color = if (item.done) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
+                ),
+                cursorBrush = SolidColor(ThingsColors.Fab),
+                keyboardOptions = ItemKeyboard,
+                keyboardActions = KeyboardActions(
+                    onNext = {
+                        if (value.text.isNotBlank()) onEnter() else onBlurBlank()
+                    },
+                ),
+                onTextLayout = { layout ->
+                    if (layout.lineCount > 0) {
+                        lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = verticalPadding)
+                    .focusRequester(requester)
+                    .onFocusChanged { state ->
+                        focused = state.isFocused
+                        if (state.isFocused) {
+                            hadFocus = true
+                        } else if (hadFocus) {
+                            hadFocus = false
+                            if (value.text.isBlank()) onBlurBlank()
+                        }
+                    }
+                    .onPreviewKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && value.text.isEmpty()) {
+                            onBackspaceOnEmpty()
+                            true
+                        } else {
+                            false
+                        }
+                    },
+            )
+            Box(
+                Modifier
+                    .size(width = 24.dp, height = ThingsSpacing.RowHeight)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { currentDragStart() },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                currentDrag(amount.y)
+                            },
+                            onDragEnd = { currentDragEnd() },
+                            onDragCancel = { currentDragEnd() },
+                        )
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.DragHandle,
+                    contentDescription = "Move ${item.title}",
+                    tint = ThingsColors.TextSecondary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
     }
 }
@@ -354,9 +380,9 @@ private fun ChecklistMark(done: Boolean, description: String, onClick: () -> Uni
 }
 
 /**
- * The empty line at the end of a checklist. Next on the keyboard saves the item and opens another
- * empty line; leaving the field saves what was typed and closes the line. Backspace on the empty
- * line closes it and puts the cursor at the end of the last item.
+ * The empty line at the end of a checklist. Enter saves the item and opens another empty line;
+ * leaving the field saves what was typed and closes the line. Backspace on the empty line closes it
+ * and puts the cursor at the end of the last item. A long item goes on to the next lines.
  */
 @Composable
 private fun NewChecklistRow(
@@ -367,6 +393,9 @@ private fun NewChecklistRow(
     var text by rememberSaveable { mutableStateOf("") }
     var hadFocus by remember { mutableStateOf(false) }
     val requester = remember { FocusRequester() }
+    val density = LocalDensity.current
+    var lineHeight by remember { mutableStateOf(22.dp) }
+    val verticalPadding = ((ThingsSpacing.RowHeight - lineHeight) / 2).coerceAtLeast(0.dp)
 
     LaunchedEffect(Unit) { requester.requestFocus() }
 
@@ -377,7 +406,7 @@ private fun NewChecklistRow(
             .clip(FocusShape)
             .background(ThingsColors.SearchBackground)
             .padding(start = 8.dp, end = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
     ) {
         Box(Modifier.size(width = 24.dp, height = ThingsSpacing.RowHeight), contentAlignment = Alignment.Center) {
             Box(
@@ -389,8 +418,19 @@ private fun NewChecklistRow(
         Spacer(Modifier.width(12.dp))
         BasicTextField(
             value = text,
-            onValueChange = { text = it },
-            singleLine = true,
+            onValueChange = { new ->
+                if (new.contains('\n')) {
+                    val cleaned = new.replace("\n", "")
+                    if (cleaned.isNotBlank()) {
+                        onCommit(cleaned)
+                        text = ""
+                    } else {
+                        onDismiss()
+                    }
+                } else {
+                    text = new
+                }
+            },
             textStyle = ItemTextStyle.copy(color = ThingsColors.TextPrimary),
             cursorBrush = SolidColor(ThingsColors.Fab),
             keyboardOptions = ItemKeyboard,
@@ -404,6 +444,11 @@ private fun NewChecklistRow(
                     }
                 },
             ),
+            onTextLayout = { layout ->
+                if (layout.lineCount > 0) {
+                    lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                }
+            },
             decorationBox = { inner ->
                 Box {
                     if (text.isEmpty()) {
@@ -414,6 +459,7 @@ private fun NewChecklistRow(
             },
             modifier = Modifier
                 .weight(1f)
+                .padding(vertical = verticalPadding)
                 .focusRequester(requester)
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && text.isEmpty()) {
@@ -433,11 +479,13 @@ private fun NewChecklistRow(
                 }
                 .testTag("new_checklist_field"),
         )
-        Icon(
-            Icons.Rounded.DragHandle,
-            contentDescription = null,
-            tint = ThingsColors.TextSecondary,
-            modifier = Modifier.size(24.dp),
-        )
+        Box(Modifier.size(width = 24.dp, height = ThingsSpacing.RowHeight), contentAlignment = Alignment.Center) {
+            Icon(
+                Icons.Rounded.DragHandle,
+                contentDescription = null,
+                tint = ThingsColors.TextSecondary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
