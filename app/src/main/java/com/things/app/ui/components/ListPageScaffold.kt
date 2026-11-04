@@ -3,6 +3,8 @@ package com.things.app.ui.components
 import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -39,6 +41,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardHide
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -102,6 +105,10 @@ private val HeadingEdge = 72.dp
 private val GhostShape = RoundedCornerShape(20.dp)
 private val GhostHeight = 48.dp
 
+/** The grey of the cross that stays where the add button was, and the red when it cancels. */
+private val DragGray = Color(0xFF8E8E93)
+private val CancelRed = Color(0xFFFF3B30)
+
 private fun shareText(context: Context, lines: List<String>) {
     if (lines.isEmpty()) return
     val send = Intent(Intent.ACTION_SEND).apply {
@@ -133,8 +140,10 @@ private fun shareText(context: Context, lines: List<String>) {
  * button can also be dragged: a card-shaped preview follows the finger and the list opens a gap
  * where the to-do would land (the rows below slide down); let go to add it there. Near the left
  * edge the preview turns into a heading (blue title and a line, no card) and the gap opens where
- * the heading would go. [groupForKey] turns the key of a list row into the id of its project or
- * heading and [taskIdForKey] into the id of its to-do.
+ * the heading would go. While it is dragged the button's place shows a grey cross at three quarters
+ * of its size; bring the finger back onto it and the cross grows to full size and turns red: letting
+ * go there cancels. [groupForKey] turns the key of a list row into the id of its project or heading
+ * and [taskIdForKey] into the id of its to-do.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
  * Select mode works on every page that has the Select entry in its menu: Select turns it on, a Done
@@ -183,6 +192,8 @@ fun ListPageScaffold(
     var listTop by remember { mutableFloatStateOf(0f) }
     var fabCenter by remember { mutableStateOf(Offset.Zero) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
+    var leftFab by remember { mutableStateOf(false) }
+    var cancelling by remember { mutableStateOf(false) }
     var dropSlot by remember { mutableStateOf(DropSlot.None) }
     var dragTarget by remember { mutableStateOf<AddTarget?>(null) }
     var pageMenuOpen by remember { mutableStateOf(false) }
@@ -195,6 +206,7 @@ fun ListPageScaffold(
     )
     val edgePx = with(density) { HeadingEdge.toPx() }
     val gapPx = with(density) { DropGapHeight.toPx() }
+    val fabRadiusPx = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
 
     // Closing the keyboard (back gesture, hide button, anything) also ends the editing: no cursor
     // keeps blinking in a field that cannot be typed into.
@@ -249,7 +261,18 @@ fun ListPageScaffold(
 
     fun updateDrag(p: Offset?) {
         dragPos = p
-        val target = p?.let { targetAt(it) }
+        if (p == null) {
+            leftFab = false
+            cancelling = false
+            dragTarget = null
+            dropSlot = DropSlot.None
+            return
+        }
+        // Cancelling needs the finger to have left the button first, then come back onto it.
+        val distance = (p - fabCenter).getDistance()
+        if (distance > fabRadiusPx * 1.3f) leftFab = true
+        cancelling = leftFab && distance <= fabRadiusPx
+        val target = if (cancelling) null else targetAt(p)
         dragTarget = target
         dropSlot = target?.let { slotFor(it) } ?: DropSlot.None
     }
@@ -371,6 +394,8 @@ fun ListPageScaffold(
                 AddFab(
                     onClick = onAddClick,
                     dragEnabled = onAddAt != null,
+                    dragging = dragPos != null,
+                    cancelling = cancelling,
                     onDragStart = { updateDrag(fabCenter) },
                     onDrag = { delta -> updateDrag(dragPos?.plus(delta)) },
                     onDragEnd = {
@@ -397,7 +422,7 @@ fun ListPageScaffold(
             }
 
             val p = dragPos
-            if (p != null) {
+            if (p != null && !cancelling) {
                 val local = p - rootOrigin
                 val heading = dragTarget is AddTarget.Heading
                 val top = (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()
@@ -559,10 +584,17 @@ private fun TitleRow(
     }
 }
 
+/**
+ * The round add button. The touch area is always the full 52dp. While it is dragged the visible
+ * circle shrinks to three quarters, turns grey and shows a cross; when [cancelling] it grows back
+ * to full size and turns red.
+ */
 @Composable
 private fun AddFab(
     onClick: () -> Unit,
     dragEnabled: Boolean,
+    dragging: Boolean,
+    cancelling: Boolean,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
     onDragEnd: () -> Unit,
@@ -574,6 +606,22 @@ private fun AddFab(
     val currentDrag by rememberUpdatedState(onDrag)
     val currentEnd by rememberUpdatedState(onDragEnd)
     val currentCancel by rememberUpdatedState(onDragCancel)
+    val circleSize by animateDpAsState(
+        when {
+            cancelling -> ThingsSpacing.FabSize
+            dragging -> ThingsSpacing.FabSize * 0.75f
+            else -> ThingsSpacing.FabSize
+        },
+        label = "fabSize",
+    )
+    val circleColor by animateColorAsState(
+        when {
+            cancelling -> CancelRed
+            dragging -> DragGray
+            else -> ThingsColors.Fab
+        },
+        label = "fabColor",
+    )
 
     Box(
         modifier
@@ -581,15 +629,6 @@ private fun AddFab(
             .onGloballyPositioned {
                 onCenterChanged(it.positionInRoot() + Offset(it.size.width / 2f, it.size.height / 2f))
             }
-            .shadow(
-                elevation = 8.dp,
-                shape = CircleShape,
-                ambientColor = FabShadowColor,
-                spotColor = FabShadowColor,
-            )
-            .clip(CircleShape)
-            .background(ThingsColors.Fab)
-            .clickable(onClickLabel = "Add", role = Role.Button, onClick = onClick)
             .then(
                 if (dragEnabled) {
                     Modifier.pointerInput(Unit) {
@@ -609,7 +648,31 @@ private fun AddFab(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        PlusGlyph(Modifier.size(24.dp))
+        Box(
+            Modifier
+                .size(circleSize)
+                .shadow(
+                    elevation = 8.dp,
+                    shape = CircleShape,
+                    ambientColor = FabShadowColor,
+                    spotColor = FabShadowColor,
+                )
+                .clip(CircleShape)
+                .background(circleColor)
+                .clickable(onClickLabel = "Add", role = Role.Button, onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (dragging) {
+                Icon(
+                    Icons.Rounded.Close,
+                    contentDescription = if (cancelling) "Cancel" else null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                PlusGlyph(Modifier.size(24.dp))
+            }
+        }
     }
 }
 
