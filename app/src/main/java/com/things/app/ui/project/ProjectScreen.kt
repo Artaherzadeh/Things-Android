@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -55,24 +56,36 @@ import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.LocalDropSlot
+import com.things.app.ui.components.LocalSelection
 import com.things.app.ui.components.MenuDots
 import com.things.app.ui.components.NotesEditor
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.TitleMenuButton
 import com.things.app.ui.components.insertedAt
+import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberTaskExpansion
+import com.things.app.ui.components.reorderable
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
+import androidx.compose.ui.text.style.TextOverflow as Overflow
 import java.util.UUID
 
 private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
 private const val TaskPrefix = "task-"
 private const val HeadingPrefix = "heading-"
+private const val TopLevel = ""
+
+private fun <T> List<T>.move(from: Int, to: Int): List<T> =
+    if (from == to || from !in indices || to !in indices) {
+        this
+    } else {
+        toMutableList().also { it.add(to, it.removeAt(from)) }
+    }
 
 /**
  * Project page: ring and title with the project menu, notes, the to-dos that are not under a
@@ -84,9 +97,13 @@ private const val HeadingPrefix = "heading-"
  * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
  * scaffold and rows.
  *
+ * Hold a to-do and move it to change the order inside its heading (or among the to-dos that are in
+ * no heading). Hold a heading: its to-dos fold away first and it moves as one row among the other
+ * headings.
+ *
  * Add button: a tap adds a to-do at the top, outside every heading; drag it over the list and the
  * rows make room where the to-do will land (in a heading's area it goes into that heading); drag it
- * to the left edge to add a heading at that spot.
+ * to the left edge and it turns into a heading, with the room opening where the heading will go.
  */
 @Composable
 fun ProjectScreen(
@@ -103,13 +120,23 @@ fun ProjectScreen(
     var showLater by rememberSaveable { mutableStateOf(false) }
     var showLogged by rememberSaveable { mutableStateOf(false) }
     val expansion = rememberTaskExpansion()
+    val listState = rememberLazyListState()
 
     var title by rememberSaveable(state.id) { mutableStateOf(state.title) }
     var tasks by remember(state) { mutableStateOf(state.tasks) }
     var headings by remember(state) { mutableStateOf(state.headings) }
     var editingHeadingId by remember { mutableStateOf<String?>(null) }
+    var holdingHeading by remember { mutableStateOf<String?>(null) }
     var notes by rememberSaveable(state.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.notes))
+    }
+
+    fun containerOf(key: Any): String? {
+        val s = key as? String ?: return null
+        if (!s.startsWith(TaskPrefix)) return null
+        val id = s.removePrefix(TaskPrefix)
+        if (tasks.any { it.id == id }) return TopLevel
+        return headings.firstOrNull { h -> h.tasks.any { it.id == id } }?.id
     }
 
     fun insertHeading(atKey: Any?) {
@@ -169,6 +196,64 @@ fun ProjectScreen(
         expansion.expandNew(task.id)
     }
 
+    val reorder = rememberReorderState(listState)
+    reorder.canMove = { from, to ->
+        val f = from as? String
+        val t = to as? String
+        when {
+            f == null || t == null -> false
+            f.startsWith(HeadingPrefix) -> t.startsWith(HeadingPrefix)
+            f.startsWith(TaskPrefix) -> t.startsWith(TaskPrefix) &&
+                containerOf(f) != null && containerOf(f) == containerOf(t)
+            else -> false
+        }
+    }
+    reorder.onStart = { key ->
+        val s = key as? String
+        if (s != null && s.startsWith(HeadingPrefix)) {
+            holdingHeading = s.removePrefix(HeadingPrefix)
+        } else {
+            expansion.collapse()
+        }
+    }
+    reorder.onEnd = { holdingHeading = null }
+    reorder.onMove = { from, to ->
+        val f = from as String
+        val t = to as String
+        if (f.startsWith(HeadingPrefix)) {
+            val fromId = f.removePrefix(HeadingPrefix)
+            val toId = t.removePrefix(HeadingPrefix)
+            headings = headings.move(
+                headings.indexOfFirst { it.id == fromId },
+                headings.indexOfFirst { it.id == toId },
+            )
+        } else {
+            val fromId = f.removePrefix(TaskPrefix)
+            val toId = t.removePrefix(TaskPrefix)
+            val container = containerOf(f)
+            if (container == TopLevel) {
+                tasks = tasks.move(
+                    tasks.indexOfFirst { it.id == fromId },
+                    tasks.indexOfFirst { it.id == toId },
+                )
+            } else if (container != null) {
+                headings = headings.map { h ->
+                    if (h.id == container) {
+                        h.copy(
+                            tasks = h.tasks.move(
+                                h.tasks.indexOfFirst { it.id == fromId },
+                                h.tasks.indexOfFirst { it.id == toId },
+                            )
+                        )
+                    } else {
+                        h
+                    }
+                }
+            }
+        }
+    }
+    val selecting = LocalSelection.current?.active == true
+
     ListPageScaffold(
         title = title,
         icon = {
@@ -185,6 +270,7 @@ fun ProjectScreen(
         onBack = onBack,
         onMoreClick = onMoreClick,
         expansion = expansion,
+        listState = listState,
         onAddClick = {
             addTask(AddTarget.Top)
             onAddClick()
@@ -212,9 +298,11 @@ fun ProjectScreen(
         }
 
         items(tasks, key = { "$TaskPrefix${it.id}" }) { task ->
+            val active = LocalSelection.current?.active == true
             ExpandableTaskRow(
                 task = task,
                 expansion = expansion,
+                modifier = if (active) Modifier else Modifier.reorderable(reorder, "$TaskPrefix${task.id}"),
                 onOpen = { onTaskClick(task.id) },
                 onToggle = { onToggleTask(task.id) },
             )
@@ -222,6 +310,7 @@ fun ProjectScreen(
 
         headings.forEachIndexed { index, heading ->
             item(key = "$HeadingPrefix${heading.id}") {
+                val active = LocalSelection.current?.active == true
                 HeadingRow(
                     id = heading.id,
                     title = heading.title,
@@ -239,15 +328,24 @@ fun ProjectScreen(
                         }
                     },
                     onMenuClick = { onHeadingMenuClick(heading.id) },
+                    modifier = if (active || editingHeadingId == heading.id) {
+                        Modifier
+                    } else {
+                        Modifier.reorderable(reorder, "$HeadingPrefix${heading.id}")
+                    },
                 )
             }
-            items(heading.tasks, key = { "$TaskPrefix${it.id}" }) { task ->
-                ExpandableTaskRow(
-                    task = task,
-                    expansion = expansion,
-                    onOpen = { onTaskClick(task.id) },
-                    onToggle = { onToggleTask(task.id) },
-                )
+            if (heading.id != holdingHeading) {
+                items(heading.tasks, key = { "$TaskPrefix${it.id}" }) { task ->
+                    val active = LocalSelection.current?.active == true
+                    ExpandableTaskRow(
+                        task = task,
+                        expansion = expansion,
+                        modifier = if (active) Modifier else Modifier.reorderable(reorder, "$TaskPrefix${task.id}"),
+                        onOpen = { onTaskClick(task.id) },
+                        onToggle = { onToggleTask(task.id) },
+                    )
+                }
             }
         }
 
@@ -297,7 +395,8 @@ fun ProjectScreen(
  * [topGap] is the space above the heading. The dots end 20dp from the screen edge.
  * The title is a text field: tap it to edit. With [autoFocus] it takes the keyboard as soon as it
  * appears (a heading that was just added). [onEditDone] is called when the cursor leaves the title.
- * While the add button is dragged over the top of this heading a gap opens under it.
+ * While the add button is dragged over the top of this heading a gap opens under it; while it is
+ * dragged near the left edge over this heading, a gap opens above it.
  */
 @Composable
 private fun HeadingRow(
@@ -308,18 +407,22 @@ private fun HeadingRow(
     onTitleChange: (String) -> Unit,
     onEditDone: () -> Unit,
     onMenuClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val titleStyle = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
     val focusManager = LocalFocusManager.current
     val requester = remember { FocusRequester() }
     var hadFocus by remember { mutableStateOf(false) }
-    val gapBelow = LocalDropSlot.current.afterGroupId == id
+    val slot = LocalDropSlot.current
+    val gapBelow = slot.afterGroupId == id
+    val gapAbove = slot.beforeGroupId == id
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) requester.requestFocus()
     }
 
-    Column {
+    Column(modifier) {
+        if (gapAbove) Spacer(Modifier.height(DropGapHeight))
         Spacer(Modifier.height(topGap))
         Row(
             Modifier

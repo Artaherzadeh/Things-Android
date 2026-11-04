@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -41,6 +40,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardHide
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -102,16 +102,6 @@ private val HeadingEdge = 72.dp
 private val GhostShape = RoundedCornerShape(20.dp)
 private val GhostHeight = 48.dp
 
-private fun slotFor(target: AddTarget): DropSlot = when (target) {
-    is AddTarget.Top -> DropSlot(atTop = true)
-    is AddTarget.At -> when {
-        target.anchorTaskId == null -> DropSlot(afterGroupId = target.groupId)
-        target.after -> DropSlot(afterTaskId = target.anchorTaskId)
-        else -> DropSlot(beforeTaskId = target.anchorTaskId)
-    }
-    is AddTarget.Heading -> DropSlot.None
-}
-
 private fun shareText(context: Context, lines: List<String>) {
     if (lines.isEmpty()) return
     val send = Intent(Intent.ACTION_SEND).apply {
@@ -141,9 +131,10 @@ private fun shareText(context: Context, lines: List<String>) {
  *
  * The add button has up to three behaviours. A tap calls [onAddClick]. When [onAddAt] is given the
  * button can also be dragged: a card-shaped preview follows the finger and the list opens a gap
- * where the to-do would land (the rows below slide down); let go to add it there. [groupForKey]
- * turns the key of a list row into the id of its project or heading and [taskIdForKey] into the id
- * of its to-do. Dropping near the left edge adds a heading instead.
+ * where the to-do would land (the rows below slide down); let go to add it there. Near the left
+ * edge the preview turns into a heading (blue title and a line, no card) and the gap opens where
+ * the heading would go. [groupForKey] turns the key of a list row into the id of its project or
+ * heading and [taskIdForKey] into the id of its to-do.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
  * Select mode works on every page that has the Select entry in its menu: Select turns it on, a Done
@@ -234,6 +225,26 @@ fun ListPageScaffold(
         val top = info.offset + if (dropSlot.beforeTaskId == taskId) gapPx else 0f
         val bottom = info.offset + info.size - if (dropSlot.afterTaskId == taskId) gapPx else 0f
         return AddTarget.At(group, taskId, after = y >= (top + bottom) / 2f)
+    }
+
+    /** Where the list has to make room for the target. A heading goes above the row under the finger. */
+    fun slotFor(target: AddTarget): DropSlot = when (target) {
+        is AddTarget.Top -> DropSlot(atTop = true)
+        is AddTarget.At -> when {
+            target.anchorTaskId == null -> DropSlot(afterGroupId = target.groupId)
+            target.after -> DropSlot(afterTaskId = target.anchorTaskId)
+            else -> DropSlot(beforeTaskId = target.anchorTaskId)
+        }
+        is AddTarget.Heading -> {
+            val key = target.atKey
+            val taskId = key?.let { currentTaskIdForKey(it) }
+            val group = key?.let { currentGroupForKey(it) }
+            when {
+                taskId != null -> DropSlot(beforeTaskId = taskId)
+                group != null -> DropSlot(beforeGroupId = group)
+                else -> DropSlot.None
+            }
+        }
     }
 
     fun updateDrag(p: Offset?) {
@@ -389,42 +400,47 @@ fun ListPageScaffold(
             if (p != null) {
                 val local = p - rootOrigin
                 val heading = dragTarget is AddTarget.Heading
+                val top = (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()
 
                 if (heading) {
+                    // Like a heading in the list: blue bold title and a thin line, no card.
+                    Column(
+                        Modifier
+                            .offset { IntOffset(0, top) }
+                            .fillMaxWidth()
+                            .padding(horizontal = ThingsSpacing.PageMargin)
+                    ) {
+                        Box(Modifier.height(GhostHeight), contentAlignment = Alignment.CenterStart) {
+                            Text(
+                                "New Heading",
+                                style = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue),
+                            )
+                        }
+                        HorizontalDivider(thickness = 1.dp, color = ThingsColors.Divider)
+                    }
+                } else {
+                    // A card like an open to-do, under the finger.
                     Box(
                         Modifier
-                            .align(Alignment.CenterStart)
-                            .width(6.dp)
-                            .fillMaxHeight(0.5f)
-                            .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
-                            .background(ThingsColors.Fab)
-                    )
-                }
-                // A card like an open to-do, under the finger.
-                Box(
-                    Modifier
-                        .offset { IntOffset(0, (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()) }
-                        .padding(horizontal = 8.dp)
-                        .fillMaxWidth()
-                        .height(GhostHeight)
-                        .shadow(
-                            elevation = 10.dp,
-                            shape = GhostShape,
-                            ambientColor = Color.Black.copy(alpha = 0.16f),
-                            spotColor = Color.Black.copy(alpha = 0.05f),
+                            .offset { IntOffset(0, top) }
+                            .padding(horizontal = 8.dp)
+                            .fillMaxWidth()
+                            .height(GhostHeight)
+                            .shadow(
+                                elevation = 10.dp,
+                                shape = GhostShape,
+                                ambientColor = Color.Black.copy(alpha = 0.7f),
+                                spotColor = Color.Black.copy(alpha = 0.45f),
+                            )
+                            .background(ThingsColors.Background, GhostShape)
+                            .padding(start = 44.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        Text(
+                            "New To-Do",
+                            style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
                         )
-                        .background(ThingsColors.Background, GhostShape)
-                        .padding(start = 44.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text(
-                        if (heading) "New Heading" else "New To-Do",
-                        style = if (heading) {
-                            ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
-                        } else {
-                            ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary)
-                        },
-                    )
+                    }
                 }
             }
         }
