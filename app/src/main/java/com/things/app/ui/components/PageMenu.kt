@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -44,13 +45,23 @@ import androidx.compose.ui.unit.dp
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 
-/** What the three-dots menu at the top right of a list page offers. */
+/** What the three-dots menu at the top right of a page can offer. Each page lists the ones it uses. */
 enum class PageMenuAction(val label: String) {
     FilterByTag("Filter by Tag"),
     Select("Select"),
     Paste("Paste"),
     Share("Share"),
+    AddTags("Add Tags"),
+    DeleteArea("Delete Area"),
 }
+
+/** The entries of the menu of a list page, in order. */
+val DefaultMenuActions: List<PageMenuAction> =
+    listOf(PageMenuAction.FilterByTag, PageMenuAction.Select, PageMenuAction.Paste, PageMenuAction.Share)
+
+/** The entries of the menu of an area page, in order. */
+val AreaMenuActions: List<PageMenuAction> =
+    listOf(PageMenuAction.AddTags, PageMenuAction.DeleteArea, PageMenuAction.Share)
 
 /** Filter by Tag stays greyed out until tags exist; the other actions are available. */
 val DefaultEnabledMenuActions: Set<PageMenuAction> =
@@ -59,8 +70,9 @@ val DefaultEnabledMenuActions: Set<PageMenuAction> =
 /**
  * The bar at the top of every list page: back button at the start and the three-dots button at
  * the end. The circle of the three-dots button ends 20dp from the screen edge, like the page
- * content. The button opens the page menu; [onMenuAction] reports the chosen action.
- * [onMenuOpenChange] tells the page when the menu opens or closes so it can dim what is behind it.
+ * content. The button opens the page menu with the given [actions]; [onMenuAction] reports the
+ * chosen one. [onMenuOpenChange] tells the page when the menu opens or closes so it can dim what
+ * is behind it.
  */
 @Composable
 fun PageTopBar(
@@ -70,6 +82,7 @@ fun PageTopBar(
     enabledActions: Set<PageMenuAction>,
     modifier: Modifier = Modifier,
     onMenuOpenChange: (Boolean) -> Unit = {},
+    actions: List<PageMenuAction> = DefaultMenuActions,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -104,6 +117,7 @@ fun PageTopBar(
             }
             PageMenu(
                 expanded = menuOpen,
+                actions = actions,
                 enabledActions = enabledActions,
                 onDismiss = { menuOpen = false },
                 onAction = {
@@ -118,6 +132,7 @@ fun PageTopBar(
 @Composable
 private fun PageMenu(
     expanded: Boolean,
+    actions: List<PageMenuAction>,
     enabledActions: Set<PageMenuAction>,
     onDismiss: () -> Unit,
     onAction: (PageMenuAction) -> Unit,
@@ -132,7 +147,7 @@ private fun PageMenu(
         tonalElevation = 0.dp,
         shadowElevation = 6.dp,
     ) {
-        PageMenuAction.entries.forEach { action ->
+        actions.forEach { action ->
             DropdownMenuItem(
                 text = {
                     Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
@@ -159,10 +174,11 @@ private fun ActionIcon(action: PageMenuAction) {
     val color = LocalContentColor.current
     val size = Modifier.size(24.dp)
     when (action) {
-        PageMenuAction.FilterByTag -> TagIcon(size, color)
+        PageMenuAction.FilterByTag, PageMenuAction.AddTags -> TagIcon(size, color)
         PageMenuAction.Select -> SelectIcon(size, color)
         PageMenuAction.Paste -> PasteIcon(size, color)
         PageMenuAction.Share -> ShareIcon(size, color)
+        PageMenuAction.DeleteArea -> Icon(Icons.Outlined.Delete, contentDescription = null, tint = color, modifier = size)
     }
 }
 

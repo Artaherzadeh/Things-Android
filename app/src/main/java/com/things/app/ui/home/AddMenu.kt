@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,7 +60,7 @@ import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 import kotlin.math.roundToInt
 
-/** What the person picked in the add menu. Part 2 consumes this to open the matching editor. */
+/** What the person picked in the add menu. */
 enum class CreationType { ToDo, Project, Area }
 
 // Motion: the + button and the menu are one surface, driven by a single 0f..1f progress value.
@@ -82,21 +81,15 @@ private val FabElevation = 8.dp
 private val PanelElevation = 16.dp
 internal val FabShadowColor = Color(0x334F8EEA)
 
-/** The "+" and chevron shown on the floating button. Shared by the button and the morphing surface. */
+/** The plain "+" shown on the floating button. Shared by the button and the morphing surface. */
 @Composable
 internal fun AddFabGlyph(modifier: Modifier = Modifier, contentDescription: String? = "Add") {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+    Box(modifier, contentAlignment = Alignment.Center) {
         Icon(
             Icons.Rounded.Add,
             contentDescription = contentDescription,
             tint = Color.White,
             modifier = Modifier.size(28.dp),
-        )
-        Icon(
-            Icons.Rounded.KeyboardArrowDown,
-            contentDescription = null,
-            tint = Color.White,
-            modifier = Modifier.size(16.dp),
         )
     }
 }
