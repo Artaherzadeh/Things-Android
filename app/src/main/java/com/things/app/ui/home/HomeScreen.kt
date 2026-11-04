@@ -3,6 +3,7 @@ package com.things.app.ui.home
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -62,6 +63,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -102,9 +104,14 @@ private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
 private val GroupGap = 12.dp
 
-/** The search box is 40dp high and starts 4dp higher than it used to, so its bottom edge stays put. */
 private val QuickFindHeight = 40.dp
-private val ListTopPadding = 8.dp
+
+/**
+ * Space between the status bar and the search box. The Quick Find panel puts its own search field
+ * 16dp (panel margin) plus 16dp (panel padding) under the status bar, so the box starts exactly
+ * there and the panel opens right over it.
+ */
+private val ListTopPadding = 32.dp
 
 /** How far the list has to be pulled down from the top before Quick Find opens. */
 private val PullToSearchDistance = 192.dp
@@ -122,6 +129,8 @@ private const val SettingsKey = "settings"
  * last row of the list, so it scrolls with the rest instead of staying on screen.
  *
  * - Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
+ *   While Quick Find is open ([quickFindOpen]) the search box fades out, so the panel's own search
+ *   field takes its place instead of sitting on top of it.
  * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
  *   let go: next to the project or on the area under the finger, anywhere else it becomes the first
  *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position. A
@@ -159,6 +168,7 @@ fun HomeScreen(
     onMoveArea: (fromId: String, toId: String) -> Unit = { _, _ -> },
     onDeleteProject: (id: String) -> Unit = {},
     onDeleteArea: (id: String) -> Unit = {},
+    quickFindOpen: Boolean = false,
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var holdingArea by remember { mutableStateOf<String?>(null) }
@@ -326,7 +336,7 @@ fun HomeScreen(
                 .imePadding(),
             contentPadding = PaddingValues(top = statusBarTop + ListTopPadding, bottom = 140.dp),
         ) {
-            item(key = "quick-find") { QuickFind(onClick = onSearchClick) }
+            item(key = "quick-find") { QuickFind(hidden = quickFindOpen, onClick = onSearchClick) }
 
             item(key = "quick-find-gap") { Spacer(Modifier.height(28.dp)) }
 
@@ -547,16 +557,22 @@ fun HomeScreen(
     }
 }
 
+/**
+ * The search box at the top of Home. It keeps its place in the list while it is [hidden] (so nothing
+ * moves) but fades out and stops taking touches.
+ */
 @Composable
-private fun QuickFind(onClick: () -> Unit) {
+private fun QuickFind(hidden: Boolean, onClick: () -> Unit) {
+    val alpha by animateFloatAsState(if (hidden) 0f else 1f, tween(120), label = "quickFindAlpha")
     Box(
         Modifier
+            .graphicsLayer { this.alpha = alpha }
             .padding(horizontal = ScreenPadding)
             .fillMaxWidth()
             .height(QuickFindHeight)
             .clip(RoundedCornerShape(12.dp))
             .background(ThingsColors.SearchBackground)
-            .clickable(onClick = onClick),
+            .clickable(enabled = !hidden, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
