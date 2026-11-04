@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -75,7 +76,8 @@ private val Indent = 32.dp
  * The title is plain text; Markdown applies to the notes only.
  *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
- * the row opens.
+ * the row opens. The card has a soft shadow and leaves 12dp under it (4dp above) so the row below
+ * does not touch it.
  */
 @Composable
 fun TaskCard(
@@ -95,8 +97,13 @@ fun TaskCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .shadow(8.dp, CardShape)
+            .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 12.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = CardShape,
+                ambientColor = Color.Black.copy(alpha = 0.06f),
+                spotColor = Color.Black.copy(alpha = 0.10f),
+            )
             .background(ThingsColors.Background, CardShape)
             .border(1.dp, ThingsColors.Divider, CardShape)
             // Taps on the card must not reach the page behind it, which closes the card.
@@ -157,6 +164,8 @@ fun TaskCard(
         )
 
         if (showChecklist) {
+            // 8dp at the end, like the 12dp the checkbox is from the start edge once the card's own
+            // 4dp is counted, so the checklist is not squeezed against the right border.
             ChecklistSection(
                 items = details.checklist,
                 onItemsChange = { items ->
@@ -169,7 +178,7 @@ fun TaskCard(
                 },
                 adding = addingChecklist,
                 onAddingChange = { addingChecklist = it },
-                modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
             )
         }
 

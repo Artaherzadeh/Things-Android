@@ -1,5 +1,7 @@
 package com.things.app.ui.components
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -88,7 +91,7 @@ private val HeadingEdge = 72.dp
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
  * [titleBottomPadding] is the space between the title and the first row.
  * [onMenuAction] reports the action chosen in the three-dots menu; [enabledMenuActions] says which
- * of them can be chosen.
+ * of them can be chosen. While that menu is open the page behind it is dimmed.
  * Pass [expansion] when the page has to-dos that open in place: tapping anywhere that is not a
  * button or the open card then closes the open to-do.
  * While the keyboard is open a button at the top right hides it.
@@ -98,6 +101,11 @@ private val HeadingEdge = 72.dp
  * which turns the key of a list row into the id of its project or heading) to add inside it, or
  * near the left edge to add a heading.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
+ *
+ * Pass [selection] to give the page a select mode: the menu entry Select turns it on, a Done button
+ * replaces the top bar, the add button gives way to a bar with When, Move, Delete and more, and
+ * [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. The page must
+ * give its rows the same [selection].
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -117,11 +125,14 @@ fun ListPageScaffold(
     listState: LazyListState = rememberLazyListState(),
     onAddAt: ((AddTarget) -> Unit)? = null,
     groupForKey: (Any) -> String? = { null },
+    selection: SelectionState? = null,
+    onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
     content: LazyListScope.() -> Unit,
 ) {
-    val imeVisible = WindowInsets.isImeVisible
+    val imeVisible = WindowInfoImeVisible()
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
+    val selecting = selection != null && selection.active
 
     val currentOnAddAt by rememberUpdatedState(onAddAt)
     val currentGroupForKey by rememberUpdatedState(groupForKey)
@@ -129,7 +140,11 @@ fun ListPageScaffold(
     var listTop by remember { mutableFloatStateOf(0f) }
     var fabCenter by remember { mutableStateOf(Offset.Zero) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
+    var pageMenuOpen by remember { mutableStateOf(false) }
+    val scrimAlpha by animateFloatAsState(if (pageMenuOpen) 0.4f else 0f, label = "pageMenuScrim")
     val edgePx = with(density) { HeadingEdge.toPx() }
+
+    BackHandler(enabled = selecting) { selection?.finish() }
 
     fun targetAt(p: Offset): AddTarget {
         val y = (p.y - listTop).toInt()
@@ -158,12 +173,24 @@ fun ListPageScaffold(
                     }
                 )
         ) {
-            PageTopBar(
-                onBack = onBack,
-                onMoreClick = onMoreClick,
-                onMenuAction = onMenuAction,
-                enabledActions = enabledMenuActions,
-            )
+            if (selecting) {
+                SelectTopBar(onDone = { selection?.finish() })
+            } else {
+                PageTopBar(
+                    onBack = onBack,
+                    onMoreClick = onMoreClick,
+                    onMenuAction = { action ->
+                        if (action == PageMenuAction.Select && selection != null) {
+                            expansion?.collapse()
+                            selection.start()
+                        } else {
+                            onMenuAction(action)
+                        }
+                    },
+                    enabledActions = enabledMenuActions,
+                    onMenuOpenChange = { pageMenuOpen = it },
+                )
+            }
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -187,6 +214,18 @@ fun ListPageScaffold(
                     .statusBarsPadding()
                     .padding(top = 8.dp, end = ThingsSpacing.PageMargin),
             )
+        } else if (selecting && selection != null) {
+            SelectionBottomBar(
+                enabled = selection.selected.isNotEmpty(),
+                onAction = { action ->
+                    onSelectionAction(action, selection.selected)
+                    selection.finish()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = ThingsSpacing.FabMargin),
+            )
         } else {
             AddFab(
                 onClick = onAddClick,
@@ -204,6 +243,15 @@ fun ListPageScaffold(
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
                     .padding(end = ThingsSpacing.FabMargin, bottom = ThingsSpacing.FabMargin),
+            )
+        }
+
+        // Dims the page while the three-dots menu is open. The menu itself is drawn above it.
+        if (scrimAlpha > 0f) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
             )
         }
 
@@ -258,6 +306,36 @@ fun ListPageScaffold(
             ) {
                 PlusGlyph(Modifier.size(24.dp))
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WindowInfoImeVisible(): Boolean = WindowInsets.isImeVisible
+
+/** The top bar of the select mode: only the blue Done pill, at the end. */
+@Composable
+private fun SelectTopBar(onDone: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(56.dp)
+            .padding(end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(Modifier.weight(1f))
+        Box(
+            Modifier
+                .height(36.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(ThingsColors.Fab)
+                .clickable(onClickLabel = "Done", role = Role.Button, onClick = onDone)
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Done", style = ThingsType.RowTitleBold.copy(color = Color.White))
         }
     }
 }

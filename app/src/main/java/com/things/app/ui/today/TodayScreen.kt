@@ -19,8 +19,10 @@ import com.things.app.ui.components.GroupGap
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.PageMenuAction
 import com.things.app.ui.components.ProjectGroupHeader
+import com.things.app.ui.components.SelectionAction
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.rememberReorderState
+import com.things.app.ui.components.rememberSelectionState
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.components.reorderable
 import com.things.app.ui.home.StarIcon
@@ -38,6 +40,9 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
         toMutableList().also { it.add(to, it.removeAt(from)) }
     }
 
+private fun List<TaskRowModel>.duplicate(ids: Set<String>, copy: (TaskRowModel) -> TaskRowModel): List<TaskRowModel> =
+    flatMap { task -> if (task.id in ids) listOf(task, copy(task)) else listOf(task) }
+
 /**
  * Today page. Everything comes from [state]; edits (reordering, deleting, adding, collapsing) are
  * kept in memory while the page is on screen and every action is also reported through a callback
@@ -51,6 +56,8 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * - Hold a to-do or a project and move it: the row lifts and follows the finger. To-dos move inside
  *   their own block; projects move among projects, with every block folded while one is held.
  * - Add button: tap adds a to-do at the top; drag it over a project to add there.
+ * - Menu, Select: tick to-dos, then Delete, Mark as Completed or Duplicate from the bottom bar.
+ *   When, Move, tags, deadline, Convert to Project and Share only have a place in the bar for now.
  */
 @Composable
 fun TodayScreen(
@@ -64,8 +71,10 @@ fun TodayScreen(
     onItemClick: (String) -> Unit = {},
     onToggleItem: (String) -> Unit = {},
     onAddClick: () -> Unit = {},
+    onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
 ) {
     val expansion = rememberTaskExpansion()
+    val selection = rememberSelectionState()
     val listState = rememberLazyListState()
     var looseItems by remember(state) { mutableStateOf(state.looseItems) }
     var groups by remember(state) { mutableStateOf(state.groups) }
@@ -100,6 +109,25 @@ fun TodayScreen(
             is AddTarget.Heading -> return // Today has no headings
         }
         expansion.expand(task.id)
+    }
+
+    fun runSelectionAction(action: SelectionAction, ids: Set<String>) {
+        when (action) {
+            SelectionAction.Delete -> ids.forEach { deleteTask(it) }
+            SelectionAction.MarkCompleted ->
+                (looseItems + groups.flatMap { it.items }).filter { it.id in ids }.forEach { task ->
+                    expansion.edit(task) { it.copy(checked = true) }
+                }
+            SelectionAction.Duplicate -> {
+                val copy = { task: TaskRowModel ->
+                    expansion.resolve(task).copy(id = "copy-" + UUID.randomUUID())
+                }
+                looseItems = looseItems.duplicate(ids, copy)
+                groups = groups.map { g -> g.copy(items = g.items.duplicate(ids, copy)) }
+            }
+            else -> Unit
+        }
+        onSelectionAction(action, ids)
     }
 
     val reorder = rememberReorderState(listState)
@@ -153,6 +181,9 @@ fun TodayScreen(
         }
     }
 
+    fun rowModifier(key: String): Modifier =
+        if (selection.active) Modifier else Modifier.reorderable(reorder, key)
+
     ListPageScaffold(
         title = "Today",
         icon = { StarIcon(Modifier.size(28.dp)) },
@@ -178,12 +209,15 @@ fun TodayScreen(
                 else -> null
             }
         },
+        selection = selection,
+        onSelectionAction = { action, ids -> runSelectionAction(action, ids) },
     ) {
         items(looseItems, key = { "$TodoPrefix${it.id}" }) { item ->
             ExpandableTaskRow(
                 task = item,
                 expansion = expansion,
-                modifier = Modifier.reorderable(reorder, "$TodoPrefix${item.id}"),
+                modifier = rowModifier("$TodoPrefix${item.id}"),
+                selection = selection,
                 onOpen = { onItemClick(item.id) },
                 onToggle = { onToggleItem(item.id) },
                 onDelete = { deleteTask(item.id) },
@@ -195,7 +229,7 @@ fun TodayScreen(
                 ProjectGroupHeader(
                     title = group.projectTitle,
                     progress = group.projectProgress,
-                    modifier = Modifier.reorderable(reorder, "$GroupPrefix${group.projectId}"),
+                    modifier = rowModifier("$GroupPrefix${group.projectId}"),
                     topGap = if (index == 0 && looseItems.isEmpty()) 0.dp else GroupGap,
                     onClick = { onProjectClick(group.projectId) },
                     expanded = group.projectId !in hidden,
@@ -213,7 +247,8 @@ fun TodayScreen(
                     ExpandableTaskRow(
                         task = item,
                         expansion = expansion,
-                        modifier = Modifier.reorderable(reorder, "$TodoPrefix${item.id}"),
+                        modifier = rowModifier("$TodoPrefix${item.id}"),
+                        selection = selection,
                         onOpen = { onItemClick(item.id) },
                         onToggle = { onToggleItem(item.id) },
                         onDelete = { deleteTask(item.id) },
