@@ -1,5 +1,8 @@
 package com.things.app.ui.home
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -26,6 +29,9 @@ import kotlin.math.sin
  */
 
 private val IconSize = 24.dp
+
+/** How long the ring of a project takes to grow or shrink to a new value. */
+private const val ProgressMillis = 450
 
 private fun DrawScope.p(x: Float, y: Float) = Offset(size.width * x, size.height * y)
 
@@ -215,30 +221,41 @@ fun AreaIcon(
     drawPath(lid, color, style = stroke)
 }
 
-/** Project icon: a ring that fills clockwise as the project progresses (0f..1f). */
+/**
+ * Project icon: a ring that fills clockwise as the project progresses (0f..1f). When [progress]
+ * changes the filled part grows or shrinks smoothly instead of jumping.
+ */
 @Composable
 fun ProgressIcon(
     progress: Float,
     modifier: Modifier = Modifier.size(IconSize),
     color: Color = ThingsColors.ProgressRing,
-) = Canvas(modifier) {
-    val ringWidth = size.width * 0.085f
-    val inset = ringWidth / 2f
-    drawCircle(
-        color,
-        radius = size.width / 2f - inset,
-        style = Stroke(width = ringWidth),
+) {
+    val shown = animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(ProgressMillis, easing = FastOutSlowInEasing),
+        label = "projectProgress",
     )
-    if (progress > 0f) {
-        val pieInset = size.width * 0.19f
-        drawArc(
-            color = color,
-            startAngle = -90f,
-            sweepAngle = 360f * progress.coerceIn(0f, 1f),
-            useCenter = true,
-            topLeft = Offset(pieInset, pieInset),
-            size = Size(size.width - pieInset * 2, size.height - pieInset * 2),
+    Canvas(modifier) {
+        val ringWidth = size.width * 0.085f
+        val inset = ringWidth / 2f
+        drawCircle(
+            color,
+            radius = size.width / 2f - inset,
+            style = Stroke(width = ringWidth),
         )
+        val value = shown.value
+        if (value > 0f) {
+            val pieInset = size.width * 0.19f
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = 360f * value.coerceIn(0f, 1f),
+                useCenter = true,
+                topLeft = Offset(pieInset, pieInset),
+                size = Size(size.width - pieInset * 2, size.height - pieInset * 2),
+            )
+        }
     }
 }
 

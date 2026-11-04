@@ -57,18 +57,21 @@ fun RepeatIcon(modifier: Modifier = Modifier, color: Color = ThingsColors.TextSe
     drawLine(color, tip, arm(-38.0), strokeWidth = strokeWidth, cap = StrokeCap.Round)
 }
 
-/** Blue round badge with a repeat arrow, shown before the title of a repeating to-do. */
+/**
+ * Blue round badge with a repeat arrow, shown before the title of a repeating to-do. It is a 20dp
+ * circle with a 12dp arrow, small enough not to outweigh the title next to it.
+ */
 @Composable
 fun RepeatBadge(modifier: Modifier = Modifier) {
     Box(
         modifier
-            .size(24.dp)
+            .size(20.dp)
             .clip(CircleShape)
             .background(ThingsColors.ProjectBlue.copy(alpha = 0.2f))
             .semantics { contentDescription = "Repeats" },
         contentAlignment = Alignment.Center,
     ) {
-        RepeatIcon(Modifier.size(16.dp), ThingsColors.ProjectBlue)
+        RepeatIcon(Modifier.size(12.dp), ThingsColors.ProjectBlue)
     }
 }
 
