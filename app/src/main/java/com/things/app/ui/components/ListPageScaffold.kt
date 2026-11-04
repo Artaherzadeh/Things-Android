@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,11 +27,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -64,6 +65,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
@@ -76,7 +78,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.FabShadowColor
 import com.things.app.ui.theme.ThingsColors
@@ -137,13 +138,13 @@ private fun shareText(context: Context, lines: List<String>) {
  * means the text cursor is removed from the field.
  *
  * The add button has up to three behaviours. A tap calls [onAddClick]. When [onAddAt] is given the
- * button can also be dragged: a card-shaped preview follows the finger and the list opens a gap
- * where the to-do would land (the rows below slide down); let go to add it there. Near the left
- * edge the preview turns into a heading (blue title and a line, no card) and the gap opens where
- * the heading would go. While it is dragged the button's place shows a grey cross at three quarters
- * of its size; bring the finger back onto it and the cross grows to full size and turns red: letting
- * go there cancels. [groupForKey] turns the key of a list row into the id of its project or heading
- * and [taskIdForKey] into the id of its to-do.
+ * button can also be dragged: a small card, only as wide as its text, follows the finger over the
+ * whole screen and the list opens a gap where the to-do would land (the rows below slide down); let
+ * go to add it there. Near the left edge the card turns into a heading (blue title and a line, no
+ * card) and the gap opens where the heading would go. While it is dragged the button's place shows
+ * a grey cross at three quarters of its size; bring the finger back onto it and the cross grows to
+ * full size and turns red: letting go there cancels. [groupForKey] turns the key of a list row into
+ * the id of its project or heading and [taskIdForKey] into the id of its to-do.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
  * Select mode works on every page that has the Select entry in its menu: Select turns it on, a Done
@@ -427,44 +428,57 @@ fun ListPageScaffold(
                 val heading = dragTarget is AddTarget.Heading
                 val top = (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()
 
-                if (heading) {
-                    // Like a heading in the list: blue bold title and a thin line, no card.
-                    Column(
-                        Modifier
-                            .offset { IntOffset(0, top) }
-                            .fillMaxWidth()
-                            .padding(horizontal = ThingsSpacing.PageMargin)
-                    ) {
-                        Box(Modifier.height(GhostHeight), contentAlignment = Alignment.CenterStart) {
+                // The preview is only as wide as its text. It is centered on the finger and kept on the
+                // screen, so the finger can take it to any part of the page.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                            layout(constraints.maxWidth, constraints.maxHeight) {
+                                val x = (local.x - placeable.width / 2f).roundToInt()
+                                    .coerceIn(0, (constraints.maxWidth - placeable.width).coerceAtLeast(0))
+                                placeable.place(x, top)
+                            }
+                        }
+                ) {
+                    if (heading) {
+                        // Like a heading in the list: blue bold title and a thin line, no card.
+                        Column(Modifier.width(IntrinsicSize.Max)) {
+                            Box(
+                                Modifier
+                                    .height(GhostHeight)
+                                    .padding(horizontal = 4.dp),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
+                                Text(
+                                    "New Heading",
+                                    style = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue),
+                                )
+                            }
+                            HorizontalDivider(thickness = 1.dp, color = ThingsColors.Divider)
+                        }
+                    } else {
+                        // A small card like an open to-do: the same space left and right of the text.
+                        Box(
+                            Modifier
+                                .shadow(
+                                    elevation = 10.dp,
+                                    shape = GhostShape,
+                                    ambientColor = Color.Black.copy(alpha = 0.7f),
+                                    spotColor = Color.Black.copy(alpha = 0.45f),
+                                )
+                                .background(ThingsColors.Background, GhostShape)
+                                .widthIn(min = 112.dp)
+                                .height(GhostHeight)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
-                                "New Heading",
-                                style = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue),
+                                "New To-Do",
+                                style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
                             )
                         }
-                        HorizontalDivider(thickness = 1.dp, color = ThingsColors.Divider)
-                    }
-                } else {
-                    // A card like an open to-do, under the finger.
-                    Box(
-                        Modifier
-                            .offset { IntOffset(0, top) }
-                            .padding(horizontal = 8.dp)
-                            .fillMaxWidth()
-                            .height(GhostHeight)
-                            .shadow(
-                                elevation = 10.dp,
-                                shape = GhostShape,
-                                ambientColor = Color.Black.copy(alpha = 0.7f),
-                                spotColor = Color.Black.copy(alpha = 0.45f),
-                            )
-                            .background(ThingsColors.Background, GhostShape)
-                            .padding(start = 44.dp),
-                        contentAlignment = Alignment.CenterStart,
-                    ) {
-                        Text(
-                            "New To-Do",
-                            style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
-                        )
                     }
                 }
             }
