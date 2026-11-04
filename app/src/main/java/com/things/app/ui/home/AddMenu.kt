@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import com.things.app.ui.components.PlusGlyph
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 import kotlin.math.roundToInt
@@ -81,16 +82,20 @@ private val FabElevation = 8.dp
 private val PanelElevation = 16.dp
 internal val FabShadowColor = Color(0x334F8EEA)
 
-/** The plain "+" shown on the floating button. Shared by the button and the morphing surface. */
+/**
+ * The "+" shown on the floating button: the same glyph, at the same size, as the add button of
+ * every other page. Shared by the button and the morphing surface.
+ */
 @Composable
 internal fun AddFabGlyph(modifier: Modifier = Modifier, contentDescription: String? = "Add") {
-    Box(modifier, contentAlignment = Alignment.Center) {
-        Icon(
-            Icons.Rounded.Add,
-            contentDescription = contentDescription,
-            tint = Color.White,
-            modifier = Modifier.size(28.dp),
-        )
+    val description = contentDescription
+    Box(
+        modifier.then(
+            if (description != null) Modifier.semantics { this.contentDescription = description } else Modifier
+        ),
+        contentAlignment = Alignment.Center,
+    ) {
+        PlusGlyph(Modifier.size(24.dp))
     }
 }
 
