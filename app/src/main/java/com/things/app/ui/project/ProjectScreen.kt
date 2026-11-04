@@ -83,14 +83,13 @@ import java.util.UUID
 
 private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
-
-/** The "Show / Hide ... items" lines: 40dp high, with text one size smaller than a to-do title. */
-private val ToggleHeight = 40.dp
-private val ToggleTextSize = 15.sp
-
 private const val TaskPrefix = "task-"
 private const val HeadingPrefix = "heading-"
 private const val TopLevel = ""
+
+/** The show/hide lines are 40dp high with a 15sp label, so two of them under each other sit close. */
+private val ToggleHeight = 40.dp
+private val ToggleFontSize = 15.sp
 
 // The Later items and the Logged items open and close with the very same motion: they unfold from
 // the top edge downwards while fading in, quick and smooth, and fold back up the same way. Opening
@@ -120,8 +119,9 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  *
  * The ring next to the title shows how much of the project is done: the completed to-dos (the
  * logged ones and the ones that are ticked) over all of them. Five of ten is half full; untick one
- * of five of ten and it drops to forty percent. [onProgressChange] reports every change of it so
- * Home can draw the same ring. Later items and deleted to-dos do not count.
+ * of five of ten and it drops to forty percent. The ring moves smoothly to its new value.
+ * [onProgressChange] reports every change of it so Home can draw the same ring. Later items and
+ * deleted to-dos do not count.
  *
  * The project title, the heading titles and the notes under the title can be edited in place; with
  * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
@@ -538,7 +538,7 @@ private fun ToggleRow(text: String, topGap: Dp, onClick: () -> Unit) {
                 .padding(horizontal = ThingsSpacing.PageMargin),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(text, style = ThingsType.Count.copy(fontSize = ToggleTextSize))
+            Text(text, style = ThingsType.Count.copy(fontSize = ToggleFontSize))
         }
     }
 }
