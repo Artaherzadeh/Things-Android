@@ -1,22 +1,36 @@
 package com.things.app.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import java.util.UUID
+import kotlinx.coroutines.delay
 
 /**
  * Which to-do of a page is open, and the edits made to to-dos on that page. Edits are kept here the
@@ -24,17 +38,22 @@ import androidx.compose.ui.Modifier
  * Only the open to-do id survives rotation; the edits live as long as the page is on screen.
  *
  * It also remembers which to-dos were deleted from the page (swipe, select mode), the changes the
- * select bar made to several to-dos at once, and which to-dos were just created: a new to-do that
- * is closed with an empty title is deleted, not saved.
+ * select bar made to several to-dos at once, the copies it made, and which to-dos were just created:
+ * a new to-do that is closed with an empty title is deleted, not saved.
  */
 @Stable
 class TaskExpansion internal constructor(initialId: String?) {
     var expandedId: String? by mutableStateOf(initialId)
         private set
 
+    /** Where the open card is on screen, so a touch outside it can close it first. */
+    var cardBounds: Rect? = null
+
     private val drafts = mutableStateMapOf<String, TaskRowModel>()
     private val deletedIds = mutableStateMapOf<String, Boolean>()
     private val patches = mutableStateMapOf<String, List<(TaskRowModel) -> TaskRowModel>>()
+    private val duplicates = mutableStateMapOf<String, List<TaskRowModel>>()
+    private val known = mutableMapOf<String, TaskRowModel>()
     private val newIds = mutableSetOf<String>()
 
     fun isExpanded(id: String): Boolean = expandedId == id
@@ -42,6 +61,13 @@ class TaskExpansion internal constructor(initialId: String?) {
     fun isNew(id: String): Boolean = id in newIds
 
     fun isDeleted(id: String): Boolean = deletedIds[id] == true
+
+    /** Rows tell the page state about the to-dos they draw, so the select bar can act on ids. */
+    fun register(task: TaskRowModel) {
+        known[task.id] = task
+    }
+
+    fun titleOf(id: String): String? = known[id]?.let { resolve(it).title }
 
     /** Opens [id]. A new to-do that is still empty and was open before is discarded. */
     fun expand(id: String) {
@@ -73,7 +99,46 @@ class TaskExpansion internal constructor(initialId: String?) {
         ids.forEach { id -> patches[id] = (patches[id] ?: emptyList()) + change }
     }
 
-    fun markCompleted(ids: Set<String>) = patchAll(ids) { it.copy(checked = true) }
+    private fun checkedStates(ids: Set<String>): List<Boolean> =
+        ids.mapNotNull { known[it] }.map { resolve(it).checked }
+
+    /**
+     * What the status entry of the select bar is called: Mark as Completed when none of the ticked
+     * to-dos is done, Undo when all are, Switch Status when it is mixed.
+     */
+    fun completionLabel(ids: Set<String>): String {
+        val states = checkedStates(ids)
+        return when {
+            states.isEmpty() || states.none { it } -> "Mark as Completed"
+            states.all { it } -> "Undo"
+            else -> "Switch Status"
+        }
+    }
+
+    /** Completes them all, un-completes them all, or flips each one when they are mixed. */
+    fun toggleCompleted(ids: Set<String>) {
+        val tasks = ids.mapNotNull { known[it] }
+        val states = tasks.map { resolve(it).checked }
+        tasks.forEach { task ->
+            val target = when {
+                states.none { it } -> true
+                states.all { it } -> false
+                else -> !resolve(task).checked
+            }
+            patchAll(setOf(task.id)) { it.copy(checked = target) }
+        }
+    }
+
+    /** Adds a copy under each to-do in [ids]. */
+    fun duplicate(ids: Set<String>) {
+        ids.forEach { id ->
+            val task = known[id] ?: return@forEach
+            val copy = resolve(task).copy(id = "copy-" + UUID.randomUUID())
+            duplicates[id] = (duplicates[id] ?: emptyList()) + copy
+        }
+    }
+
+    fun duplicatesOf(id: String): List<TaskRowModel> = duplicates[id] ?: emptyList()
 
     /** The to-do with the edits made to it so far. */
     fun resolve(task: TaskRowModel): TaskRowModel {
@@ -101,16 +166,22 @@ fun rememberTaskExpansion(): TaskExpansion =
 
 /**
  * A to-do that opens in place. Tapping the row opens it as a [TaskCard] with an animated change of
- * height; opening another to-do, tapping outside (see ListPageScaffold) or going back closes it.
+ * height; opening another to-do, touching anything outside the card (see ListPageScaffold) or going
+ * back closes it.
  *
  * - Swipe the closed row to the left: it slides and a red cross appears; tapping it deletes the
- *   to-do. [onDelete] is told so the page can drop it from its own list.
+ *   to-do. The row folds up from the bottom, the rows under it slide up, then [onDelete] is told so
+ *   the page can drop it from its own list.
  * - In select mode (the page's [selection], or the one ListPageScaffold provides) a tap ticks or
  *   unticks the row instead of opening it.
  * - A new to-do opens with the keyboard on its title. If the keyboard is closed or the card is
  *   closed while the title is empty, the to-do is deleted.
  * - The calendar button and the date line of the card open the When sheet; the tag button and the
  *   tag chips open the Tags sheet. What is chosen is shown on the card and in the closed row.
+ * - When the card closes, the note, checklist and tag marks of the closed row follow what the card
+ *   holds: a mark stays only if there is something behind it.
+ * - While the add button is dragged over the page the row makes room for the new to-do (see
+ *   [DropSlot]).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -124,18 +195,26 @@ fun ExpandableTaskRow(
     onToggle: () -> Unit = {},
     onDelete: (() -> Unit)? = null,
 ) {
-    if (expansion.isDeleted(task.id)) return
-
     val sel = selection ?: LocalSelection.current
+    val slot = LocalDropSlot.current
     val current = expansion.resolve(task)
+    val deleted = expansion.isDeleted(task.id)
+    val expanded = expansion.isExpanded(task.id)
     var sheet by remember { mutableStateOf<TaskSheet?>(null) }
+
+    SideEffect { expansion.register(task) }
+
     val toggle = {
         expansion.edit(task) { it.copy(checked = !current.checked) }
         onToggle()
     }
-    val delete = {
-        onDelete?.invoke()
-        expansion.delete(task.id)
+
+    // The row folds up first; the page drops it from its list when the animation is over.
+    LaunchedEffect(deleted) {
+        if (deleted) {
+            delay(300)
+            onDelete?.invoke()
+        }
     }
 
     val imeVisible = WindowInsets.isImeVisible
@@ -150,37 +229,69 @@ fun ExpandableTaskRow(
         imeWasVisible = imeVisible
     }
 
-    Box(modifier.animateContentSize()) {
-        if (sel != null && sel.active) {
-            TaskRow(
-                task = current,
-                recurringStyle = recurringStyle,
-                selecting = true,
-                selected = sel.isSelected(task.id),
-                onClick = { sel.toggle(task.id) },
-                onToggle = { sel.toggle(task.id) },
-            )
-        } else if (expansion.isExpanded(task.id)) {
-            BackHandler { expansion.collapse() }
-            TaskCard(
-                task = current,
-                onEdit = { change -> expansion.edit(task, change) },
-                onToggle = toggle,
-                autoFocus = expansion.isNew(task.id) && current.title.isEmpty(),
-                onScheduleClick = { sheet = TaskSheet.When },
-                onTagsClick = { sheet = TaskSheet.Tags },
-            )
-        } else {
-            SwipeToDeleteRow(onDelete = delete) {
-                TaskRow(
-                    task = current,
-                    recurringStyle = recurringStyle,
-                    onClick = {
-                        expansion.expand(task.id)
-                        onOpen()
-                    },
-                    onToggle = toggle,
-                )
+    var wasExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(expanded) {
+        if (wasExpanded && !expanded && !expansion.isDeleted(task.id)) {
+            expansion.edit(task) { it.settled() }
+        }
+        wasExpanded = expanded
+    }
+
+    AnimatedVisibility(
+        visible = !deleted,
+        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+    ) {
+        Column(modifier.animateContentSize()) {
+            if (slot.beforeTaskId == task.id) Spacer(Modifier.height(DropGapHeight))
+
+            Box {
+                if (sel != null && sel.active) {
+                    TaskRow(
+                        task = current,
+                        recurringStyle = recurringStyle,
+                        selecting = true,
+                        selected = sel.isSelected(task.id),
+                        onClick = { sel.toggle(task.id) },
+                        onToggle = { sel.toggle(task.id) },
+                    )
+                } else if (expanded) {
+                    BackHandler { expansion.collapse() }
+                    Box(Modifier.onGloballyPositioned { expansion.cardBounds = it.boundsInRoot() }) {
+                        TaskCard(
+                            task = current,
+                            onEdit = { change -> expansion.edit(task, change) },
+                            onToggle = toggle,
+                            autoFocus = expansion.isNew(task.id) && current.title.isEmpty(),
+                            onScheduleClick = { sheet = TaskSheet.When },
+                            onTagsClick = { sheet = TaskSheet.Tags },
+                        )
+                    }
+                } else {
+                    SwipeToDeleteRow(onDelete = { expansion.delete(task.id) }) {
+                        TaskRow(
+                            task = current,
+                            recurringStyle = recurringStyle,
+                            onClick = {
+                                expansion.expand(task.id)
+                                onOpen()
+                            },
+                            onToggle = toggle,
+                        )
+                    }
+                }
+            }
+
+            if (slot.afterTaskId == task.id) Spacer(Modifier.height(DropGapHeight))
+
+            expansion.duplicatesOf(task.id).forEach { copy ->
+                key(copy.id) {
+                    ExpandableTaskRow(
+                        task = copy,
+                        expansion = expansion,
+                        recurringStyle = recurringStyle,
+                        selection = selection,
+                    )
+                }
             }
         }
     }

@@ -12,3 +12,28 @@ fun TaskRowModel.withTags(tags: List<String>): TaskRowModel = copy(
     details = details.copy(tags = tags),
     hasTag = tags.isNotEmpty(),
 )
+
+/**
+ * The closed-row marks of a to-do that was just closed: the note, checklist and tag marks show only
+ * when there is a note, a checklist item or a tag in the card. Nothing else is kept.
+ */
+fun TaskRowModel.settled(): TaskRowModel = copy(
+    hasNote = details.notes.isNotBlank(),
+    hasChecklist = details.checklist.isNotEmpty(),
+    hasTag = details.tags.isNotEmpty(),
+)
+
+/**
+ * The list with [task] added next to the to-do [anchorId]: under it when [after], above it
+ * otherwise. With no anchor the task goes first; with an unknown anchor, last.
+ */
+fun List<TaskRowModel>.insertedAt(task: TaskRowModel, anchorId: String?, after: Boolean): List<TaskRowModel> {
+    val index = if (anchorId == null) -1 else indexOfFirst { it.id == anchorId }
+    val at = when {
+        anchorId == null -> 0
+        index < 0 -> size
+        after -> index + 1
+        else -> index
+    }
+    return toMutableList().also { it.add(at, task) }
+}

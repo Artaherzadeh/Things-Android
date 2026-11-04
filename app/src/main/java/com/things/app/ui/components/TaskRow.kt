@@ -3,6 +3,8 @@ package com.things.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +19,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -218,6 +222,9 @@ private fun TrailingGlyph(description: String, glyph: @Composable () -> Unit) {
  * The checkbox and its tap area. With the defaults the tap area is 44dp wide, from x = 8dp to
  * x = 52dp, the 20dp box sits at x = 20dp and 12dp of space separates it from the title. Give the
  * modifier a height to make the tap area taller.
+ *
+ * The whole tap area takes the touch, but only the 20dp box reacts to it: it dims while pressed.
+ * There is no ripple spread over the area around the box.
  */
 @Composable
 internal fun TaskCheckbox(
@@ -229,11 +236,19 @@ internal fun TaskCheckbox(
     slotWidth: Dp = 44.dp,
 ) {
     val shape = RoundedCornerShape(4.dp)
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
     Box(
         modifier
             .width(slotWidth)
             .fillMaxHeight()
-            .clickable(onClickLabel = "Toggle $title", role = Role.Checkbox, onClick = onToggle)
+            .clickable(
+                interactionSource = source,
+                indication = null,
+                onClickLabel = "Toggle $title",
+                role = Role.Checkbox,
+                onClick = onToggle,
+            )
             .semantics { stateDescription = if (checked) "Completed" else "Not completed" },
         contentAlignment = Alignment.CenterStart,
     ) {
@@ -242,7 +257,14 @@ internal fun TaskCheckbox(
                 .padding(start = startPadding)
                 .size(CheckboxSize)
                 .clip(shape)
-                .then(if (checked) Modifier.background(ThingsColors.ProjectBlue) else Modifier)
+                .background(
+                    when {
+                        checked && pressed -> ThingsColors.ProjectBlue.copy(alpha = 0.7f)
+                        checked -> ThingsColors.ProjectBlue
+                        pressed -> ThingsColors.CheckboxStroke.copy(alpha = 0.25f)
+                        else -> Color.Transparent
+                    }
+                )
                 .border(2.dp, if (checked) ThingsColors.ProjectBlue else ThingsColors.CheckboxStroke, shape),
             contentAlignment = Alignment.Center,
         ) {
