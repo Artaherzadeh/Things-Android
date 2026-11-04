@@ -1,5 +1,6 @@
 package com.things.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -8,9 +9,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.things.app.ui.anytime.AnytimeScreen
 import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.home.CreationType
@@ -21,6 +24,9 @@ import com.things.app.ui.inbox.InboxScreen
 import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.logbook.LogbookScreen
 import com.things.app.ui.logbook.sampleLogbookState
+import com.things.app.ui.project.ProjectScreen
+import com.things.app.ui.project.ProjectUiState
+import com.things.app.ui.project.sampleProjectState
 import com.things.app.ui.someday.SomedayScreen
 import com.things.app.ui.someday.sampleSomedayState
 import com.things.app.ui.today.TodayScreen
@@ -37,12 +43,31 @@ object Routes {
     const val LOGBOOK = "logbook"
     const val INBOX = "inbox"
     const val SOMEDAY = "someday"
-    // const val PROJECT = "project/{projectId}"
+    const val PROJECT = "project/{projectId}"
+
+    fun project(projectId: String) = "project/${Uri.encode(projectId)}"
 }
 
 // Push transition: the new page slides in from the end edge, the page below shifts by a third.
 private const val PushMillis = 300
 private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+
+/**
+ * Static glue: finds the tapped project's title and progress in the sample data so the static
+ * project page matches what was tapped. Replace with a repository lookup once real data exists.
+ */
+private fun sampleProjectStateFor(projectId: String): ProjectUiState {
+    val home = sampleHomeState()
+    val homeProject = (home.looseProjects + home.areas.flatMap { it.projects })
+        .firstOrNull { it.id == projectId }
+    val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
+    return when {
+        homeProject != null -> sampleProjectState(homeProject.id, homeProject.title, homeProject.progress)
+        anytimeGroup != null ->
+            sampleProjectState(anytimeGroup.projectId, anytimeGroup.projectTitle, anytimeGroup.projectProgress)
+        else -> sampleProjectState()
+    }
+}
 
 /**
  * Every page of the app is registered here. To add a page:
@@ -95,6 +120,9 @@ fun ThingsNavHost() {
                 onNewToDo = { pendingCreation = CreationType.ToDo },
                 onNewProject = { pendingCreation = CreationType.Project },
                 onNewArea = { pendingCreation = CreationType.Area },
+                onProjectClick = { project ->
+                    navController.navigate(Routes.project(project.id)) { launchSingleTop = true }
+                },
                 onSystemListClick = { list ->
                     val route = when (list) {
                         SystemList.Inbox -> Routes.INBOX
@@ -124,6 +152,9 @@ fun ThingsNavHost() {
             AnytimeScreen(
                 state = sampleAnytimeState(),
                 onBack = { navController.popBackStack() },
+                onProjectClick = { projectId ->
+                    navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                },
             )
         }
         composable(Routes.LOGBOOK) {
@@ -141,6 +172,16 @@ fun ThingsNavHost() {
         composable(Routes.SOMEDAY) {
             SomedayScreen(
                 state = sampleSomedayState(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.PROJECT,
+            arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+        ) { entry ->
+            val projectId = entry.arguments?.getString("projectId").orEmpty()
+            ProjectScreen(
+                state = sampleProjectStateFor(projectId),
                 onBack = { navController.popBackStack() },
             )
         }

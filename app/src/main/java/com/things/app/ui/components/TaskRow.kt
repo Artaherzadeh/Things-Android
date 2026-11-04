@@ -37,6 +37,7 @@ data class TaskRowModel(
     /** Project or area name shown under the title. Null hides the line. */
     val subtitle: String? = null,
     val checked: Boolean = false,
+    /** The to-do is a copy created by a repeating template: draws the grey repeat icon. */
     val isRecurring: Boolean = false,
     val hasReminder: Boolean = false,
     val hasTag: Boolean = false,
@@ -44,9 +45,13 @@ data class TaskRowModel(
     val hasChecklist: Boolean = false,
     /** True when the to-do is scheduled for Today: draws the yellow star before the title. */
     val isToday: Boolean = false,
+    /** Short grey label before the title, such as the next day (Fri) or a status (Waiting). */
+    val chip: String? = null,
+    /** The row is a repeating template: it gets the blue round repeat badge before the title. */
+    val isRepeatingTemplate: Boolean = false,
 )
 
-/** Where the "repeats" marker is drawn. Hidden entirely when the to-do does not repeat. */
+/** Where the repeat marker of a recurring to-do is drawn. */
 enum class RecurringStyle { TrailingIcon, LeadingBadge }
 
 private val RowMinHeight = 44.dp
@@ -71,7 +76,11 @@ fun TaskRow(
     ) {
         TaskCheckbox(checked = task.checked, title = task.title, onToggle = onToggle)
 
-        if (task.isRecurring && recurringStyle == RecurringStyle.LeadingBadge) {
+        task.chip?.let {
+            TaskChip(it)
+            Spacer(Modifier.width(8.dp))
+        }
+        if (task.isRepeatingTemplate || (task.isRecurring && recurringStyle == RecurringStyle.LeadingBadge)) {
             RepeatBadge()
             Spacer(Modifier.width(8.dp))
         }
@@ -107,6 +116,19 @@ fun TaskRow(
         if (task.hasNote) TrailingGlyph("Notes") { NoteIcon(Modifier.size(16.dp)) }
         if (task.hasChecklist) TrailingGlyph("Checklist") { ChecklistIcon(Modifier.size(16.dp)) }
     }
+}
+
+@Composable
+private fun TaskChip(text: String) {
+    Text(
+        text,
+        style = ThingsType.Count,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(ThingsColors.SearchBackground)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+    )
 }
 
 @Composable
