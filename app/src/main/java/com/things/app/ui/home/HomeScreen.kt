@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -29,7 +31,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,9 +52,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
@@ -68,6 +71,7 @@ import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
+import kotlin.math.roundToInt
 
 // Every value is a multiple of 4dp (see ThingsSpacing). Icons and checkboxes sit at x = 20dp and
 // the text after them starts at x = 52dp, like the to-dos on the list pages.
@@ -78,13 +82,24 @@ private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
 private val GroupGap = 12.dp
 
+/** The divider block above an area: 12dp, the 1dp line, 12dp. */
+private val AreaDividerBlock = 25.dp
+
 /** How far the list has to be pulled down from the top before Quick Find opens. */
 private val PullToSearchDistance = 96.dp
+
+private const val LooseProjectsKey = "loose-projects"
+private const val SettingsKey = "settings"
 
 /**
  * The home screen. It lists no to-dos: only the system lists, projects and areas. Settings is the
  * last row of the list, so it scrolls with the rest instead of staying on screen.
- * Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
+ *
+ * - Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
+ * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
+ *   let go: over an area it goes into that area (at the row nearest the finger), over the loose
+ *   projects it goes among them, anywhere else it becomes the first loose project.
+ *   [onCreateProjectAt] gets the area id (null for no area) and the position in that list.
  */
 @Composable
 fun HomeScreen(
@@ -97,12 +112,15 @@ fun HomeScreen(
     onNewProject: () -> Unit = {},
     onNewArea: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onCreateProjectAt: (areaId: String?, index: Int) -> Unit = { _, _ -> },
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
     val currentOnSearch by rememberUpdatedState(onSearchClick)
-    val pullPx = with(LocalDensity.current) { PullToSearchDistance.toPx() }
+    val currentOnCreateProjectAt by rememberUpdatedState(onCreateProjectAt)
+    val pullPx = with(density) { PullToSearchDistance.toPx() }
     val pullToSearch = remember(pullPx) {
         object : NestedScrollConnection {
             private var pulled = 0f
@@ -138,6 +156,8 @@ fun HomeScreen(
     val menuOnScreen by remember { derivedStateOf { menuExpanded || menuProgress.value > 0f } }
     var fabBounds by remember { mutableStateOf<Rect?>(null) }
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
+    var listTop by remember { mutableFloatStateOf(0f) }
+    var dragPos by remember { mutableStateOf<Offset?>(null) }
 
     fun selectCreation(type: CreationType) {
         if (!menuExpanded) return // ignore repeat taps while closing
@@ -147,6 +167,36 @@ fun HomeScreen(
             CreationType.Project -> onNewProject()
             CreationType.Area -> onNewArea()
         }
+    }
+
+    /** Where a project dropped at this window position would go: the area (or null) and the index. */
+    fun dropTarget(p: Offset): Pair<String?, Int> {
+        val y = p.y - listTop
+        val items = listState.layoutInfo.visibleItemsInfo
+        val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
+        val key = info?.key
+        val rowPx = with(density) { RowHeight.toPx() }
+        val looseCount = state.looseProjects.size
+        if (info != null && key == LooseProjectsKey) {
+            val index = (((y - info.offset) / rowPx) + 0.5f).toInt().coerceIn(0, looseCount)
+            return null to index
+        }
+        val area = state.areas.firstOrNull { it.id == key }
+        if (info != null && area != null) {
+            val dividerPx = if (state.areas.indexOf(area) > 0 || looseCount > 0) {
+                with(density) { AreaDividerBlock.toPx() }
+            } else {
+                0f
+            }
+            val count = area.projects.size
+            val index = if (area.id in collapsedAreas) {
+                count
+            } else {
+                (((y - info.offset - dividerPx - rowPx) / rowPx) + 0.5f).toInt().coerceIn(0, count)
+            }
+            return area.id to index
+        }
+        return null to if (key == SettingsKey) looseCount else 0
     }
 
     BackHandler(enabled = menuExpanded) { menuExpanded = false }
@@ -161,21 +211,22 @@ fun HomeScreen(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
+                .onGloballyPositioned { listTop = it.positionInWindow().y }
                 .nestedScroll(pullToSearch),
             contentPadding = PaddingValues(top = statusBarTop + 12.dp, bottom = 140.dp),
         ) {
-            item { QuickFind(onClick = onSearchClick) }
+            item(key = "quick-find") { QuickFind(onClick = onSearchClick) }
 
-            item { Spacer(Modifier.height(28.dp)) }
+            item(key = "quick-find-gap") { Spacer(Modifier.height(28.dp)) }
 
             // Inbox
-            item {
+            item(key = "inbox") {
                 SystemRow(SystemList.Inbox, count = state.inboxCount) { onSystemListClick(SystemList.Inbox) }
                 Spacer(Modifier.height(GroupGap))
             }
 
             // Today / Upcoming / Anytime / Someday
-            item {
+            item(key = "lists") {
                 SystemRow(SystemList.Today, count = state.todayCount, badge = state.todayBadge) {
                     onSystemListClick(SystemList.Today)
                 }
@@ -186,7 +237,7 @@ fun HomeScreen(
             }
 
             // Logbook
-            item {
+            item(key = "logbook") {
                 SystemRow(SystemList.Logbook) { onSystemListClick(SystemList.Logbook) }
                 Spacer(Modifier.height(16.dp))
                 SectionDivider()
@@ -195,7 +246,7 @@ fun HomeScreen(
 
             // Projects without an area
             if (state.looseProjects.isNotEmpty()) {
-                item {
+                item(key = LooseProjectsKey) {
                     state.looseProjects.forEach { project ->
                         ProjectRow(project) { onProjectClick(project) }
                     }
@@ -232,7 +283,7 @@ fun HomeScreen(
             }
 
             // Settings: the last row of the list. Scroll to the end to see it.
-            item(key = "settings") {
+            item(key = SettingsKey) {
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -272,10 +323,50 @@ fun HomeScreen(
                 onClick = { menuExpanded = true },
                 hidden = menuOnScreen,
                 onBoundsChanged = { fabBounds = it },
+                onDragStart = { dragPos = fabBounds?.center },
+                onDrag = { delta -> dragPos = dragPos?.plus(delta) },
+                onDragEnd = {
+                    val p = dragPos
+                    dragPos = null
+                    if (p != null) {
+                        val (areaId, index) = dropTarget(p)
+                        currentOnCreateProjectAt(areaId, index)
+                    }
+                },
+                onDragCancel = { dragPos = null },
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = ThingsSpacing.FabMargin),
             )
+        }
+
+        // The new project under the finger while the + is dragged.
+        val p = dragPos
+        if (p != null) {
+            val local = p - rootOrigin
+            val half = with(density) { (RowHeight / 2).toPx() }
+            Row(
+                Modifier
+                    .offset { IntOffset(0, (local.y - half).roundToInt()) }
+                    .padding(horizontal = 8.dp)
+                    .fillMaxWidth()
+                    .height(RowHeight)
+                    .shadow(
+                        elevation = 10.dp,
+                        shape = RoundedCornerShape(20.dp),
+                        ambientColor = Color.Black.copy(alpha = 0.16f),
+                        spotColor = Color.Black.copy(alpha = 0.05f),
+                    )
+                    .background(ThingsColors.Background, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) {
+                    ProgressIcon(0f, Modifier.size(24.dp))
+                }
+                Spacer(Modifier.width(IconTextGap))
+                Text("New Project", style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary))
+            }
         }
 
         // Scrim + morphing menu, drawn above everything else while open or animating.
@@ -438,8 +529,17 @@ private fun AddButton(
     onClick: () -> Unit,
     hidden: Boolean,
     onBoundsChanged: (Rect) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Offset) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val currentStart by rememberUpdatedState(onDragStart)
+    val currentDrag by rememberUpdatedState(onDrag)
+    val currentEnd by rememberUpdatedState(onDragEnd)
+    val currentCancel by rememberUpdatedState(onDragCancel)
+
     // The wrapper always keeps its 52dp slot so the menu can read the button's real position.
     // While the menu is open the morphing surface draws the button, so nothing is drawn (or
     // focusable) here and there is never a duplicate + behind the panel.
@@ -460,7 +560,18 @@ private fun AddButton(
                     )
                     .clip(CircleShape)
                     .background(ThingsColors.Fab)
-                    .clickable(onClickLabel = "Open create menu", role = Role.Button, onClick = onClick),
+                    .clickable(onClickLabel = "Open create menu", role = Role.Button, onClick = onClick)
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = { currentStart() },
+                            onDrag = { change, amount ->
+                                change.consume()
+                                currentDrag(amount)
+                            },
+                            onDragEnd = { currentEnd() },
+                            onDragCancel = { currentCancel() },
+                        )
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 AddFabGlyph()

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -22,8 +23,10 @@ import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.area.AreaScreen
 import com.things.app.ui.area.AreaUiState
 import com.things.app.ui.area.sampleAreaState
-import com.things.app.ui.home.CreationType
+import com.things.app.ui.home.Area
 import com.things.app.ui.home.HomeScreen
+import com.things.app.ui.home.HomeUiState
+import com.things.app.ui.home.Project
 import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.sampleHomeState
 import com.things.app.ui.inbox.InboxScreen
@@ -43,6 +46,7 @@ import com.things.app.ui.today.TodayScreen
 import com.things.app.ui.today.sampleTodayState
 import com.things.app.ui.upcoming.UpcomingScreen
 import com.things.app.ui.upcoming.sampleUpcomingState
+import java.util.UUID
 
 /** One constant per page. Add a new entry here for every page you create. */
 object Routes {
@@ -67,6 +71,9 @@ private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 /** Id of the Vacation in Rome project in the Home sample data: it opens the headings sample. */
 private const val VacationProjectId = "rome"
 
+/** Ids of projects and areas created in the app start with this. They open empty. */
+private const val NewIdPrefix = "new-"
+
 private fun routeFor(list: SystemList): String = when (list) {
     SystemList.Inbox -> Routes.INBOX
     SystemList.Today -> Routes.TODAY
@@ -83,16 +90,18 @@ private fun routeFor(target: QuickFindTarget): String = when (target) {
 }
 
 /**
- * Static glue: finds the tapped project's title and progress in the sample data so the static
- * project page matches what was tapped. Replace with a repository lookup once real data exists.
+ * Static glue: finds the tapped project's title and progress in the Home data so the project page
+ * matches what was tapped. A project created in the app opens empty. Replace with a repository
+ * lookup once real data exists.
  */
-private fun sampleProjectStateFor(projectId: String): ProjectUiState {
-    val home = sampleHomeState()
+private fun projectStateFor(projectId: String, home: HomeUiState): ProjectUiState {
     val homeProject = (home.looseProjects + home.areas.flatMap { it.projects })
         .firstOrNull { it.id == projectId }
     val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
     val todayGroup = sampleTodayState().groups.firstOrNull { it.projectId == projectId }
     return when {
+        projectId.startsWith(NewIdPrefix) ->
+            ProjectUiState(id = projectId, title = homeProject?.title ?: "New Project", progress = 0f)
         projectId == VacationProjectId ->
             sampleVacationProjectState(
                 id = projectId,
@@ -109,11 +118,11 @@ private fun sampleProjectStateFor(projectId: String): ProjectUiState {
 }
 
 /**
- * Static glue: shows the tapped area's own projects from the Home sample data. Replace with a
- * repository lookup once real data exists.
+ * Static glue: shows the tapped area's own projects from the Home data. Replace with a repository
+ * lookup once real data exists.
  */
-private fun sampleAreaStateFor(areaId: String): AreaUiState {
-    val area = sampleHomeState().areas.firstOrNull { it.id == areaId }
+private fun areaStateFor(areaId: String, home: HomeUiState): AreaUiState {
+    val area = home.areas.firstOrNull { it.id == areaId }
     return if (area != null) {
         AreaUiState(id = area.id, title = area.title, projects = area.projects)
     } else {
@@ -129,15 +138,38 @@ private fun sampleAreaStateFor(areaId: String): AreaUiState {
  *  4. Call navController.navigate(Routes.X) from the screen that links to it.
  *
  * The Quick Find popover is drawn above the NavHost so it can be opened from any page.
+ *
+ * Home keeps its projects and areas here while the app runs: New Project, New Area and the
+ * dragged + add to them and open the new page; Delete Area on an area page removes it.
  */
 @Composable
 fun ThingsNavHost() {
     val navController = rememberNavController()
 
-    // Set when the person picks an action in the Home add menu. Part 2 reads this to open the
-    // matching editor and then clears it. Nothing is created by setting it.
-    var pendingCreation by rememberSaveable { mutableStateOf<CreationType?>(null) }
     var quickFindOpen by rememberSaveable { mutableStateOf(false) }
+    var homeState by remember { mutableStateOf(sampleHomeState()) }
+
+    /** Adds a project to an area (or to the loose projects) and returns its id. */
+    fun createProject(areaId: String?, index: Int?): String {
+        val project = Project(NewIdPrefix + UUID.randomUUID(), "New Project", 0f)
+        homeState = if (areaId == null) {
+            val list = homeState.looseProjects
+            val at = (index ?: list.size).coerceIn(0, list.size)
+            homeState.copy(looseProjects = list.toMutableList().also { it.add(at, project) })
+        } else {
+            homeState.copy(
+                areas = homeState.areas.map { area ->
+                    if (area.id == areaId) {
+                        val at = (index ?: area.projects.size).coerceIn(0, area.projects.size)
+                        area.copy(projects = area.projects.toMutableList().also { it.add(at, project) })
+                    } else {
+                        area
+                    }
+                },
+            )
+        }
+        return project.id
+    }
 
     Box(Modifier.fillMaxSize()) {
         NavHost(
@@ -172,11 +204,21 @@ fun ThingsNavHost() {
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
-                    state = sampleHomeState(),
+                    state = homeState,
                     onSearchClick = { quickFindOpen = true },
-                    onNewToDo = { pendingCreation = CreationType.ToDo },
-                    onNewProject = { pendingCreation = CreationType.Project },
-                    onNewArea = { pendingCreation = CreationType.Area },
+                    onNewProject = {
+                        val id = createProject(null, null)
+                        navController.navigate(Routes.project(id)) { launchSingleTop = true }
+                    },
+                    onNewArea = {
+                        val area = Area(NewIdPrefix + UUID.randomUUID(), "New Area", emptyList())
+                        homeState = homeState.copy(areas = homeState.areas + area)
+                        navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
+                    },
+                    onCreateProjectAt = { areaId, index ->
+                        val id = createProject(areaId, index)
+                        navController.navigate(Routes.project(id)) { launchSingleTop = true }
+                    },
                     onAreaClick = { area ->
                         navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
                     },
@@ -236,7 +278,7 @@ fun ThingsNavHost() {
             ) { entry ->
                 val projectId = entry.arguments?.getString("projectId").orEmpty()
                 ProjectScreen(
-                    state = sampleProjectStateFor(projectId),
+                    state = projectStateFor(projectId, homeState),
                     onBack = { navController.popBackStack() },
                 )
             }
@@ -246,10 +288,14 @@ fun ThingsNavHost() {
             ) { entry ->
                 val areaId = entry.arguments?.getString("areaId").orEmpty()
                 AreaScreen(
-                    state = sampleAreaStateFor(areaId),
+                    state = areaStateFor(areaId, homeState),
                     onBack = { navController.popBackStack() },
                     onProjectClick = { projectId ->
                         navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                    },
+                    onDeleteArea = {
+                        homeState = homeState.copy(areas = homeState.areas.filter { it.id != areaId })
+                        navController.popBackStack()
                     },
                 )
             }
