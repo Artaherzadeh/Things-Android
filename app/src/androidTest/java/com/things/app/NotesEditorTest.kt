@@ -56,9 +56,6 @@ class NotesEditorTest {
         rule.setContent { ThingsTheme { NotesEditor(value = value, onValueChange = { value = it }) } }
 
         rule.onNodeWithTag("notes_editor").performSemanticsAction(SemanticsActions.RequestFocus)
-        rule.onNodeWithContentDescription("Bold").assertDoesNotExistCompat()
+        rule.onNodeWithContentDescription("Bold").assertDoesNotExist()
     }
 }
-
-private fun androidx.compose.ui.test.SemanticsNodeInteraction.assertDoesNotExistCompat() =
-    androidx.compose.ui.test.assertDoesNotExist(this)
