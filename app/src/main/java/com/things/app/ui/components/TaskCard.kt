@@ -64,6 +64,10 @@ private val Indent = 38.dp
  * the checklist, the When, deadline and repeat lines, the tags and the row of add buttons. Every
  * edit is reported at once through [onEdit] (the card has no Save button); [onEdit] receives a
  * function that turns the current to-do into the edited one.
+ *
+ * Everything except the title and the notes is optional. A line shows only when it is set, and the
+ * button that sets it shows only while it is not: calendar (When), tag, checklist, flag (deadline).
+ * The title is plain text; Markdown applies to the notes only.
  */
 @Composable
 fun TaskCard(
@@ -162,7 +166,15 @@ fun TaskCard(
 
         details.schedule?.let { schedule ->
             DetailRow(onClick = onScheduleClick, icon = { ScheduleIcon(schedule.kind) }) {
-                Text(schedule.label, style = ThingsType.RowTitle)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(schedule.label, style = ThingsType.RowTitle)
+                    schedule.reminder?.let { time ->
+                        Spacer(Modifier.width(10.dp))
+                        BellIcon(Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(time, style = ThingsType.Count)
+                    }
+                }
             }
         }
         details.deadline?.let { deadline ->
@@ -196,6 +208,7 @@ fun TaskCard(
         BottomBar(
             tags = details.tags,
             showDate = details.schedule == null,
+            showTags = details.tags.isEmpty(),
             showChecklist = !showChecklist,
             showDeadline = details.deadline == null,
             onDate = onScheduleClick,
@@ -242,14 +255,16 @@ private fun ScheduleIcon(kind: ScheduleKind) {
 }
 
 /**
- * The tags at the start and the add buttons at the end. A button shows only while there is nothing
- * of its kind yet: the calendar until a date is set, the checklist button until a checklist exists,
- * the flag until a deadline is set. The tag button always shows.
+ * The tags at the start and the add buttons at the end. Each button shows only while there is
+ * nothing of its kind yet: the calendar until a date is set, the tag button until a tag is set (the
+ * tag chips take its place and open the tag list), the checklist button until a checklist exists,
+ * the flag until a deadline is set.
  */
 @Composable
 private fun BottomBar(
     tags: List<String>,
     showDate: Boolean,
+    showTags: Boolean,
     showChecklist: Boolean,
     showDeadline: Boolean,
     onDate: () -> Unit,
@@ -269,14 +284,16 @@ private fun BottomBar(
                 .padding(start = Indent),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            tags.forEach { TagChip(it) }
+            tags.forEach { TagChip(it, onClick = onTags) }
         }
         if (showDate) {
             CardIconButton("Add date", onDate) {
                 Icon(Icons.Outlined.CalendarMonth, null, tint = ThingsColors.TextSecondary, modifier = Modifier.size(22.dp))
             }
         }
-        CardIconButton("Add tags", onTags) { TagIcon(Modifier.size(20.dp)) }
+        if (showTags) {
+            CardIconButton("Add tags", onTags) { TagIcon(Modifier.size(20.dp)) }
+        }
         if (showChecklist) {
             CardIconButton("Add checklist", onChecklist) { ChecklistIcon(Modifier.size(20.dp)) }
         }
@@ -301,7 +318,7 @@ private fun CardIconButton(description: String, onClick: () -> Unit, content: @C
 }
 
 @Composable
-private fun TagChip(name: String) {
+private fun TagChip(name: String, onClick: () -> Unit) {
     Text(
         name,
         style = ThingsType.Count.copy(fontSize = 14.sp, color = ThingsColors.Anytime),
@@ -309,6 +326,7 @@ private fun TagChip(name: String) {
         modifier = Modifier
             .clip(CircleShape)
             .background(ThingsColors.AnytimeLight.copy(alpha = 0.25f))
+            .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 4.dp),
     )
 }

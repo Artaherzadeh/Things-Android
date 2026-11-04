@@ -10,8 +10,15 @@ data class ChecklistItemModel(
 /** Which icon the "When" line of an open to-do shows. */
 enum class ScheduleKind { Today, Evening, Someday, Date }
 
-/** The "When" line: for example Today, This Evening, Someday or a date such as Fri, Nov 6. */
-data class ScheduleModel(val kind: ScheduleKind, val label: String)
+/**
+ * The "When" line: for example Today, This Evening, Someday or a date such as Fri, Nov 6.
+ * [reminder] is the time of the reminder (for example 9:00 AM). Null means no reminder is set.
+ */
+data class ScheduleModel(
+    val kind: ScheduleKind,
+    val label: String,
+    val reminder: String? = null,
+)
 
 /** The deadline line: the date and, in grey after it, how long is left (for example 12 days left). */
 data class DeadlineModel(val dateLabel: String, val remainingLabel: String? = null)
@@ -20,8 +27,9 @@ data class DeadlineModel(val dateLabel: String, val remainingLabel: String? = nu
 data class RepeatInfoModel(val title: String, val summary: String)
 
 /**
- * Everything an open (expanded) to-do shows besides its title. Pure UI data: the text of the
- * labels is produced by the logic layer later.
+ * Everything an open (expanded) to-do shows besides its title. Every part is optional: a line or a
+ * button appears only when its value is set (a schedule, a deadline, tags, a checklist...). Pure UI
+ * data: the text of the labels is produced by the logic layer later.
  */
 data class TaskDetailsModel(
     val notes: String = "",

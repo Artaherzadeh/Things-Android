@@ -41,13 +41,12 @@ class TaskCardTest {
     )
     private val plants = TaskRowModel(id = "plants", title = "Water the plants")
 
-    private fun show() {
+    private fun show(vararg tasks: TaskRowModel) {
         rule.setContent {
             ThingsTheme {
                 val expansion = rememberTaskExpansion()
                 Column {
-                    ExpandableTaskRow(cleaning, expansion)
-                    ExpandableTaskRow(plants, expansion)
+                    tasks.forEach { ExpandableTaskRow(it, expansion) }
                 }
             }
         }
@@ -55,7 +54,7 @@ class TaskCardTest {
 
     @Test
     fun tappingARowOpensItAsACardWithItsDetails() {
-        show()
+        show(cleaning, plants)
         rule.onNodeWithTag("task_card_cleaning").assertDoesNotExist()
 
         rule.onNodeWithText("Cleaning House").performClick()
@@ -70,8 +69,22 @@ class TaskCardTest {
     }
 
     @Test
+    fun aToDoWithNothingSetShowsOnlyTitleNotesAndTheFourButtons() {
+        show(plants)
+
+        rule.onNodeWithText("Water the plants").performClick()
+
+        rule.onNodeWithText("Notes").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add date").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add tags").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add checklist").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add deadline").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Deadline").assertDoesNotExist()
+    }
+
+    @Test
     fun openingAnotherToDoClosesTheFirstOne() {
-        show()
+        show(cleaning, plants)
 
         rule.onNodeWithText("Cleaning House").performClick()
         rule.onNodeWithText("Water the plants").performClick()
@@ -82,7 +95,7 @@ class TaskCardTest {
 
     @Test
     fun editsAreKeptWithoutSaving() {
-        show()
+        show(cleaning, plants)
 
         rule.onNodeWithText("Cleaning House").performClick()
         rule.onNodeWithTag("task_title_field").performTextReplacement("Cleaning the kitchen")
@@ -94,7 +107,7 @@ class TaskCardTest {
 
     @Test
     fun addButtonsShowOnlyWhileThereIsNothingOfThatKind() {
-        show()
+        show(cleaning, plants)
 
         rule.onNodeWithText("Cleaning House").performClick()
         rule.onNodeWithContentDescription("Add date").assertDoesNotExist()
@@ -108,8 +121,39 @@ class TaskCardTest {
     }
 
     @Test
+    fun tagChipsTakeThePlaceOfTheTagButton() {
+        val party = TaskRowModel(
+            id = "party",
+            title = "Buy party decorations",
+            details = TaskDetailsModel(tags = listOf("Errand")),
+        )
+        show(party)
+
+        rule.onNodeWithText("Buy party decorations").performClick()
+
+        rule.onNodeWithText("Errand").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Add tags").assertDoesNotExist()
+    }
+
+    @Test
+    fun reminderTimeShowsNextToTheDateOnlyWhenItIsSet() {
+        val withReminder = TaskRowModel(
+            id = "dentist",
+            title = "Call the dentist",
+            details = TaskDetailsModel(
+                schedule = ScheduleModel(ScheduleKind.Date, "Fri, Nov 6", reminder = "9:00 AM"),
+            ),
+        )
+        show(withReminder, plants)
+
+        rule.onNodeWithText("Call the dentist").performClick()
+        rule.onNodeWithText("Fri, Nov 6").assertIsDisplayed()
+        rule.onNodeWithText("9:00 AM").assertIsDisplayed()
+    }
+
+    @Test
     fun checklistButtonOpensAnEmptyChecklistLine() {
-        show()
+        show(plants)
 
         rule.onNodeWithText("Water the plants").performClick()
         rule.onNodeWithContentDescription("Add checklist").performClick()
