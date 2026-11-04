@@ -27,6 +27,7 @@ import com.things.app.ui.logbook.sampleLogbookState
 import com.things.app.ui.project.ProjectScreen
 import com.things.app.ui.project.ProjectUiState
 import com.things.app.ui.project.sampleProjectState
+import com.things.app.ui.project.sampleVacationProjectState
 import com.things.app.ui.someday.SomedayScreen
 import com.things.app.ui.someday.sampleSomedayState
 import com.things.app.ui.today.TodayScreen
@@ -52,6 +53,9 @@ object Routes {
 private const val PushMillis = 300
 private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
+/** Id of the Vacation in Rome project in the Home sample data: it opens the headings sample. */
+private const val VacationProjectId = "rome"
+
 /**
  * Static glue: finds the tapped project's title and progress in the sample data so the static
  * project page matches what was tapped. Replace with a repository lookup once real data exists.
@@ -62,6 +66,12 @@ private fun sampleProjectStateFor(projectId: String): ProjectUiState {
         .firstOrNull { it.id == projectId }
     val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
     return when {
+        projectId == VacationProjectId ->
+            sampleVacationProjectState(
+                id = projectId,
+                title = homeProject?.title ?: "Vacation in Rome",
+                progress = homeProject?.progress ?: 0.55f,
+            )
         homeProject != null -> sampleProjectState(homeProject.id, homeProject.title, homeProject.progress)
         anytimeGroup != null ->
             sampleProjectState(anytimeGroup.projectId, anytimeGroup.projectTitle, anytimeGroup.projectProgress)

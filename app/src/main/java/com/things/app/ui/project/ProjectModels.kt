@@ -12,9 +12,17 @@ data class LoggedTaskModel(
     val hasChecklist: Boolean = false,
 )
 
+/** A heading splits a project into parts. Headings exist only inside projects. */
+data class ProjectHeadingModel(
+    val id: String,
+    val title: String,
+    val tasks: List<TaskRowModel>,
+)
+
 /**
  * Everything the project page draws. Which to-dos are active, later or logged is decided by the
- * logic layer; this model only describes the three groups.
+ * logic layer; this model only describes the groups. [tasks] are the to-dos that are not under a
+ * heading; they come first, then each heading with its own to-dos.
  */
 data class ProjectUiState(
     val id: String,
@@ -23,6 +31,7 @@ data class ProjectUiState(
     val progress: Float,
     val notes: String = "",
     val tasks: List<TaskRowModel> = emptyList(),
+    val headings: List<ProjectHeadingModel> = emptyList(),
     val laterTasks: List<TaskRowModel> = emptyList(),
     val loggedTasks: List<LoggedTaskModel> = emptyList(),
 )
@@ -59,5 +68,47 @@ fun sampleProjectState(
         LoggedTaskModel("l4", "Print Mohadeseh's painting", "10/28", hasChecklist = true),
         LoggedTaskModel("l5", "Update A55 to One UI 9", "10/27", hasChecklist = true),
         LoggedTaskModel("l6", "Update iPad to iPadOS 27.2", "10/27"),
+    ),
+)
+
+/** Static sample of a project split into headings. */
+fun sampleVacationProjectState(
+    id: String = "rome",
+    title: String = "Vacation in Rome",
+    progress: Float = 0.55f,
+) = ProjectUiState(
+    id = id,
+    title = title,
+    progress = progress,
+    notes = "We'll go from June 14-22 and visit Antonia and Paolo. Maybe do a night out in Trastevere.",
+    headings = listOf(
+        ProjectHeadingModel(
+            id = "planning",
+            title = "Planning",
+            tasks = listOf(
+                TaskRowModel("rome-guide", "Borrow Emma's travel guide", isToday = true),
+                TaskRowModel("rome-flights", "Book flights", hasNote = true),
+                TaskRowModel("rome-hotel", "Book a hotel room", hasNote = true),
+                TaskRowModel("rome-dates", "Add trip dates to calendar"),
+            ),
+        ),
+        ProjectHeadingModel(
+            id = "buy",
+            title = "Things to buy",
+            tasks = listOf(
+                TaskRowModel("rome-battery", "Extra camera battery", hasTag = true),
+                TaskRowModel("rome-adapter", "Power adapter", hasTag = true),
+            ),
+        ),
+        ProjectHeadingModel(
+            id = "do",
+            title = "Things to do",
+            tasks = listOf(
+                TaskRowModel("rome-violetta", "Meet up with Violetta"),
+                TaskRowModel("rome-cooking", "Take a cooking class"),
+                TaskRowModel("rome-colosseum", "Visit the Colosseum", hasNote = true),
+                TaskRowModel("rome-night", "Photograph the Colosseum at night"),
+            ),
+        ),
     ),
 )

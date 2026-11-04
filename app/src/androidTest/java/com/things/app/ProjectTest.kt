@@ -19,7 +19,9 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.things.app.ui.project.ProjectScreen
 import com.things.app.ui.project.sampleProjectState
+import com.things.app.ui.project.sampleVacationProjectState
 import com.things.app.ui.theme.ThingsTheme
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -55,6 +57,17 @@ class ProjectScreenTest {
         rule.onNodeWithText("Hide later items").performClick()
         rule.onNodeWithText("Waiting").assertDoesNotExist()
     }
+
+    @Test
+    fun headingTitleComesBeforeItsTasks() {
+        val state = sampleVacationProjectState()
+        rule.setContent { ThingsTheme { ProjectScreen(state) } }
+
+        val headingY = rule.onNodeWithText("Planning").fetchSemanticsNode().positionInRoot.y
+        val taskY = rule.onNodeWithText("Borrow Emma's travel guide").fetchSemanticsNode().positionInRoot.y
+        assertTrue("A heading must be drawn above the to-dos under it", headingY < taskY)
+        rule.onNodeWithContentDescription("Heading menu: Planning").assertExists()
+    }
 }
 
 @RunWith(AndroidJUnit4::class)
@@ -68,6 +81,7 @@ class ProjectNavigationTest {
         rule.onNodeWithText("Vacation in Rome").performClick()
         rule.waitUntil(5_000) { rule.onAllNodesWithTag("project_title").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("project_title").assertTextEquals("Vacation in Rome")
+        rule.onNodeWithText("Planning").assertExists()
 
         rule.onNodeWithContentDescription("Back").performClick()
         rule.waitUntil(5_000) { rule.onAllNodesWithText("Quick Find").fetchSemanticsNodes().isNotEmpty() }

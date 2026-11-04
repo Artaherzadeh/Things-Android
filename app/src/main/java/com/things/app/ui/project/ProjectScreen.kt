@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,8 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,11 +49,13 @@ import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
 private val ToggleGap = 22.dp
+private val HeadingGap = 48.dp
 
 /**
- * Static project page: ring and title with the project menu, notes, the active to-dos, then two
- * toggles that reveal later items (future start dates, repeating templates) and logged items.
- * Both groups are hidden until revealed. Headings are not drawn yet. Every action is a callback.
+ * Static project page: ring and title with the project menu, notes, the to-dos that are not under
+ * a heading, then each heading with its to-dos, then two toggles that reveal later items (future
+ * start dates, repeating templates) and logged items. Later and logged items are hidden until
+ * revealed. Every action is a callback.
  */
 @Composable
 fun ProjectScreen(
@@ -59,6 +64,7 @@ fun ProjectScreen(
     onBack: () -> Unit = {},
     onMoreClick: () -> Unit = {},
     onTitleMenuClick: () -> Unit = {},
+    onHeadingMenuClick: (String) -> Unit = {},
     onAddClick: () -> Unit = {},
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
@@ -88,6 +94,20 @@ fun ProjectScreen(
         items(state.tasks, key = { "task-${it.id}" }) { task ->
             TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
         }
+
+        state.headings.forEachIndexed { index, heading ->
+            item(key = "heading-${heading.id}") {
+                HeadingRow(
+                    title = heading.title,
+                    topGap = if (index == 0 && state.tasks.isEmpty()) 0.dp else HeadingGap,
+                    onMenuClick = { onHeadingMenuClick(heading.id) },
+                )
+            }
+            items(heading.tasks, key = { "task-${it.id}" }) { task ->
+                TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+            }
+        }
+
         if (showLater) {
             items(state.laterTasks, key = { "later-${it.id}" }) { task ->
                 TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
@@ -138,23 +158,69 @@ private fun NotesLine(notes: String) {
     }
 }
 
-/** The three grey dots next to the title: opens the project More menu. */
+/** Three dots in a row. Grey next to the project title, blue at the end of a heading. */
+@Composable
+private fun MenuDots(color: Color) {
+    Canvas(Modifier.size(width = 22.dp, height = 6.dp)) {
+        val radius = size.height / 2f
+        repeat(3) { index ->
+            drawCircle(
+                color,
+                radius = radius,
+                center = Offset(radius + index * (size.width - size.height) / 2f, radius),
+            )
+        }
+    }
+}
+
+/** The dots next to the title: opens the project More menu. */
 @Composable
 private fun TitleMenuButton(onClick: () -> Unit) {
     IconButton(
         onClick = onClick,
         modifier = Modifier.semantics { contentDescription = "Project menu" },
     ) {
-        Canvas(Modifier.size(width = 22.dp, height = 6.dp)) {
-            val radius = size.height / 2f
-            repeat(3) { index ->
-                drawCircle(
-                    ThingsColors.TextSecondary,
-                    radius = radius,
-                    center = Offset(radius + index * (size.width - size.height) / 2f, radius),
-                )
+        MenuDots(ThingsColors.TextSecondary)
+    }
+}
+
+/**
+ * A heading: blue bold title, menu dots at the end of the line, and a thin divider under it.
+ * [topGap] is the space above the heading.
+ */
+@Composable
+private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
+    Column {
+        Spacer(Modifier.height(topGap))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .padding(start = 18.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                title,
+                style = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() },
+            )
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier.semantics { contentDescription = "Heading menu: $title" },
+            ) {
+                MenuDots(ThingsColors.ProjectBlue)
             }
         }
+        HorizontalDivider(
+            modifier = Modifier.padding(horizontal = 18.dp),
+            thickness = 1.dp,
+            color = ThingsColors.Divider,
+        )
+        Spacer(Modifier.height(10.dp))
     }
 }
 
@@ -225,6 +291,12 @@ private fun LoggedRow(task: LoggedTaskModel, onClick: () -> Unit) {
 @Composable
 private fun ProjectPreview() {
     ThingsTheme { ProjectScreen(sampleProjectState()) }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852, name = "Project - headings")
+@Composable
+private fun ProjectWithHeadingsPreview() {
+    ThingsTheme { ProjectScreen(sampleVacationProjectState()) }
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852, name = "Project - empty")
