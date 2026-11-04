@@ -68,10 +68,11 @@ private val BlockStyles = listOf(
 )
 
 /**
- * The notes field of a to-do or project. The text is Markdown: it is styled while typing, and when
- * some text is selected a small toolbar appears under the selection with the styles that can be
- * applied to it. The toolbar is drawn under the selection so it does not cover the system menu
- * (cut, copy, paste) that Android shows above it.
+ * The notes field of a to-do or project. The text is Markdown: it is styled while typing, the inline
+ * markers (the stars of bold, ...) are hidden so only the styled text shows, and when some text is
+ * selected a small toolbar appears under the selection with the styles that can be applied to it.
+ * The toolbar is drawn under the selection so it does not cover the system menu (cut, copy, paste)
+ * that Android shows above it.
  */
 @Composable
 fun NotesEditor(
@@ -84,9 +85,12 @@ fun NotesEditor(
     var focused by remember { mutableStateOf(false) }
     var showBlockStyles by remember { mutableStateOf(false) }
     val transformation = remember { MarkdownVisualTransformation() }
+    val rendering = remember(value.text) { MarkdownStyler.rendering(value.text) }
 
     val selection = value.selection
-    val showToolbar = focused && !selection.collapsed && value.text.isNotEmpty()
+    // The selected text without the hidden markers at its edges; null when nothing visible is selected.
+    val content = if (selection.collapsed) null else rendering.contentRange(selection.start, selection.end)
+    val showToolbar = focused && content != null && value.text.isNotEmpty()
 
     LaunchedEffect(showToolbar) {
         if (!showToolbar) showBlockStyles = false
@@ -116,11 +120,16 @@ fun NotesEditor(
         )
 
         val currentLayout = layout
-        if (showToolbar && currentLayout != null) {
+        val shown = content
+        if (showToolbar && currentLayout != null && shown != null) {
             val density = LocalDensity.current
+            val mapping = rendering.transformed.offsetMapping
             val anchor = selectionAnchor(
                 layout = currentLayout,
-                selection = selection,
+                selection = TextRange(
+                    mapping.originalToTransformed(shown.start),
+                    mapping.originalToTransformed(shown.end),
+                ),
                 toolbarWidth = with(density) { ToolbarWidthEstimate.roundToPx() },
                 gap = with(density) { ToolbarGap.roundToPx() },
             )
@@ -130,11 +139,11 @@ fun NotesEditor(
                 properties = PopupProperties(focusable = false),
             ) {
                 FormatToolbar(
-                    active = MarkdownFormatter.activeStyles(value.text, selection.start, selection.end),
+                    active = MarkdownFormatter.activeStyles(value.text, shown.start, shown.end),
                     showBlockStyles = showBlockStyles,
                     onSwitchLevel = { showBlockStyles = !showBlockStyles },
                     onStyle = { style ->
-                        val edit = MarkdownFormatter.apply(style, value.text, selection.start, selection.end)
+                        val edit = MarkdownFormatter.apply(style, value.text, shown.start, shown.end)
                         onValueChange(
                             value.copy(
                                 text = edit.text,
