@@ -22,6 +22,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,6 +60,7 @@ val DefaultEnabledMenuActions: Set<PageMenuAction> =
  * The bar at the top of every list page: back button at the start and the three-dots button at
  * the end. The circle of the three-dots button ends 20dp from the screen edge, like the page
  * content. The button opens the page menu; [onMenuAction] reports the chosen action.
+ * [onMenuOpenChange] tells the page when the menu opens or closes so it can dim what is behind it.
  */
 @Composable
 fun PageTopBar(
@@ -67,8 +69,11 @@ fun PageTopBar(
     onMenuAction: (PageMenuAction) -> Unit,
     enabledActions: Set<PageMenuAction>,
     modifier: Modifier = Modifier,
+    onMenuOpenChange: (Boolean) -> Unit = {},
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(menuOpen) { onMenuOpenChange(menuOpen) }
 
     Row(
         modifier
@@ -125,7 +130,7 @@ private fun PageMenu(
         shape = RoundedCornerShape(24.dp),
         containerColor = ThingsColors.Background,
         tonalElevation = 0.dp,
-        shadowElevation = 16.dp,
+        shadowElevation = 6.dp,
     ) {
         PageMenuAction.entries.forEach { action ->
             DropdownMenuItem(

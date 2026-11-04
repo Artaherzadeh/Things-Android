@@ -58,6 +58,8 @@ fun rememberTaskExpansion(): TaskExpansion =
  * A to-do that opens in place. Tapping the row opens it as a [TaskCard] with an animated change of
  * height; opening another to-do, tapping outside (see ListPageScaffold) or going back closes it.
  * Pass [onDelete] to let the closed row be swiped to the left to reveal a red delete button.
+ * While the page is in select mode ([selection] active) a tap ticks or unticks the row instead of
+ * opening it.
  */
 @Composable
 fun ExpandableTaskRow(
@@ -65,6 +67,7 @@ fun ExpandableTaskRow(
     expansion: TaskExpansion,
     modifier: Modifier = Modifier,
     recurringStyle: RecurringStyle = RecurringStyle.TrailingIcon,
+    selection: SelectionState? = null,
     onOpen: () -> Unit = {},
     onToggle: () -> Unit = {},
     onDelete: (() -> Unit)? = null,
@@ -76,7 +79,16 @@ fun ExpandableTaskRow(
     }
 
     Box(modifier.animateContentSize()) {
-        if (expansion.isExpanded(task.id)) {
+        if (selection != null && selection.active) {
+            TaskRow(
+                task = current,
+                recurringStyle = recurringStyle,
+                selecting = true,
+                selected = selection.isSelected(task.id),
+                onClick = { selection.toggle(task.id) },
+                onToggle = { selection.toggle(task.id) },
+            )
+        } else if (expansion.isExpanded(task.id)) {
             BackHandler { expansion.collapse() }
             TaskCard(
                 task = current,
