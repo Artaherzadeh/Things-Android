@@ -91,6 +91,7 @@ private fun sampleProjectStateFor(projectId: String): ProjectUiState {
     val homeProject = (home.looseProjects + home.areas.flatMap { it.projects })
         .firstOrNull { it.id == projectId }
     val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
+    val todayGroup = sampleTodayState().groups.firstOrNull { it.projectId == projectId }
     return when {
         projectId == VacationProjectId ->
             sampleVacationProjectState(
@@ -101,6 +102,8 @@ private fun sampleProjectStateFor(projectId: String): ProjectUiState {
         homeProject != null -> sampleProjectState(homeProject.id, homeProject.title, homeProject.progress)
         anytimeGroup != null ->
             sampleProjectState(anytimeGroup.projectId, anytimeGroup.projectTitle, anytimeGroup.projectProgress)
+        todayGroup != null ->
+            sampleProjectState(todayGroup.projectId, todayGroup.projectTitle, todayGroup.projectProgress)
         else -> sampleProjectState()
     }
 }
@@ -189,6 +192,9 @@ fun ThingsNavHost() {
                 TodayScreen(
                     state = sampleTodayState(),
                     onBack = { navController.popBackStack() },
+                    onProjectClick = { projectId ->
+                        navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                    },
                 )
             }
             composable(Routes.UPCOMING) {
