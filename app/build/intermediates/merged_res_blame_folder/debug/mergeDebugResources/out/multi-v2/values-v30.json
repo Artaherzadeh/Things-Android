@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-50:/values-v30/values-v30.xml",
+            "outputFile": "com.things.app-mergeDebugResources-41:/values-v30/values-v30.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\c493316ba562f68896e9ed220ac8d627\\transformed\\material3-release\\res\\values-v30\\values-v30.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\d473b0313b4caa6d7e6d1e0e550e9b29\\transformed\\material3\\res\\values-v30\\values-v30.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",

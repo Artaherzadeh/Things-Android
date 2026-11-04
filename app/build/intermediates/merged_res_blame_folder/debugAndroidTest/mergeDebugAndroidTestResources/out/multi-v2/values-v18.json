@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app.test.app-mergeDebugAndroidTestResources-34:/values-v18/values-v18.xml",
+            "outputFile": "com.things.app.test.app-mergeDebugAndroidTestResources-30:/values-v18/values-v18.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\2cdf9352982472aaa233d50262d45b25\\transformed\\core-1.6.1\\res\\values-v18\\values.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\2efc6fc366354274aeeb56665db18e5f\\transformed\\core-1.6.1\\res\\values-v18\\values.xml",
                     "from": {
                         "startLines": "4,12",
                         "startColumns": "0,0",
