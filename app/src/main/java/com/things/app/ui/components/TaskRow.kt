@@ -58,6 +58,13 @@ private val RowMinHeight = 44.dp
 private val TwoLineRowMinHeight = 56.dp
 private val CheckboxSize = 20.dp
 
+/**
+ * One to-do row. The checkbox sits at the start. Next to it is a column with two parts:
+ *  - the title line: chip, repeat badge and star before the title, then the reminder, note, tag
+ *    and checklist icons right after the title, all on the same line;
+ *  - the subtitle (project or area name), drawn under the first element of the title line, so it
+ *    lines up with the repeat badge when there is one.
+ */
 @Composable
 fun TaskRow(
     task: TaskRowModel,
@@ -66,6 +73,9 @@ fun TaskRow(
     onClick: () -> Unit = {},
     onToggle: () -> Unit = {},
 ) {
+    val leadingBadge = task.isRepeatingTemplate ||
+        (task.isRecurring && recurringStyle == RecurringStyle.LeadingBadge)
+
     Row(
         modifier
             .fillMaxWidth()
@@ -76,45 +86,48 @@ fun TaskRow(
     ) {
         TaskCheckbox(checked = task.checked, title = task.title, onToggle = onToggle)
 
-        task.chip?.let {
-            TaskChip(it)
-            Spacer(Modifier.width(8.dp))
-        }
-        if (task.isRepeatingTemplate || (task.isRecurring && recurringStyle == RecurringStyle.LeadingBadge)) {
-            RepeatBadge()
-            Spacer(Modifier.width(8.dp))
-        }
-        if (task.isToday) {
-            StarIcon(Modifier.size(18.dp))
-            Spacer(Modifier.width(8.dp))
-        }
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                task.chip?.let {
+                    TaskChip(it)
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (leadingBadge) {
+                    RepeatBadge()
+                    Spacer(Modifier.width(8.dp))
+                }
+                if (task.isToday) {
+                    StarIcon(Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
 
-        Column(Modifier.weight(1f, fill = false)) {
-            Text(
-                task.title,
-                style = if (task.checked) {
-                    ThingsType.RowTitle.copy(
-                        color = ThingsColors.TextSecondary,
-                        textDecoration = TextDecoration.LineThrough,
-                    )
-                } else {
-                    ThingsType.RowTitle
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+                Text(
+                    task.title,
+                    style = if (task.checked) {
+                        ThingsType.RowTitle.copy(
+                            color = ThingsColors.TextSecondary,
+                            textDecoration = TextDecoration.LineThrough,
+                        )
+                    } else {
+                        ThingsType.RowTitle
+                    },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+
+                if (task.hasTag) TrailingGlyph("Tags") { TagIcon(Modifier.size(16.dp)) }
+                if (task.isRecurring && recurringStyle == RecurringStyle.TrailingIcon) {
+                    TrailingGlyph("Repeats") { RepeatIcon(Modifier.size(16.dp)) }
+                }
+                if (task.hasReminder) TrailingGlyph("Reminder") { BellIcon(Modifier.size(16.dp)) }
+                if (task.hasNote) TrailingGlyph("Notes") { NoteIcon(Modifier.size(16.dp)) }
+                if (task.hasChecklist) TrailingGlyph("Checklist") { ChecklistIcon(Modifier.size(16.dp)) }
+            }
             task.subtitle?.let {
                 Text(it, style = ThingsType.RowSubtitle, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-
-        if (task.hasTag) TrailingGlyph("Tags") { TagIcon(Modifier.size(16.dp)) }
-        if (task.isRecurring && recurringStyle == RecurringStyle.TrailingIcon) {
-            TrailingGlyph("Repeats") { RepeatIcon(Modifier.size(16.dp)) }
-        }
-        if (task.hasReminder) TrailingGlyph("Reminder") { BellIcon(Modifier.size(16.dp)) }
-        if (task.hasNote) TrailingGlyph("Notes") { NoteIcon(Modifier.size(16.dp)) }
-        if (task.hasChecklist) TrailingGlyph("Checklist") { ChecklistIcon(Modifier.size(16.dp)) }
     }
 }
 

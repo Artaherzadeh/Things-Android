@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,6 +57,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
+import com.things.app.ui.components.TaskRow
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
@@ -75,6 +77,8 @@ fun HomeScreen(
     onSystemListClick: (SystemList) -> Unit = {},
     onAreaClick: (Area) -> Unit = {},
     onProjectClick: (Project) -> Unit = {},
+    onTaskClick: (String) -> Unit = {},
+    onToggleTask: (String) -> Unit = {},
     onNewToDo: () -> Unit = {},
     onNewProject: () -> Unit = {},
     onNewArea: () -> Unit = {},
@@ -146,6 +150,18 @@ fun HomeScreen(
                 Spacer(Modifier.height(18.dp))
             }
 
+            // To-dos that belong to no project and no area: on their own, outside every list
+            if (state.looseTasks.isNotEmpty()) {
+                items(state.looseTasks, key = { "home-task-${it.id}" }) { task ->
+                    TaskRow(
+                        task = task,
+                        onClick = { onTaskClick(task.id) },
+                        onToggle = { onToggleTask(task.id) },
+                    )
+                }
+                item(key = "home-tasks-gap") { Spacer(Modifier.height(14.dp)) }
+            }
+
             // Projects without an area
             if (state.looseProjects.isNotEmpty()) {
                 item {
@@ -160,7 +176,7 @@ fun HomeScreen(
                 item(key = area.id) {
                     val expanded = area.id !in collapsedAreas
                     Column {
-                        if (index > 0 || state.looseProjects.isNotEmpty()) {
+                        if (index > 0 || state.looseProjects.isNotEmpty() || state.looseTasks.isNotEmpty()) {
                             Spacer(Modifier.height(10.dp))
                             SectionDivider()
                             Spacer(Modifier.height(10.dp))
