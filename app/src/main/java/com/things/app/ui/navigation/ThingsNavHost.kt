@@ -17,11 +17,14 @@ import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.sampleHomeState
 import com.things.app.ui.today.TodayScreen
 import com.things.app.ui.today.sampleTodayState
+import com.things.app.ui.upcoming.UpcomingScreen
+import com.things.app.ui.upcoming.sampleUpcomingState
 
 /** One constant per page. Add a new entry here for every page you create. */
 object Routes {
     const val HOME = "home"
     const val TODAY = "today"
+    const val UPCOMING = "upcoming"
     // const val INBOX = "inbox"
     // const val PROJECT = "project/{projectId}"
 }
@@ -82,15 +85,24 @@ fun ThingsNavHost() {
                 onNewProject = { pendingCreation = CreationType.Project },
                 onNewArea = { pendingCreation = CreationType.Area },
                 onSystemListClick = { list ->
-                    if (list == SystemList.Today) {
-                        navController.navigate(Routes.TODAY) { launchSingleTop = true }
+                    val route = when (list) {
+                        SystemList.Today -> Routes.TODAY
+                        SystemList.Upcoming -> Routes.UPCOMING
+                        else -> null
                     }
+                    if (route != null) navController.navigate(route) { launchSingleTop = true }
                 },
             )
         }
         composable(Routes.TODAY) {
             TodayScreen(
                 state = sampleTodayState(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.UPCOMING) {
+            UpcomingScreen(
+                state = sampleUpcomingState(),
                 onBack = { navController.popBackStack() },
             )
         }
