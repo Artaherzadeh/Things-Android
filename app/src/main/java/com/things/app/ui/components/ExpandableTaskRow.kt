@@ -3,6 +3,8 @@ package com.things.app.ui.components
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Box
@@ -29,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.IntSize
 import java.util.UUID
 import kotlinx.coroutines.delay
 
@@ -166,8 +169,8 @@ fun rememberTaskExpansion(): TaskExpansion =
 
 /**
  * A to-do that opens in place. Tapping the row opens it as a [TaskCard] with an animated change of
- * height; opening another to-do, touching anything outside the card (see ListPageScaffold) or going
- * back closes it.
+ * height, a little slower than the default (a softer spring); opening another to-do, touching
+ * anything outside the card (see ListPageScaffold) or going back closes it.
  *
  * - Swipe the closed row to the left: it slides and a red cross appears; tapping it deletes the
  *   to-do. The row folds up from the bottom, the rows under it slide up, then [onDelete] is told so
@@ -241,7 +244,15 @@ fun ExpandableTaskRow(
         visible = !deleted,
         exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
     ) {
-        Column(modifier.animateContentSize()) {
+        Column(
+            modifier.animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = OpenStiffness,
+                    visibilityThreshold = IntSize.VisibilityThreshold,
+                ),
+            )
+        ) {
             if (slot.beforeTaskId == task.id) Spacer(Modifier.height(DropGapHeight))
 
             Box {
@@ -310,3 +321,9 @@ fun ExpandableTaskRow(
         null -> Unit
     }
 }
+
+/**
+ * Stiffness of the spring that opens and closes the card. The default is 400; a lower number is a
+ * slower animation, and 300 takes about 15 percent longer.
+ */
+private const val OpenStiffness = 300f

@@ -69,6 +69,13 @@ object Routes {
 private const val PushMillis = 300
 private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 
+/**
+ * The slide while the finger drags the page back from the screen edge. Its first part is a straight
+ * line, so the page stays under the finger instead of jumping ahead like it would with the sharp
+ * start of [PushEasing]; the end slows down in the same way the button's slide does.
+ */
+private val GestureEasing = CubicBezierEasing(0.25f, 0.25f, 0.25f, 1f)
+
 /** Id of the Vacation in Rome project in the Home sample data: it opens the headings sample. */
 private const val VacationProjectId = "rome"
 
@@ -188,8 +195,8 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  *
  * The Quick Find popover is drawn above the NavHost so it can be opened from any page.
  *
- * Going back with the system gesture (from the screen edge) plays the same slide as the back
- * button: both use the pop transitions below.
+ * Going back with the system gesture (from the screen edge) plays the same slide as the back button
+ * but follows the finger: it has its own transitions, [GestureEasing], with the same length.
  *
  * Home keeps its projects and areas here while the app runs. New Project, New Area and the dragged
  * + add a row to the Home list and open it for naming in place; if it is left empty the row is
@@ -284,6 +291,19 @@ fun ThingsNavHost() {
                 slideOutOfContainer(
                     AnimatedContentTransitionScope.SlideDirection.End,
                     tween(PushMillis, easing = PushEasing),
+                )
+            },
+            predictivePopEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(PushMillis, easing = GestureEasing),
+                    initialOffset = { it / 3 },
+                )
+            },
+            predictivePopExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(PushMillis, easing = GestureEasing),
                 )
             },
         ) {
