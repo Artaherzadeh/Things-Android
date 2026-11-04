@@ -11,6 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.things.app.ui.anytime.AnytimeScreen
+import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.home.CreationType
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.SystemList
@@ -25,6 +27,7 @@ object Routes {
     const val HOME = "home"
     const val TODAY = "today"
     const val UPCOMING = "upcoming"
+    const val ANYTIME = "anytime"
     // const val INBOX = "inbox"
     // const val PROJECT = "project/{projectId}"
 }
@@ -88,6 +91,7 @@ fun ThingsNavHost() {
                     val route = when (list) {
                         SystemList.Today -> Routes.TODAY
                         SystemList.Upcoming -> Routes.UPCOMING
+                        SystemList.Anytime -> Routes.ANYTIME
                         else -> null
                     }
                     if (route != null) navController.navigate(route) { launchSingleTop = true }
@@ -103,6 +107,12 @@ fun ThingsNavHost() {
         composable(Routes.UPCOMING) {
             UpcomingScreen(
                 state = sampleUpcomingState(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.ANYTIME) {
+            AnytimeScreen(
+                state = sampleAnytimeState(),
                 onBack = { navController.popBackStack() },
             )
         }
