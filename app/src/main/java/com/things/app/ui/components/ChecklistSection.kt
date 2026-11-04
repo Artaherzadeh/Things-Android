@@ -3,6 +3,7 @@ package com.things.app.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,8 +27,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,19 +41,39 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsType
 import java.util.UUID
+import kotlin.math.roundToInt
 
 private val ItemTextStyle = ThingsType.RowTitle.copy(fontSize = 17.sp)
+
+private fun <T> List<T>.swap(a: Int, b: Int): List<T> =
+    toMutableList().also {
+        val tmp = it[a]
+        it[a] = it[b]
+        it[b] = tmp
+    }
 
 /**
  * The checklist of an open to-do: one line per item with a circle, the text and a drag handle.
@@ -58,7 +82,10 @@ private val ItemTextStyle = ThingsType.RowTitle.copy(fontSize = 17.sp)
  * up with the to-do title.
  *
  * When [adding] is true an empty line at the end takes new items; every item is saved as soon as it
- * is typed. The handle is drawn but dragging to reorder comes later.
+ * is typed.
+ *
+ * Backspace on a line that is already empty deletes that line and puts the cursor at the end of
+ * the line above it. Press and drag the handle to move a line up or down.
  */
 @Composable
 fun ChecklistSection(
@@ -68,13 +95,60 @@ fun ChecklistSection(
     onAddingChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val requesters = remember { mutableMapOf<String, FocusRequester>() }
+    var focusAtEnd by remember { mutableStateOf<String?>(null) }
+    var draggingId by remember { mutableStateOf<String?>(null) }
+    var dragY by remember { mutableFloatStateOf(0f) }
+    val heights = remember { mutableStateMapOf<String, Int>() }
+    val currentItems by rememberUpdatedState(items)
+    val currentChange by rememberUpdatedState(onItemsChange)
+    val rowPx = with(LocalDensity.current) { ThingsSpacing.RowHeight.toPx() }.roundToInt()
+
     Column(modifier) {
-        items.forEach { item ->
+        items.forEachIndexed { index, item ->
             key(item.id) {
                 ChecklistRow(
                     item = item,
+                    requester = requesters.getOrPut(item.id) { FocusRequester() },
+                    focusAtEnd = focusAtEnd == item.id,
+                    onFocusHandled = { focusAtEnd = null },
                     onChange = { updated ->
                         onItemsChange(items.map { if (it.id == item.id) updated else it })
+                    },
+                    onBackspaceOnEmpty = {
+                        onItemsChange(items.filter { it.id != item.id })
+                        focusAtEnd = items.getOrNull(index - 1)?.id
+                    },
+                    dragging = draggingId == item.id,
+                    dragOffset = if (draggingId == item.id) dragY else 0f,
+                    onHeight = { heights[item.id] = it },
+                    onDragStart = {
+                        draggingId = item.id
+                        dragY = 0f
+                    },
+                    onDrag = { dy ->
+                        val list = currentItems
+                        val at = list.indexOfFirst { it.id == item.id }
+                        dragY += dy
+                        if (at >= 0) {
+                            if (dragY > 0f && at < list.lastIndex) {
+                                val h = (heights[list[at + 1].id] ?: rowPx).toFloat()
+                                if (dragY > h / 2f) {
+                                    currentChange(list.swap(at, at + 1))
+                                    dragY -= h
+                                }
+                            } else if (dragY < 0f && at > 0) {
+                                val h = (heights[list[at - 1].id] ?: rowPx).toFloat()
+                                if (dragY < -h / 2f) {
+                                    currentChange(list.swap(at, at - 1))
+                                    dragY += h
+                                }
+                            }
+                        }
+                    },
+                    onDragEnd = {
+                        draggingId = null
+                        dragY = 0f
                     },
                 )
             }
@@ -85,15 +159,55 @@ fun ChecklistSection(
                     onItemsChange(items + ChecklistItemModel(UUID.randomUUID().toString(), text.trim()))
                 },
                 onDismiss = { onAddingChange(false) },
+                onBackspaceOnEmpty = {
+                    onAddingChange(false)
+                    focusAtEnd = items.lastOrNull()?.id
+                },
             )
         }
     }
 }
 
 @Composable
-private fun ChecklistRow(item: ChecklistItemModel, onChange: (ChecklistItemModel) -> Unit) {
+private fun ChecklistRow(
+    item: ChecklistItemModel,
+    requester: FocusRequester,
+    focusAtEnd: Boolean,
+    onFocusHandled: () -> Unit,
+    onChange: (ChecklistItemModel) -> Unit,
+    onBackspaceOnEmpty: () -> Unit,
+    dragging: Boolean,
+    dragOffset: Float,
+    onHeight: (Int) -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+) {
+    var value by remember { mutableStateOf(TextFieldValue(item.title, TextRange(item.title.length))) }
+    val currentDragStart by rememberUpdatedState(onDragStart)
+    val currentDrag by rememberUpdatedState(onDrag)
+    val currentDragEnd by rememberUpdatedState(onDragEnd)
+
+    LaunchedEffect(item.title) {
+        if (value.text != item.title) value = TextFieldValue(item.title, TextRange(item.title.length))
+    }
+    LaunchedEffect(focusAtEnd) {
+        if (focusAtEnd) {
+            requester.requestFocus()
+            value = value.copy(selection = TextRange(value.text.length))
+            onFocusHandled()
+        }
+    }
+
     Row(
         Modifier
+            .zIndex(if (dragging) 1f else 0f)
+            .graphicsLayer {
+                translationY = dragOffset
+                if (dragging) shadowElevation = 8.dp.toPx()
+            }
+            .then(if (dragging) Modifier.background(ThingsColors.Background) else Modifier)
+            .onSizeChanged { onHeight(it.height) }
             .fillMaxWidth()
             .heightIn(min = ThingsSpacing.RowHeight)
             .padding(start = 8.dp, end = 8.dp),
@@ -106,20 +220,50 @@ private fun ChecklistRow(item: ChecklistItemModel, onChange: (ChecklistItemModel
         )
         Spacer(Modifier.width(12.dp))
         BasicTextField(
-            value = item.title,
-            onValueChange = { onChange(item.copy(title = it)) },
+            value = value,
+            onValueChange = {
+                value = it
+                if (it.text != item.title) onChange(item.copy(title = it.text))
+            },
             textStyle = ItemTextStyle.copy(
                 color = if (item.done) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
             ),
             cursorBrush = SolidColor(ThingsColors.Fab),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(requester)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && value.text.isEmpty()) {
+                        onBackspaceOnEmpty()
+                        true
+                    } else {
+                        false
+                    }
+                },
         )
-        Icon(
-            Icons.Rounded.DragHandle,
-            contentDescription = null,
-            tint = ThingsColors.TextSecondary,
-            modifier = Modifier.size(24.dp),
-        )
+        Box(
+            Modifier
+                .size(width = 24.dp, height = ThingsSpacing.RowHeight)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { currentDragStart() },
+                        onDrag = { change, amount ->
+                            change.consume()
+                            currentDrag(amount.y)
+                        },
+                        onDragEnd = { currentDragEnd() },
+                        onDragCancel = { currentDragEnd() },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Rounded.DragHandle,
+                contentDescription = "Move ${item.title}",
+                tint = ThingsColors.TextSecondary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
     }
 }
 
@@ -152,10 +296,15 @@ private fun ChecklistMark(done: Boolean, description: String, onClick: () -> Uni
 
 /**
  * The empty line at the end of a checklist. Next on the keyboard saves the item and opens another
- * empty line; leaving the field saves what was typed and closes the line.
+ * empty line; leaving the field saves what was typed and closes the line. Backspace on the empty
+ * line closes it and puts the cursor at the end of the last item.
  */
 @Composable
-private fun NewChecklistRow(onCommit: (String) -> Unit, onDismiss: () -> Unit) {
+private fun NewChecklistRow(
+    onCommit: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onBackspaceOnEmpty: () -> Unit,
+) {
     var text by rememberSaveable { mutableStateOf("") }
     var hadFocus by remember { mutableStateOf(false) }
     val requester = remember { FocusRequester() }
@@ -207,6 +356,14 @@ private fun NewChecklistRow(onCommit: (String) -> Unit, onDismiss: () -> Unit) {
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(requester)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && text.isEmpty()) {
+                        onBackspaceOnEmpty()
+                        true
+                    } else {
+                        false
+                    }
+                }
                 .onFocusChanged { state ->
                     if (state.isFocused) {
                         hadFocus = true
