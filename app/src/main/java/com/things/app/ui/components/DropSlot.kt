@@ -12,7 +12,8 @@ val DropGapHeight = 56.dp
  * page title read it through [LocalDropSlot] and make room: the other rows slide down.
  *
  * [atTop]: under the page title. [beforeTaskId] / [afterTaskId]: above or under that to-do.
- * [afterGroupId]: under the header of that project or heading.
+ * [afterGroupId]: under the header of that project or heading. [beforeGroupId]: above the header of
+ * that heading (where a new heading would go).
  */
 @Immutable
 class DropSlot(
@@ -20,6 +21,7 @@ class DropSlot(
     val beforeTaskId: String? = null,
     val afterTaskId: String? = null,
     val afterGroupId: String? = null,
+    val beforeGroupId: String? = null,
 ) {
     companion object {
         val None = DropSlot()

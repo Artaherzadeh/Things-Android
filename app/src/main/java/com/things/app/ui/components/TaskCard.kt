@@ -60,8 +60,14 @@ import com.things.app.ui.theme.ThingsType
 
 private val CardShape = RoundedCornerShape(20.dp)
 
-/** Space the open card keeps from the row or heading above it and from the one below it. */
-private val CardGap = 16.dp
+/** Space the open card keeps from the row or heading above it. */
+private val CardGapTop = 16.dp
+
+/**
+ * Space the open card keeps from the row or heading below it. It is wider than the shadow reaches,
+ * so the shadow fades out inside it and is never cut off by the edge of the row.
+ */
+private val CardGapBottom = 28.dp
 
 /** Height of the line with the checkbox, in a card whose title is one line long. */
 private val TitleLineHeight = 44.dp
@@ -89,8 +95,7 @@ private val Indent = 32.dp
  * date, deadline or repeat line follows, so there is no big hole above them.
  *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
- * the row opens. The card has no outline, only a wide, soft shadow. It keeps the same 16dp from the
- * row or heading above and from the one below.
+ * the row opens. The card has no outline, only a soft shadow all around it.
  */
 @Composable
 fun TaskCard(
@@ -121,12 +126,12 @@ fun TaskCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, top = CardGap, bottom = CardGap)
+            .padding(start = 8.dp, end = 8.dp, top = CardGapTop, bottom = CardGapBottom)
             .shadow(
-                elevation = 16.dp,
+                elevation = 10.dp,
                 shape = CardShape,
-                ambientColor = Color.Black.copy(alpha = 0.9f),
-                spotColor = Color.Black.copy(alpha = 0.6f),
+                ambientColor = Color.Black.copy(alpha = 0.7f),
+                spotColor = Color.Black.copy(alpha = 0.45f),
             )
             .background(ThingsColors.Background, CardShape)
             // Taps on the card must not reach the page behind it, which closes the card.
