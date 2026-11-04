@@ -193,8 +193,8 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  *  3. Add a composable(Routes.X) { ... } block below.
  *  4. Call navController.navigate(Routes.X) from the screen that links to it.
  *
- * The Quick Find popover is drawn above the NavHost so it can be opened from any page. Home is told
- * when it is open, so its own search box can step aside.
+ * The Quick Find popover is drawn above the NavHost so it can be opened from any page. While it is
+ * open the search box of Home is hidden.
  *
  * Going back with the system gesture (from the screen edge) plays the same slide as the back button
  * but follows the finger: it has its own transitions, [GestureEasing], with the same length.
@@ -312,7 +312,7 @@ fun ThingsNavHost() {
                 HomeScreen(
                     state = homeState,
                     onSearchClick = { quickFindOpen = true },
-                    quickFindOpen = quickFindOpen,
+                    searchHidden = quickFindOpen,
                     onNewProject = { createProject(null, null) },
                     onNewArea = {
                         val area = Area(NewIdPrefix + UUID.randomUUID(), "", emptyList())
