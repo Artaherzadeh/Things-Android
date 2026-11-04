@@ -3,6 +3,7 @@ package com.things.app.ui.navigation
 import android.net.Uri
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -101,7 +102,7 @@ private fun projectStateFor(projectId: String, home: HomeUiState): ProjectUiStat
     val todayGroup = sampleTodayState().groups.firstOrNull { it.projectId == projectId }
     return when {
         projectId.startsWith(NewIdPrefix) ->
-            ProjectUiState(id = projectId, title = homeProject?.title ?: "New Project", progress = 0f)
+            ProjectUiState(id = projectId, title = homeProject?.title.orEmpty(), progress = 0f)
         projectId == VacationProjectId ->
             sampleVacationProjectState(
                 id = projectId,
@@ -139,8 +140,13 @@ private fun areaStateFor(areaId: String, home: HomeUiState): AreaUiState {
  *
  * The Quick Find popover is drawn above the NavHost so it can be opened from any page.
  *
- * Home keeps its projects and areas here while the app runs: New Project, New Area and the
- * dragged + add to them and open the new page; Delete Area on an area page removes it.
+ * Going back with the system gesture (from the screen edge) plays the same slide as the back
+ * button, but follows the finger: that animation is linear, because the easing of the button's
+ * slide would make the page jump far ahead of the finger.
+ *
+ * Home keeps its projects and areas here while the app runs. New Project, New Area and the dragged
+ * + add a row to the Home list and open it for naming in place; if it is left empty the row is
+ * dropped again. Delete Area on an area page removes it.
  */
 @Composable
 fun ThingsNavHost() {
@@ -148,10 +154,11 @@ fun ThingsNavHost() {
 
     var quickFindOpen by rememberSaveable { mutableStateOf(false) }
     var homeState by remember { mutableStateOf(sampleHomeState()) }
+    var editingId by remember { mutableStateOf<String?>(null) }
 
-    /** Adds a project to an area (or to the loose projects) and returns its id. */
-    fun createProject(areaId: String?, index: Int?): String {
-        val project = Project(NewIdPrefix + UUID.randomUUID(), "New Project", 0f)
+    /** Adds an empty project to an area (or to the loose projects), names it in place. */
+    fun createProject(areaId: String?, index: Int?) {
+        val project = Project(NewIdPrefix + UUID.randomUUID(), "", 0f)
         homeState = if (areaId == null) {
             val list = homeState.looseProjects
             val at = (index ?: list.size).coerceIn(0, list.size)
@@ -168,7 +175,34 @@ fun ThingsNavHost() {
                 },
             )
         }
-        return project.id
+        editingId = project.id
+    }
+
+    fun renameInHome(id: String, title: String) {
+        homeState = homeState.copy(
+            looseProjects = homeState.looseProjects.map { if (it.id == id) it.copy(title = title) else it },
+            areas = homeState.areas.map { area ->
+                area.copy(
+                    title = if (area.id == id) title else area.title,
+                    projects = area.projects.map { if (it.id == id) it.copy(title = title) else it },
+                )
+            },
+        )
+    }
+
+    /** The cursor left a row that was being named: an empty one is not kept. */
+    fun finishNaming(id: String) {
+        if (editingId == id) editingId = null
+        val empty = homeState.looseProjects.any { it.id == id && it.title.isBlank() } ||
+            homeState.areas.any { a -> a.id == id && a.title.isBlank() || a.projects.any { it.id == id && it.title.isBlank() } }
+        if (empty) {
+            homeState = homeState.copy(
+                looseProjects = homeState.looseProjects.filter { it.id != id },
+                areas = homeState.areas
+                    .filter { it.id != id }
+                    .map { area -> area.copy(projects = area.projects.filter { it.id != id }) },
+            )
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -201,24 +235,34 @@ fun ThingsNavHost() {
                     tween(PushMillis, easing = PushEasing),
                 )
             },
+            predictivePopEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(PushMillis, easing = LinearEasing),
+                    initialOffset = { it / 3 },
+                )
+            },
+            predictivePopExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(PushMillis, easing = LinearEasing),
+                )
+            },
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
                     state = homeState,
                     onSearchClick = { quickFindOpen = true },
-                    onNewProject = {
-                        val id = createProject(null, null)
-                        navController.navigate(Routes.project(id)) { launchSingleTop = true }
-                    },
+                    onNewProject = { createProject(null, null) },
                     onNewArea = {
-                        val area = Area(NewIdPrefix + UUID.randomUUID(), "New Area", emptyList())
+                        val area = Area(NewIdPrefix + UUID.randomUUID(), "", emptyList())
                         homeState = homeState.copy(areas = homeState.areas + area)
-                        navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
+                        editingId = area.id
                     },
-                    onCreateProjectAt = { areaId, index ->
-                        val id = createProject(areaId, index)
-                        navController.navigate(Routes.project(id)) { launchSingleTop = true }
-                    },
+                    onCreateProjectAt = { areaId, index -> createProject(areaId, index) },
+                    editingId = editingId,
+                    onTitleChange = { id, title -> renameInHome(id, title) },
+                    onEditDone = { id -> finishNaming(id) },
                     onAreaClick = { area ->
                         navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
                     },

@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -18,6 +19,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -28,6 +31,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
@@ -36,6 +42,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,13 +55,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -82,11 +96,15 @@ private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
 private val GroupGap = 12.dp
 
+/** The search box is 40dp high and starts 4dp higher than it used to, so its bottom edge stays put. */
+private val QuickFindHeight = 40.dp
+private val ListTopPadding = 8.dp
+
 /** The divider block above an area: 12dp, the 1dp line, 12dp. */
 private val AreaDividerBlock = 25.dp
 
 /** How far the list has to be pulled down from the top before Quick Find opens. */
-private val PullToSearchDistance = 96.dp
+private val PullToSearchDistance = 192.dp
 
 private const val LooseProjectsKey = "loose-projects"
 private const val SettingsKey = "settings"
@@ -100,7 +118,11 @@ private const val SettingsKey = "settings"
  *   let go: over an area it goes into that area (at the row nearest the finger), over the loose
  *   projects it goes among them, anywhere else it becomes the first loose project.
  *   [onCreateProjectAt] gets the area id (null for no area) and the position in that list.
+ * - A project or area that was just created is named in place: the row with [editingId] is a text
+ *   field with the keyboard open. [onTitleChange] reports each edit and [onEditDone] tells the page
+ *   the cursor left the row, so it can drop the row if it is still empty.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     state: HomeUiState = sampleHomeState(),
@@ -113,11 +135,17 @@ fun HomeScreen(
     onNewArea: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onCreateProjectAt: (areaId: String?, index: Int) -> Unit = { _, _ -> },
+    editingId: String? = null,
+    onTitleChange: (id: String, title: String) -> Unit = { _, _ -> },
+    onEditDone: (id: String) -> Unit = {},
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
+    val imeVisible = WindowInsets.isImeVisible
+    var imeWasVisible by remember { mutableStateOf(false) }
     val currentOnSearch by rememberUpdatedState(onSearchClick)
     val currentOnCreateProjectAt by rememberUpdatedState(onCreateProjectAt)
     val pullPx = with(density) { PullToSearchDistance.toPx() }
@@ -143,6 +171,35 @@ fun HomeScreen(
                 return Velocity.Zero
             }
         }
+    }
+
+    // Closing the keyboard ends the naming: the cursor leaves the row and the page is told.
+    LaunchedEffect(imeVisible) {
+        if (imeWasVisible && !imeVisible) focusManager.clearFocus()
+        imeWasVisible = imeVisible
+    }
+
+    // Show the row that is being named.
+    LaunchedEffect(editingId) {
+        val id = editingId ?: return@LaunchedEffect
+        val owner = state.areas.firstOrNull { a -> a.projects.any { it.id == id } }
+        val key = when {
+            state.areas.any { it.id == id } -> id
+            owner != null -> owner.id
+            else -> LooseProjectsKey
+        }
+        val keys = buildList {
+            add("quick-find")
+            add("quick-find-gap")
+            add("inbox")
+            add("lists")
+            add("logbook")
+            if (state.looseProjects.isNotEmpty()) add(LooseProjectsKey)
+            state.areas.forEach { add(it.id) }
+            add(SettingsKey)
+        }
+        val index = keys.indexOf(key)
+        if (index >= 0) listState.animateScrollToItem(index)
     }
 
     // Add menu: one boolean drives a single animated progress value, so rapid taps can't stack overlays.
@@ -212,8 +269,9 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .onGloballyPositioned { listTop = it.positionInWindow().y }
-                .nestedScroll(pullToSearch),
-            contentPadding = PaddingValues(top = statusBarTop + 12.dp, bottom = 140.dp),
+                .nestedScroll(pullToSearch)
+                .imePadding(),
+            contentPadding = PaddingValues(top = statusBarTop + ListTopPadding, bottom = 140.dp),
         ) {
             item(key = "quick-find") { QuickFind(onClick = onSearchClick) }
 
@@ -248,7 +306,13 @@ fun HomeScreen(
             if (state.looseProjects.isNotEmpty()) {
                 item(key = LooseProjectsKey) {
                     state.looseProjects.forEach { project ->
-                        ProjectRow(project) { onProjectClick(project) }
+                        ProjectRow(
+                            project = project,
+                            editing = editingId == project.id,
+                            onTitleChange = { onTitleChange(project.id, it) },
+                            onEditDone = { onEditDone(project.id) },
+                            onClick = { onProjectClick(project) },
+                        )
                     }
                 }
             }
@@ -266,6 +330,9 @@ fun HomeScreen(
                         AreaRow(
                             area = area,
                             expanded = expanded,
+                            editing = editingId == area.id,
+                            onTitleChange = { onTitleChange(area.id, it) },
+                            onEditDone = { onEditDone(area.id) },
                             onClick = { onAreaClick(area) },
                             onToggle = {
                                 collapsedAreas = if (expanded) collapsedAreas + area.id else collapsedAreas - area.id
@@ -274,7 +341,13 @@ fun HomeScreen(
                         AnimatedVisibility(visible = expanded) {
                             Column(Modifier.animateContentSize()) {
                                 area.projects.forEach { project ->
-                                    ProjectRow(project) { onProjectClick(project) }
+                                    ProjectRow(
+                                        project = project,
+                                        editing = editingId == project.id,
+                                        onTitleChange = { onTitleChange(project.id, it) },
+                                        onEditDone = { onEditDone(project.id) },
+                                        onClick = { onProjectClick(project) },
+                                    )
                                 }
                             }
                         }
@@ -389,7 +462,7 @@ private fun QuickFind(onClick: () -> Unit) {
         Modifier
             .padding(horizontal = ScreenPadding)
             .fillMaxWidth()
-            .height(36.dp)
+            .height(QuickFindHeight)
             .clip(RoundedCornerShape(12.dp))
             .background(ThingsColors.SearchBackground)
             .clickable(onClick = onClick),
@@ -407,12 +480,17 @@ private fun QuickFind(onClick: () -> Unit) {
     }
 }
 
+/**
+ * One Home row. [titleSlot] replaces the title text, for example with a text field while a new
+ * project or area is being named.
+ */
 @Composable
 private fun HomeRow(
     title: String,
     titleStyle: TextStyle,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
+    titleSlot: (@Composable RowScope.() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
@@ -425,9 +503,59 @@ private fun HomeRow(
     ) {
         Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) { icon() }
         Spacer(Modifier.width(IconTextGap))
-        Text(title, style = titleStyle, modifier = Modifier.weight(1f))
+        if (titleSlot != null) {
+            titleSlot()
+        } else {
+            Text(title, style = titleStyle, modifier = Modifier.weight(1f))
+        }
         trailing()
     }
+}
+
+/** A title that is typed in place: the keyboard opens at once and the capital letter comes first. */
+@Composable
+private fun EditableTitle(
+    title: String,
+    style: TextStyle,
+    placeholder: String,
+    onTitleChange: (String) -> Unit,
+    onEditDone: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val requester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    var hadFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { requester.requestFocus() }
+
+    BasicTextField(
+        value = title,
+        onValueChange = onTitleChange,
+        singleLine = true,
+        textStyle = style,
+        cursorBrush = SolidColor(ThingsColors.Fab),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Done,
+        ),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+        decorationBox = { inner ->
+            Box {
+                if (title.isEmpty()) Text(placeholder, style = style.copy(color = ThingsColors.TextSecondary))
+                inner()
+            }
+        },
+        modifier = modifier
+            .focusRequester(requester)
+            .onFocusChanged { state ->
+                if (state.isFocused) {
+                    hadFocus = true
+                } else if (hadFocus) {
+                    hadFocus = false
+                    onEditDone()
+                }
+            },
+    )
 }
 
 @Composable
@@ -475,6 +603,9 @@ private fun SystemRow(
 private fun AreaRow(
     area: Area,
     expanded: Boolean,
+    editing: Boolean,
+    onTitleChange: (String) -> Unit,
+    onEditDone: () -> Unit,
     onClick: () -> Unit,
     onToggle: () -> Unit,
 ) {
@@ -484,6 +615,20 @@ private fun AreaRow(
         titleStyle = ThingsType.RowTitleBold,
         onClick = onClick,
         icon = { AreaIcon(Modifier.size(24.dp)) },
+        titleSlot = if (editing) {
+            {
+                EditableTitle(
+                    title = area.title,
+                    style = ThingsType.RowTitleBold,
+                    placeholder = "New Area",
+                    onTitleChange = onTitleChange,
+                    onEditDone = onEditDone,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else {
+            null
+        },
         trailing = {
             Box(
                 Modifier
@@ -506,12 +651,32 @@ private fun AreaRow(
 }
 
 @Composable
-private fun ProjectRow(project: Project, onClick: () -> Unit) {
+private fun ProjectRow(
+    project: Project,
+    editing: Boolean,
+    onTitleChange: (String) -> Unit,
+    onEditDone: () -> Unit,
+    onClick: () -> Unit,
+) {
     HomeRow(
         title = project.title,
         titleStyle = ThingsType.RowTitle,
         onClick = onClick,
         icon = { ProgressIcon(project.progress, Modifier.size(24.dp)) },
+        titleSlot = if (editing) {
+            {
+                EditableTitle(
+                    title = project.title,
+                    style = ThingsType.RowTitle,
+                    placeholder = "New Project",
+                    onTitleChange = onTitleChange,
+                    onEditDone = onEditDone,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        } else {
+            null
+        },
     )
 }
 
