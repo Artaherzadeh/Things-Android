@@ -20,11 +20,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -75,6 +78,10 @@ private val SelectShape = RoundedCornerShape(12.dp)
  *  - the subtitle (project or area name), drawn under the first element of the title line, so it
  *    lines up with the repeat badge when there is one.
  *
+ * A long title goes on to the next lines. Without a subtitle the checkbox stays at the top of the
+ * row, centered on the first line of the title, and the title has the same space above and below
+ * so a one-line row is still 44dp high.
+ *
  * In select mode ([selecting]) a ring appears at the end of the row, filled blue when [selected],
  * and a selected row gets a light blue rounded background. The row sits 8dp in from both edges.
  */
@@ -90,6 +97,10 @@ fun TaskRow(
 ) {
     val leadingBadge = task.isRepeatingTemplate ||
         (task.isRecurring && recurringStyle == RecurringStyle.LeadingBadge)
+    val density = LocalDensity.current
+    var lineHeight by remember { mutableStateOf(24.dp) }
+    val oneLine = task.subtitle == null
+    val verticalPadding = if (oneLine) ((ThingsSpacing.RowHeight - lineHeight) / 2).coerceAtLeast(0.dp) else 0.dp
 
     val selectModifier = if (selecting) {
         Modifier
@@ -104,13 +115,13 @@ fun TaskRow(
         modifier
             .fillMaxWidth()
             .then(selectModifier)
-            .heightIn(min = if (task.subtitle == null) ThingsSpacing.RowHeight else ThingsSpacing.TwoLineRowHeight)
+            .heightIn(min = if (oneLine) ThingsSpacing.RowHeight else ThingsSpacing.TwoLineRowHeight)
             .clickable(onClick = onClick)
             .padding(
                 start = if (selecting) 0.dp else 8.dp,
                 end = if (selecting) 12.dp else ThingsSpacing.PageMargin,
             ),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = if (oneLine) Alignment.Top else Alignment.CenterVertically,
     ) {
         TaskCheckbox(
             checked = task.checked,
@@ -119,7 +130,7 @@ fun TaskRow(
             modifier = Modifier.heightIn(min = ThingsSpacing.RowHeight),
         )
 
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f).padding(vertical = verticalPadding)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 task.chip?.let {
                     TaskChip(it)
@@ -144,8 +155,11 @@ fun TaskRow(
                     } else {
                         ThingsType.RowTitle
                     },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { layout ->
+                        if (layout.lineCount > 0) {
+                            lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                        }
+                    },
                     modifier = Modifier.weight(1f, fill = false),
                 )
 
