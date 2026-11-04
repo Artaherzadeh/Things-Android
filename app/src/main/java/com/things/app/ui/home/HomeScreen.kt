@@ -1,5 +1,7 @@
 package com.things.app.ui.home
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +38,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -105,6 +108,10 @@ private val ListTopPadding = 8.dp
 /** How far the list has to be pulled down from the top before Quick Find opens. */
 private val PullToSearchDistance = 192.dp
 
+/** The grey of the cross that stays where the + was, and the red when it cancels. */
+private val DragGray = Color(0xFF8E8E93)
+private val CancelRed = Color(0xFFFF3B30)
+
 private const val ProjectPrefix = "project-"
 private const val AreaPrefix = "area-"
 private const val SettingsKey = "settings"
@@ -117,6 +124,9 @@ private const val SettingsKey = "settings"
  * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
  *   let go: next to the project or on the area under the finger, anywhere else it becomes the first
  *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position.
+ *   While it is dragged the button's place shows a grey cross at three quarters of its size; bring
+ *   the finger back onto it and the cross grows to full size and turns red: letting go there
+ *   cancels and nothing is created.
  * - A project or area that was just created is named in place: the row with [editingId] is a text
  *   field with the keyboard open. [onTitleChange] reports each edit and [onEditDone] tells the page
  *   the cursor left the row, so it can drop the row if it is still empty.
@@ -225,6 +235,14 @@ fun HomeScreen(
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
     var listTop by remember { mutableFloatStateOf(0f) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
+    var leftFab by remember { mutableStateOf(false) }
+    val fabRadiusPx = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
+
+    // Cancelling needs the finger to have left the button first, then come back onto it.
+    val cancelling = dragPos?.let { p ->
+        val center = fabBounds?.center
+        leftFab && center != null && (p - center).getDistance() <= fabRadiusPx
+    } == true
 
     fun selectCreation(type: CreationType) {
         if (!menuExpanded) return // ignore repeat taps while closing
@@ -437,27 +455,44 @@ fun HomeScreen(
             AddButton(
                 onClick = { menuExpanded = true },
                 hidden = menuOnScreen,
+                dragging = dragPos != null,
+                cancelling = cancelling,
                 onBoundsChanged = { fabBounds = it },
-                onDragStart = { dragPos = fabBounds?.center },
-                onDrag = { delta -> dragPos = dragPos?.plus(delta) },
+                onDragStart = {
+                    leftFab = false
+                    dragPos = fabBounds?.center
+                },
+                onDrag = { delta ->
+                    val next = dragPos?.plus(delta)
+                    dragPos = next
+                    val center = fabBounds?.center
+                    if (next != null && center != null && (next - center).getDistance() > fabRadiusPx * 1.3f) {
+                        leftFab = true
+                    }
+                },
                 onDragEnd = {
                     val p = dragPos
+                    val wasCancelling = cancelling
                     dragPos = null
-                    if (p != null) {
+                    leftFab = false
+                    if (p != null && !wasCancelling) {
                         val (areaId, index) = dropTarget(p)
                         currentOnCreateProjectAt(areaId, index)
                     }
                 },
-                onDragCancel = { dragPos = null },
+                onDragCancel = {
+                    dragPos = null
+                    leftFab = false
+                },
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .padding(end = ThingsSpacing.FabMargin),
             )
         }
 
-        // The new project under the finger while the + is dragged.
+        // The new project under the finger while the + is dragged (not while it would cancel).
         val p = dragPos
-        if (p != null) {
+        if (p != null && !cancelling) {
             val local = p - rootOrigin
             val half = with(density) { (RowHeight / 2).toPx() }
             Row(
@@ -734,10 +769,17 @@ private fun SectionDivider() {
     )
 }
 
+/**
+ * The round + button. The touch area is always the full 52dp. While it is dragged the visible circle
+ * shrinks to three quarters, turns grey and shows a cross; when [cancelling] it grows back to full
+ * size and turns red.
+ */
 @Composable
 private fun AddButton(
     onClick: () -> Unit,
     hidden: Boolean,
+    dragging: Boolean,
+    cancelling: Boolean,
     onBoundsChanged: (Rect) -> Unit,
     onDragStart: () -> Unit,
     onDrag: (Offset) -> Unit,
@@ -749,6 +791,22 @@ private fun AddButton(
     val currentDrag by rememberUpdatedState(onDrag)
     val currentEnd by rememberUpdatedState(onDragEnd)
     val currentCancel by rememberUpdatedState(onDragCancel)
+    val circleSize by animateDpAsState(
+        when {
+            cancelling -> ThingsSpacing.FabSize
+            dragging -> ThingsSpacing.FabSize * 0.75f
+            else -> ThingsSpacing.FabSize
+        },
+        label = "fabSize",
+    )
+    val circleColor by animateColorAsState(
+        when {
+            cancelling -> CancelRed
+            dragging -> DragGray
+            else -> ThingsColors.Fab
+        },
+        label = "fabColor",
+    )
 
     // The wrapper always keeps its 52dp slot so the menu can read the button's real position.
     // While the menu is open the morphing surface draws the button, so nothing is drawn (or
@@ -757,11 +815,23 @@ private fun AddButton(
         modifier
             .size(ThingsSpacing.FabSize)
             .onGloballyPositioned { onBoundsChanged(it.boundsInWindow()) }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { currentStart() },
+                    onDrag = { change, amount ->
+                        change.consume()
+                        currentDrag(amount)
+                    },
+                    onDragEnd = { currentEnd() },
+                    onDragCancel = { currentCancel() },
+                )
+            },
+        contentAlignment = Alignment.Center,
     ) {
         if (!hidden) {
             Box(
                 Modifier
-                    .fillMaxSize()
+                    .size(circleSize)
                     .shadow(
                         elevation = 8.dp,
                         shape = CircleShape,
@@ -769,22 +839,20 @@ private fun AddButton(
                         spotColor = FabShadowColor,
                     )
                     .clip(CircleShape)
-                    .background(ThingsColors.Fab)
-                    .clickable(onClickLabel = "Open create menu", role = Role.Button, onClick = onClick)
-                    .pointerInput(Unit) {
-                        detectDragGestures(
-                            onDragStart = { currentStart() },
-                            onDrag = { change, amount ->
-                                change.consume()
-                                currentDrag(amount)
-                            },
-                            onDragEnd = { currentEnd() },
-                            onDragCancel = { currentCancel() },
-                        )
-                    },
+                    .background(circleColor)
+                    .clickable(onClickLabel = "Open create menu", role = Role.Button, onClick = onClick),
                 contentAlignment = Alignment.Center,
             ) {
-                AddFabGlyph()
+                if (dragging) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = if (cancelling) "Cancel" else null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    AddFabGlyph()
+                }
             }
         }
     }
