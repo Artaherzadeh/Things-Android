@@ -3,7 +3,6 @@ package com.things.app.ui.navigation
 import android.net.Uri
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,6 +47,7 @@ import com.things.app.ui.today.sampleTodayState
 import com.things.app.ui.upcoming.UpcomingScreen
 import com.things.app.ui.upcoming.sampleUpcomingState
 import java.util.UUID
+import kotlin.math.abs
 
 /** One constant per page. Add a new entry here for every page you create. */
 object Routes {
@@ -171,6 +171,14 @@ private fun HomeUiState.withProjectMoved(from: String, to: String): HomeUiState 
     )
 }
 
+/** The same Home data with the ring of the project [id] set to [progress]. */
+private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState = copy(
+    looseProjects = looseProjects.map { if (it.id == id) it.copy(progress = progress) else it },
+    areas = areas.map { area ->
+        area.copy(projects = area.projects.map { if (it.id == id) it.copy(progress = progress) else it })
+    },
+)
+
 /**
  * Every page of the app is registered here. To add a page:
  *  1. Create its screen composable (for example ui/inbox/InboxScreen.kt).
@@ -181,13 +189,13 @@ private fun HomeUiState.withProjectMoved(from: String, to: String): HomeUiState 
  * The Quick Find popover is drawn above the NavHost so it can be opened from any page.
  *
  * Going back with the system gesture (from the screen edge) plays the same slide as the back
- * button, but follows the finger: that animation is linear, because the easing of the button's
- * slide would make the page jump far ahead of the finger.
+ * button: both use the pop transitions below.
  *
  * Home keeps its projects and areas here while the app runs. New Project, New Area and the dragged
  * + add a row to the Home list and open it for naming in place; if it is left empty the row is
- * dropped again. Holding a project or an area on Home changes the order. Delete Area on an area
- * page removes it.
+ * dropped again. Holding a project or an area on Home changes the order, swiping one to the left
+ * deletes it. The ring of a project on Home follows the to-dos done on its page. Delete Area on an
+ * area page removes it.
  */
 @Composable
 fun ThingsNavHost() {
@@ -231,19 +239,21 @@ fun ThingsNavHost() {
         )
     }
 
+    fun deleteFromHome(id: String) {
+        homeState = homeState.copy(
+            looseProjects = homeState.looseProjects.filter { it.id != id },
+            areas = homeState.areas
+                .filter { it.id != id }
+                .map { area -> area.copy(projects = area.projects.filter { it.id != id }) },
+        )
+    }
+
     /** The cursor left a row that was being named: an empty one is not kept. */
     fun finishNaming(id: String) {
         if (editingId == id) editingId = null
         val empty = homeState.looseProjects.any { it.id == id && it.title.isBlank() } ||
             homeState.areas.any { a -> a.id == id && a.title.isBlank() || a.projects.any { it.id == id && it.title.isBlank() } }
-        if (empty) {
-            homeState = homeState.copy(
-                looseProjects = homeState.looseProjects.filter { it.id != id },
-                areas = homeState.areas
-                    .filter { it.id != id }
-                    .map { area -> area.copy(projects = area.projects.filter { it.id != id }) },
-            )
-        }
+        if (empty) deleteFromHome(id)
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -276,19 +286,6 @@ fun ThingsNavHost() {
                     tween(PushMillis, easing = PushEasing),
                 )
             },
-            predictivePopEnterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = LinearEasing),
-                    initialOffset = { it / 3 },
-                )
-            },
-            predictivePopExitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = LinearEasing),
-                )
-            },
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
@@ -306,6 +303,8 @@ fun ThingsNavHost() {
                     onEditDone = { id -> finishNaming(id) },
                     onMoveProject = { from, to -> homeState = homeState.withProjectMoved(from, to) },
                     onMoveArea = { from, to -> homeState = homeState.withAreaMoved(from, to) },
+                    onDeleteProject = { id -> deleteFromHome(id) },
+                    onDeleteArea = { id -> deleteFromHome(id) },
                     onAreaClick = { area ->
                         navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
                     },
@@ -367,6 +366,13 @@ fun ThingsNavHost() {
                 ProjectScreen(
                     state = projectStateFor(projectId, homeState),
                     onBack = { navController.popBackStack() },
+                    onProgressChange = { progress ->
+                        val current = (homeState.looseProjects + homeState.areas.flatMap { it.projects })
+                            .firstOrNull { it.id == projectId }
+                        if (current != null && abs(current.progress - progress) > 0.001f) {
+                            homeState = homeState.withProgress(projectId, progress)
+                        }
+                    },
                 )
             }
             composable(
@@ -381,7 +387,7 @@ fun ThingsNavHost() {
                         navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
                     },
                     onDeleteArea = {
-                        homeState = homeState.copy(areas = homeState.areas.filter { it.id != areaId })
+                        deleteFromHome(areaId)
                         navController.popBackStack()
                     },
                 )

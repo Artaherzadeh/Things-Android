@@ -80,6 +80,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
+import com.things.app.ui.components.SwipeToDeleteRow
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.reorderable
 import com.things.app.ui.theme.ThingsColors
@@ -122,6 +123,8 @@ private const val SettingsKey = "settings"
  * - Hold a project or an area and move it to change the order. A held area folds first, with all
  *   its projects, and moves as one row. A project can move inside its area, to another area or out
  *   of any area. [onMoveProject] and [onMoveArea] get the held row and the row it passed.
+ * - Swipe a project or an area to the left for a red cross that deletes it ([onDeleteProject],
+ *   [onDeleteArea]; an area goes with its projects).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -141,6 +144,8 @@ fun HomeScreen(
     onEditDone: (id: String) -> Unit = {},
     onMoveProject: (fromId: String, toId: String) -> Unit = { _, _ -> },
     onMoveArea: (fromId: String, toId: String) -> Unit = { _, _ -> },
+    onDeleteProject: (id: String) -> Unit = {},
+    onDeleteArea: (id: String) -> Unit = {},
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var holdingArea by remember { mutableStateOf<String?>(null) }
@@ -331,14 +336,18 @@ fun HomeScreen(
 
             // Projects without an area, one row each so each can be moved
             items(state.looseProjects, key = { "$ProjectPrefix${it.id}" }) { project ->
-                ProjectRow(
-                    project = project,
-                    editing = editingId == project.id,
-                    onTitleChange = { onTitleChange(project.id, it) },
-                    onEditDone = { onEditDone(project.id) },
-                    onClick = { onProjectClick(project) },
+                SwipeToDeleteRow(
+                    onDelete = { onDeleteProject(project.id) },
                     modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
-                )
+                ) {
+                    ProjectRow(
+                        project = project,
+                        editing = editingId == project.id,
+                        onTitleChange = { onTitleChange(project.id, it) },
+                        onEditDone = { onEditDone(project.id) },
+                        onClick = { onProjectClick(project) },
+                    )
+                }
             }
 
             // Areas and their projects
@@ -351,33 +360,39 @@ fun HomeScreen(
                             SectionDivider()
                             Spacer(Modifier.height(12.dp))
                         }
-                        AreaRow(
-                            area = area,
-                            expanded = expanded,
-                            editing = editingId == area.id,
-                            onTitleChange = { onTitleChange(area.id, it) },
-                            onEditDone = { onEditDone(area.id) },
-                            onClick = { onAreaClick(area) },
-                            onToggle = {
-                                collapsedAreas = if (area.id in collapsedAreas) {
-                                    collapsedAreas - area.id
-                                } else {
-                                    collapsedAreas + area.id
-                                }
-                            },
-                        )
+                        SwipeToDeleteRow(onDelete = { onDeleteArea(area.id) }) {
+                            AreaRow(
+                                area = area,
+                                expanded = expanded,
+                                editing = editingId == area.id,
+                                onTitleChange = { onTitleChange(area.id, it) },
+                                onEditDone = { onEditDone(area.id) },
+                                onClick = { onAreaClick(area) },
+                                onToggle = {
+                                    collapsedAreas = if (area.id in collapsedAreas) {
+                                        collapsedAreas - area.id
+                                    } else {
+                                        collapsedAreas + area.id
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
                 if (area.id !in hiddenAreas) {
                     items(area.projects, key = { "$ProjectPrefix${it.id}" }) { project ->
-                        ProjectRow(
-                            project = project,
-                            editing = editingId == project.id,
-                            onTitleChange = { onTitleChange(project.id, it) },
-                            onEditDone = { onEditDone(project.id) },
-                            onClick = { onProjectClick(project) },
+                        SwipeToDeleteRow(
+                            onDelete = { onDeleteProject(project.id) },
                             modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
-                        )
+                        ) {
+                            ProjectRow(
+                                project = project,
+                                editing = editingId == project.id,
+                                onTitleChange = { onTitleChange(project.id, it) },
+                                onEditDone = { onEditDone(project.id) },
+                                onClick = { onProjectClick(project) },
+                            )
+                        }
                     }
                 }
             }
@@ -454,8 +469,8 @@ fun HomeScreen(
                     .shadow(
                         elevation = 10.dp,
                         shape = RoundedCornerShape(20.dp),
-                        ambientColor = Color.Black.copy(alpha = 0.16f),
-                        spotColor = Color.Black.copy(alpha = 0.05f),
+                        ambientColor = Color.Black.copy(alpha = 0.7f),
+                        spotColor = Color.Black.copy(alpha = 0.45f),
                     )
                     .background(ThingsColors.Background, RoundedCornerShape(20.dp))
                     .padding(horizontal = 12.dp),
