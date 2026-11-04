@@ -121,6 +121,8 @@ fun ProjectLinkRow(
  * Header of a project block: the project line and a divider under it.
  * [topGap] is the space above the header (use 0.dp for the first block under the title).
  * Pass [onToggleExpanded] to make the chevron open and close the project's to-dos.
+ * Pass [groupId] so the header makes room under itself while the add button is dragged over the
+ * top of that project.
  */
 @Composable
 fun ProjectGroupHeader(
@@ -131,7 +133,9 @@ fun ProjectGroupHeader(
     onClick: () -> Unit = {},
     expanded: Boolean = true,
     onToggleExpanded: (() -> Unit)? = null,
+    groupId: String? = null,
 ) {
+    val gapBelow = groupId != null && LocalDropSlot.current.afterGroupId == groupId
     Column(modifier) {
         Spacer(Modifier.height(topGap))
         ProjectLinkRow(
@@ -147,5 +151,6 @@ fun ProjectGroupHeader(
             color = ThingsColors.Divider,
         )
         Spacer(Modifier.height(12.dp))
+        if (gapBelow) Spacer(Modifier.height(DropGapHeight))
     }
 }

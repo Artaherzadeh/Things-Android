@@ -2,6 +2,7 @@ package com.things.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -98,19 +100,27 @@ fun rememberSelectionState(): SelectionState = remember { SelectionState() }
 val LocalSelection = compositionLocalOf<SelectionState?> { null }
 
 private val BarShape = RoundedCornerShape(28.dp)
+private val DeleteTint = Color(0xFFFF453A)
 
 /**
- * The dark bar at the bottom of the select mode: When, Move and Delete, and a round button that
- * opens the rest of the actions. Everything is dimmed while [enabled] is false (nothing ticked).
+ * The dark bar at the bottom of the select mode: When, Move and Delete (red), and a round button
+ * that opens the rest of the actions. Give it the width of the page minus its side margins; the
+ * buttons spread over it. Everything is dimmed while [enabled] is false (nothing ticked).
+ * [completeLabel] is the name of the status entry of the menu (Mark as Completed, Undo or Switch
+ * Status). [onMenuOpenChange] tells the page when the menu opens or closes so it can dim itself.
  */
 @Composable
 fun SelectionBottomBar(
     enabled: Boolean,
+    completeLabel: String,
     onAction: (SelectionAction) -> Unit,
+    onMenuOpenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var moreOpen by remember { mutableStateOf(false) }
     val iconSize = Modifier.size(24.dp)
+
+    LaunchedEffect(moreOpen) { onMenuOpenChange(moreOpen) }
 
     Row(
         modifier
@@ -123,15 +133,16 @@ fun SelectionBottomBar(
             .clip(BarShape)
             .background(ThingsColors.MenuSurface)
             .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BarButton("When", enabled, { onAction(SelectionAction.When) }) { tint ->
+        BarButton("When", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.When) }) { tint ->
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
         }
-        BarButton("Move", enabled, { onAction(SelectionAction.Move) }) { tint ->
+        BarButton("Move", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.Move) }) { tint ->
             Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
         }
-        BarButton("Delete", enabled, { onAction(SelectionAction.Delete) }) { tint ->
+        BarButton("Delete", enabled, DeleteTint, { onAction(SelectionAction.Delete) }) { tint ->
             Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
         }
         Box {
@@ -154,6 +165,7 @@ fun SelectionBottomBar(
             }
             MoreMenu(
                 expanded = moreOpen,
+                completeLabel = completeLabel,
                 onDismiss = { moreOpen = false },
                 onAction = {
                     moreOpen = false
@@ -168,10 +180,11 @@ fun SelectionBottomBar(
 private fun BarButton(
     label: String,
     enabled: Boolean,
+    color: Color,
     onClick: () -> Unit,
     icon: @Composable (Color) -> Unit,
 ) {
-    val tint = if (enabled) ThingsColors.MenuTitle else ThingsColors.MenuTitle.copy(alpha = 0.4f)
+    val tint = if (enabled) color else color.copy(alpha = 0.4f)
     Row(
         Modifier
             .clip(RoundedCornerShape(20.dp))
@@ -186,7 +199,12 @@ private fun BarButton(
 }
 
 @Composable
-private fun MoreMenu(expanded: Boolean, onDismiss: () -> Unit, onAction: (SelectionAction) -> Unit) {
+private fun MoreMenu(
+    expanded: Boolean,
+    completeLabel: String,
+    onDismiss: () -> Unit,
+    onAction: (SelectionAction) -> Unit,
+) {
     val groups: List<List<Pair<SelectionAction, ImageVector>>> = listOf(
         listOf(
             SelectionAction.MarkCompleted to Icons.Outlined.CheckBox,
@@ -215,8 +233,9 @@ private fun MoreMenu(expanded: Boolean, onDismiss: () -> Unit, onAction: (Select
                 )
             }
             items.forEach { (action, icon) ->
+                val label = if (action == SelectionAction.MarkCompleted) completeLabel else action.label
                 DropdownMenuItem(
-                    text = { Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified)) },
+                    text = { Text(label, style = ThingsType.RowTitle.copy(color = Color.Unspecified)) },
                     leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
                     onClick = { onAction(action) },
                     colors = MenuDefaults.itemColors(
