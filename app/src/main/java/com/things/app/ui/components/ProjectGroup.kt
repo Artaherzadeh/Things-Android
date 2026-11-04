@@ -37,8 +37,47 @@ data class TaskGroupModel(
     val items: List<TaskRowModel>,
 )
 
+/** A tappable project line: blue progress ring, bold name and a small chevron. */
+@Composable
+fun ProjectLinkRow(
+    title: String,
+    progress: Float,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .clickable(onClickLabel = "Open $title", role = Role.Button, onClick = onClick)
+            .padding(start = 18.dp, end = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ProgressIcon(
+            progress = progress,
+            modifier = Modifier.size(24.dp),
+            color = ThingsColors.ProjectBlue,
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            title,
+            style = ThingsType.RowTitleBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+        )
+        Spacer(Modifier.width(2.dp))
+        Icon(
+            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+            contentDescription = null,
+            tint = ThingsColors.TextSecondary,
+            modifier = Modifier.size(22.dp),
+        )
+    }
+}
+
 /**
- * Header of a project block: progress ring, bold name, small chevron, and a divider under it.
+ * Header of a project block: the project line and a divider under it.
  * [topGap] is the space above the header (use 0.dp for the first block under the title).
  */
 @Composable
@@ -51,35 +90,7 @@ fun ProjectGroupHeader(
 ) {
     Column(modifier) {
         Spacer(Modifier.height(topGap))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .clickable(onClickLabel = "Open $title", role = Role.Button, onClick = onClick)
-                .padding(start = 18.dp, end = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ProgressIcon(
-                progress = progress,
-                modifier = Modifier.size(24.dp),
-                color = ThingsColors.ProjectBlue,
-            )
-            Spacer(Modifier.width(12.dp))
-            Text(
-                title,
-                style = ThingsType.RowTitleBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(22.dp),
-            )
-        }
+        ProjectLinkRow(title = title, progress = progress, onClick = onClick)
         HorizontalDivider(
             modifier = Modifier.padding(horizontal = 18.dp),
             thickness = 1.dp,

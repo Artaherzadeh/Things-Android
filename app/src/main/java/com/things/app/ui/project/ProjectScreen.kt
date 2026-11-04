@@ -1,6 +1,5 @@
 package com.things.app.ui.project
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -26,8 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -41,8 +38,10 @@ import androidx.compose.ui.unit.sp
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
 import com.things.app.ui.components.ListPageScaffold
+import com.things.app.ui.components.MenuDots
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRow
+import com.things.app.ui.components.TitleMenuButton
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsTheme
@@ -83,7 +82,7 @@ fun ProjectScreen(
         },
         modifier = modifier,
         titleTag = "project_title",
-        titleTrailing = { TitleMenuButton(onTitleMenuClick) },
+        titleTrailing = { TitleMenuButton("Project menu", onTitleMenuClick) },
         titleBottomPadding = 8.dp,
         onBack = onBack,
         onMoreClick = onMoreClick,
@@ -155,32 +154,6 @@ private fun NotesLine(notes: String) {
             ),
         )
         Spacer(Modifier.height(44.dp))
-    }
-}
-
-/** Three dots in a row. Grey next to the project title, blue at the end of a heading. */
-@Composable
-private fun MenuDots(color: Color) {
-    Canvas(Modifier.size(width = 22.dp, height = 6.dp)) {
-        val radius = size.height / 2f
-        repeat(3) { index ->
-            drawCircle(
-                color,
-                radius = radius,
-                center = Offset(radius + index * (size.width - size.height) / 2f, radius),
-            )
-        }
-    }
-}
-
-/** The dots next to the title: opens the project More menu. */
-@Composable
-private fun TitleMenuButton(onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.semantics { contentDescription = "Project menu" },
-    ) {
-        MenuDots(ThingsColors.TextSecondary)
     }
 }
 

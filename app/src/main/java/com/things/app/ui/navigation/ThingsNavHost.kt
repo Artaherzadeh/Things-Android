@@ -16,6 +16,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.things.app.ui.anytime.AnytimeScreen
 import com.things.app.ui.anytime.sampleAnytimeState
+import com.things.app.ui.area.AreaScreen
+import com.things.app.ui.area.AreaUiState
+import com.things.app.ui.area.sampleAreaState
 import com.things.app.ui.home.CreationType
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.SystemList
@@ -45,8 +48,10 @@ object Routes {
     const val INBOX = "inbox"
     const val SOMEDAY = "someday"
     const val PROJECT = "project/{projectId}"
+    const val AREA = "area/{areaId}"
 
     fun project(projectId: String) = "project/${Uri.encode(projectId)}"
+    fun area(areaId: String) = "area/${Uri.encode(areaId)}"
 }
 
 // Push transition: the new page slides in from the end edge, the page below shifts by a third.
@@ -76,6 +81,19 @@ private fun sampleProjectStateFor(projectId: String): ProjectUiState {
         anytimeGroup != null ->
             sampleProjectState(anytimeGroup.projectId, anytimeGroup.projectTitle, anytimeGroup.projectProgress)
         else -> sampleProjectState()
+    }
+}
+
+/**
+ * Static glue: shows the tapped area's own projects from the Home sample data. Replace with a
+ * repository lookup once real data exists.
+ */
+private fun sampleAreaStateFor(areaId: String): AreaUiState {
+    val area = sampleHomeState().areas.firstOrNull { it.id == areaId }
+    return if (area != null) {
+        AreaUiState(id = area.id, title = area.title, projects = area.projects)
+    } else {
+        sampleAreaState()
     }
 }
 
@@ -130,6 +148,9 @@ fun ThingsNavHost() {
                 onNewToDo = { pendingCreation = CreationType.ToDo },
                 onNewProject = { pendingCreation = CreationType.Project },
                 onNewArea = { pendingCreation = CreationType.Area },
+                onAreaClick = { area ->
+                    navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
+                },
                 onProjectClick = { project ->
                     navController.navigate(Routes.project(project.id)) { launchSingleTop = true }
                 },
@@ -193,6 +214,19 @@ fun ThingsNavHost() {
             ProjectScreen(
                 state = sampleProjectStateFor(projectId),
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.AREA,
+            arguments = listOf(navArgument("areaId") { type = NavType.StringType }),
+        ) { entry ->
+            val areaId = entry.arguments?.getString("areaId").orEmpty()
+            AreaScreen(
+                state = sampleAreaStateFor(areaId),
+                onBack = { navController.popBackStack() },
+                onProjectClick = { projectId ->
+                    navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                },
             )
         }
     }
