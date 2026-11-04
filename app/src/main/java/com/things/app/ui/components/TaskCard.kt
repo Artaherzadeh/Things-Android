@@ -78,6 +78,9 @@ private val Indent = 32.dp
  * The title is plain text; Markdown applies to the notes only. With [autoFocus] the title takes the
  * keyboard as soon as the card opens (a new to-do).
  *
+ * The notes area is 56dp high when the card ends under it, and only 32dp when a checklist or a
+ * date, deadline or repeat line follows, so there is no big hole above them.
+ *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
  * the row opens. The card has a soft shadow and leaves 12dp under it (4dp above) so the row below
  * does not touch it.
@@ -98,6 +101,8 @@ fun TaskCard(
     var addingChecklist by rememberSaveable(task.id) { mutableStateOf(false) }
     val showChecklist = details.checklist.isNotEmpty() || addingChecklist
     val titleRequester = remember { FocusRequester() }
+    val somethingBelowNotes = showChecklist ||
+        details.schedule != null || details.deadline != null || details.repeat != null
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) titleRequester.requestFocus()
@@ -170,7 +175,7 @@ fun TaskCard(
             },
             modifier = Modifier
                 .padding(start = Indent, end = 8.dp, top = 4.dp)
-                .heightIn(min = 56.dp),
+                .heightIn(min = if (somethingBelowNotes) 32.dp else 56.dp),
         )
 
         if (showChecklist) {
@@ -188,7 +193,7 @@ fun TaskCard(
                 },
                 adding = addingChecklist,
                 onAddingChange = { addingChecklist = it },
-                modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 8.dp, top = 0.dp, bottom = 4.dp),
             )
         }
 
