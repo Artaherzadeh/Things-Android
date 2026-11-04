@@ -16,9 +16,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.RecurringStyle
-import com.things.app.ui.components.TaskRow
+import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.CalendarIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsTheme
@@ -28,7 +29,8 @@ private val DaySpacing = 56.dp
 
 /**
  * Static Upcoming page: one section per day with a large day number, a divider, the day name
- * under it, and that day's to-dos. Days with no to-dos still show their header.
+ * under it, and that day's to-dos. Days with no to-dos still show their header. Every to-do opens
+ * in place when tapped.
  */
 @Composable
 fun UpcomingScreen(
@@ -40,6 +42,8 @@ fun UpcomingScreen(
     onToggleTask: (String) -> Unit = {},
     onAddClick: () -> Unit = {},
 ) {
+    val expansion = rememberTaskExpansion()
+
     ListPageScaffold(
         title = "Upcoming",
         icon = { CalendarIcon(Modifier.size(26.dp)) },
@@ -47,6 +51,7 @@ fun UpcomingScreen(
         titleTag = "upcoming_title",
         onBack = onBack,
         onMoreClick = onMoreClick,
+        expansion = expansion,
         onAddClick = onAddClick,
     ) {
         item(key = "top-gap") { Spacer(Modifier.height(40.dp)) }
@@ -54,10 +59,11 @@ fun UpcomingScreen(
         state.days.forEach { day ->
             item(key = "day-${day.id}") { DayHeader(day) }
             items(day.tasks, key = { "task-${day.id}-${it.id}" }) { task ->
-                TaskRow(
+                ExpandableTaskRow(
                     task = task,
+                    expansion = expansion,
                     recurringStyle = RecurringStyle.LeadingBadge,
-                    onClick = { onTaskClick(task.id) },
+                    onOpen = { onTaskClick(task.id) },
                     onToggle = { onToggleTask(task.id) },
                 )
             }

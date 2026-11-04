@@ -37,11 +37,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
+import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.MenuDots
 import com.things.app.ui.components.RepeatIcon
-import com.things.app.ui.components.TaskRow
 import com.things.app.ui.components.TitleMenuButton
+import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsTheme
@@ -54,7 +55,7 @@ private val HeadingGap = 48.dp
  * Static project page: ring and title with the project menu, notes, the to-dos that are not under
  * a heading, then each heading with its to-dos, then two toggles that reveal later items (future
  * start dates, repeating templates) and logged items. Later and logged items are hidden until
- * revealed. Every action is a callback.
+ * revealed. Active and later to-dos open in place when tapped. Every action is a callback.
  */
 @Composable
 fun ProjectScreen(
@@ -70,6 +71,7 @@ fun ProjectScreen(
 ) {
     var showLater by rememberSaveable { mutableStateOf(false) }
     var showLogged by rememberSaveable { mutableStateOf(false) }
+    val expansion = rememberTaskExpansion()
 
     ListPageScaffold(
         title = state.title,
@@ -86,12 +88,18 @@ fun ProjectScreen(
         titleBottomPadding = 8.dp,
         onBack = onBack,
         onMoreClick = onMoreClick,
+        expansion = expansion,
         onAddClick = onAddClick,
     ) {
         item(key = "notes") { NotesLine(state.notes) }
 
         items(state.tasks, key = { "task-${it.id}" }) { task ->
-            TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+            ExpandableTaskRow(
+                task = task,
+                expansion = expansion,
+                onOpen = { onTaskClick(task.id) },
+                onToggle = { onToggleTask(task.id) },
+            )
         }
 
         state.headings.forEachIndexed { index, heading ->
@@ -103,13 +111,23 @@ fun ProjectScreen(
                 )
             }
             items(heading.tasks, key = { "task-${it.id}" }) { task ->
-                TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+                ExpandableTaskRow(
+                    task = task,
+                    expansion = expansion,
+                    onOpen = { onTaskClick(task.id) },
+                    onToggle = { onToggleTask(task.id) },
+                )
             }
         }
 
         if (showLater) {
             items(state.laterTasks, key = { "later-${it.id}" }) { task ->
-                TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+                ExpandableTaskRow(
+                    task = task,
+                    expansion = expansion,
+                    onOpen = { onTaskClick(task.id) },
+                    onToggle = { onToggleTask(task.id) },
+                )
             }
         }
 

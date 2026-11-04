@@ -18,10 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.GroupGap
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.ProjectGroupHeader
-import com.things.app.ui.components.TaskRow
+import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.LayersIcon
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
@@ -31,7 +32,8 @@ private const val CollapsedTaskLimit = 3
 
 /**
  * Static Anytime page: to-dos without a date, grouped by project. To-dos with no project come
- * first with no header. A long project block collapses to its first few to-dos.
+ * first with no header. A long project block collapses to its first few to-dos. Every to-do opens
+ * in place when tapped.
  */
 @Composable
 fun AnytimeScreen(
@@ -45,6 +47,7 @@ fun AnytimeScreen(
     onAddClick: () -> Unit = {},
 ) {
     var expandedGroups by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    val expansion = rememberTaskExpansion()
 
     ListPageScaffold(
         title = "Anytime",
@@ -53,10 +56,16 @@ fun AnytimeScreen(
         titleTag = "anytime_title",
         onBack = onBack,
         onMoreClick = onMoreClick,
+        expansion = expansion,
         onAddClick = onAddClick,
     ) {
         items(state.looseTasks, key = { "task-${it.id}" }) { task ->
-            TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+            ExpandableTaskRow(
+                task = task,
+                expansion = expansion,
+                onOpen = { onTaskClick(task.id) },
+                onToggle = { onToggleTask(task.id) },
+            )
         }
 
         state.groups.forEachIndexed { index, group ->
@@ -73,7 +82,12 @@ fun AnytimeScreen(
                 )
             }
             items(visible, key = { "task-${it.id}" }) { task ->
-                TaskRow(task, onClick = { onTaskClick(task.id) }, onToggle = { onToggleTask(task.id) })
+                ExpandableTaskRow(
+                    task = task,
+                    expansion = expansion,
+                    onOpen = { onTaskClick(task.id) },
+                    onToggle = { onToggleTask(task.id) },
+                )
             }
             if (hiddenCount > 0) {
                 item(key = "more-${group.projectId}") {

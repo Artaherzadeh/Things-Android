@@ -6,7 +6,8 @@ import androidx.compose.ui.Modifier
 
 /**
  * A list page that shows to-dos as one flat list: no project headers and no grouping.
- * Used by Inbox and Someday. Every action is a callback that defaults to a no-op.
+ * Used by Inbox and Someday. Every to-do opens in place when tapped. Every action is a callback
+ * that defaults to a no-op.
  */
 @Composable
 fun FlatTaskListScreen(
@@ -21,6 +22,8 @@ fun FlatTaskListScreen(
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
 ) {
+    val expansion = rememberTaskExpansion()
+
     ListPageScaffold(
         title = title,
         icon = icon,
@@ -28,12 +31,14 @@ fun FlatTaskListScreen(
         titleTag = titleTag,
         onBack = onBack,
         onMoreClick = onMoreClick,
+        expansion = expansion,
         onAddClick = onAddClick,
     ) {
         items(tasks, key = { "task-${it.id}" }) { task ->
-            TaskRow(
+            ExpandableTaskRow(
                 task = task,
-                onClick = { onTaskClick(task.id) },
+                expansion = expansion,
+                onOpen = { onTaskClick(task.id) },
                 onToggle = { onToggleTask(task.id) },
             )
         }
