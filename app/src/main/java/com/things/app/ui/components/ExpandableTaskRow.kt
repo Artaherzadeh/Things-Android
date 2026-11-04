@@ -23,8 +23,9 @@ import androidx.compose.ui.Modifier
  * moment they are typed (nothing to save), so closing and reopening a card shows the same text.
  * Only the open to-do id survives rotation; the edits live as long as the page is on screen.
  *
- * It also remembers which to-dos were deleted or completed from the page (swipe, select mode), and
- * which were just created: a new to-do that is closed with an empty title is deleted, not saved.
+ * It also remembers which to-dos were deleted from the page (swipe, select mode), the changes the
+ * select bar made to several to-dos at once, and which to-dos were just created: a new to-do that
+ * is closed with an empty title is deleted, not saved.
  */
 @Stable
 class TaskExpansion internal constructor(initialId: String?) {
@@ -33,7 +34,7 @@ class TaskExpansion internal constructor(initialId: String?) {
 
     private val drafts = mutableStateMapOf<String, TaskRowModel>()
     private val deletedIds = mutableStateMapOf<String, Boolean>()
-    private val completedIds = mutableStateMapOf<String, Boolean>()
+    private val patches = mutableStateMapOf<String, List<(TaskRowModel) -> TaskRowModel>>()
     private val newIds = mutableSetOf<String>()
 
     fun isExpanded(id: String): Boolean = expandedId == id
@@ -67,17 +68,23 @@ class TaskExpansion internal constructor(initialId: String?) {
 
     fun deleteAll(ids: Set<String>) = ids.forEach { delete(it) }
 
-    fun markCompleted(ids: Set<String>) = ids.forEach { completedIds[it] = true }
+    /** Applies [change] to every to-do in [ids], for example a date or tags from the select bar. */
+    fun patchAll(ids: Set<String>, change: (TaskRowModel) -> TaskRowModel) {
+        ids.forEach { id -> patches[id] = (patches[id] ?: emptyList()) + change }
+    }
+
+    fun markCompleted(ids: Set<String>) = patchAll(ids) { it.copy(checked = true) }
 
     /** The to-do with the edits made to it so far. */
     fun resolve(task: TaskRowModel): TaskRowModel {
-        val draft = drafts[task.id]
-        if (draft != null) return draft
-        return if (completedIds[task.id] == true && !task.checked) task.copy(checked = true) else task
+        val base = drafts[task.id] ?: task
+        val list = patches[task.id] ?: return base
+        return list.fold(base) { acc, change -> change(acc) }
     }
 
     fun edit(base: TaskRowModel, change: (TaskRowModel) -> TaskRowModel) {
-        drafts[base.id] = change(drafts[base.id] ?: resolve(base))
+        drafts[base.id] = change(resolve(base))
+        patches.remove(base.id)
     }
 
     companion object {
@@ -102,6 +109,8 @@ fun rememberTaskExpansion(): TaskExpansion =
  *   unticks the row instead of opening it.
  * - A new to-do opens with the keyboard on its title. If the keyboard is closed or the card is
  *   closed while the title is empty, the to-do is deleted.
+ * - The calendar button and the date line of the card open the When sheet; the tag button and the
+ *   tag chips open the Tags sheet. What is chosen is shown on the card and in the closed row.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -119,6 +128,7 @@ fun ExpandableTaskRow(
 
     val sel = selection ?: LocalSelection.current
     val current = expansion.resolve(task)
+    var sheet by remember { mutableStateOf<TaskSheet?>(null) }
     val toggle = {
         expansion.edit(task) { it.copy(checked = !current.checked) }
         onToggle()
@@ -157,6 +167,8 @@ fun ExpandableTaskRow(
                 onEdit = { change -> expansion.edit(task, change) },
                 onToggle = toggle,
                 autoFocus = expansion.isNew(task.id) && current.title.isEmpty(),
+                onScheduleClick = { sheet = TaskSheet.When },
+                onTagsClick = { sheet = TaskSheet.Tags },
             )
         } else {
             SwipeToDeleteRow(onDelete = delete) {
@@ -171,5 +183,19 @@ fun ExpandableTaskRow(
                 )
             }
         }
+    }
+
+    when (sheet) {
+        TaskSheet.When -> WhenSheet(
+            current = current.details.schedule,
+            onDismiss = { sheet = null },
+            onPick = { schedule -> expansion.edit(task) { it.withSchedule(schedule) } },
+        )
+        TaskSheet.Tags -> TagsSheet(
+            selected = current.details.tags,
+            onDismiss = { sheet = null },
+            onDone = { tags -> expansion.edit(task) { it.withTags(tags) } },
+        )
+        null -> Unit
     }
 }
