@@ -65,8 +65,9 @@ import com.things.app.ui.theme.ThingsType
 
 // Every value is a multiple of 4dp (see ThingsSpacing). Icons and checkboxes sit at x = 20dp and
 // the text after them starts at x = 52dp, like the to-dos on the list pages.
+// Home rows are 48dp tall, 4dp taller than the list rows, like the original design.
 private val ScreenPadding = ThingsSpacing.PageMargin
-private val RowHeight = ThingsSpacing.RowHeight
+private val RowHeight = 48.dp
 private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
 private val GroupGap = 12.dp
