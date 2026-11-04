@@ -59,16 +59,17 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
 import com.things.app.ui.components.TaskRow
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
-// Layout metrics taken from the Figma frames (dp, 393dp wide reference).
-private val ScreenPaddingStart = 20.dp
-private val ScreenPaddingEnd = 24.dp
-private val RowHeight = 46.dp
+// Every value is a multiple of 4dp (see ThingsSpacing). Icons and checkboxes sit at x = 20dp and
+// the text after them starts at x = 52dp, like the to-dos on the list pages.
+private val ScreenPadding = ThingsSpacing.PageMargin
+private val RowHeight = ThingsSpacing.RowHeight
 private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
-private val GroupGap = 11.dp
+private val GroupGap = 12.dp
 
 @Composable
 fun HomeScreen(
@@ -145,9 +146,9 @@ fun HomeScreen(
             // Logbook
             item {
                 SystemRow(SystemList.Logbook) { onSystemListClick(SystemList.Logbook) }
-                Spacer(Modifier.height(17.dp))
+                Spacer(Modifier.height(16.dp))
                 SectionDivider()
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(16.dp))
             }
 
             // To-dos that belong to no project and no area: on their own, outside every list
@@ -159,7 +160,7 @@ fun HomeScreen(
                         onToggle = { onToggleTask(task.id) },
                     )
                 }
-                item(key = "home-tasks-gap") { Spacer(Modifier.height(14.dp)) }
+                item(key = "home-tasks-gap") { Spacer(Modifier.height(16.dp)) }
             }
 
             // Projects without an area
@@ -177,9 +178,9 @@ fun HomeScreen(
                     val expanded = area.id !in collapsedAreas
                     Column {
                         if (index > 0 || state.looseProjects.isNotEmpty() || state.looseTasks.isNotEmpty()) {
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(12.dp))
                             SectionDivider()
-                            Spacer(Modifier.height(10.dp))
+                            Spacer(Modifier.height(12.dp))
                         }
                         AreaRow(
                             area = area,
@@ -201,14 +202,15 @@ fun HomeScreen(
             }
         }
 
-        // Bottom bar: Settings (centered) + floating add button (right)
+        // Bottom bar: Settings (centered) + floating add button (right). The button is 20dp from the
+        // right edge and 20dp above the bottom edge.
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp)
-                .height(52.dp)
+                .padding(bottom = ThingsSpacing.FabMargin)
+                .height(ThingsSpacing.FabSize)
         ) {
             Row(
                 Modifier
@@ -234,7 +236,7 @@ fun HomeScreen(
                 onBoundsChanged = { fabBounds = it },
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 18.dp),
+                    .padding(end = ThingsSpacing.FabMargin),
             )
         }
 
@@ -256,7 +258,7 @@ fun HomeScreen(
 private fun QuickFind(onClick: () -> Unit) {
     Box(
         Modifier
-            .padding(horizontal = 18.dp)
+            .padding(horizontal = ScreenPadding)
             .fillMaxWidth()
             .height(36.dp)
             .clip(RoundedCornerShape(12.dp))
@@ -264,12 +266,12 @@ private fun QuickFind(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(
                 Icons.Outlined.Search,
                 contentDescription = null,
                 tint = ThingsColors.SearchContent,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
             Text("Quick Find", style = ThingsType.Search)
         }
@@ -289,7 +291,7 @@ private fun HomeRow(
             .fillMaxWidth()
             .height(RowHeight)
             .clickable(onClick = onClick)
-            .padding(start = ScreenPaddingStart, end = ScreenPaddingEnd),
+            .padding(horizontal = ScreenPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) { icon() }
@@ -312,9 +314,9 @@ private fun SystemRow(
         onClick = onClick,
         icon = {
             when (list) {
-                SystemList.Inbox -> InboxIcon(Modifier.size(22.dp))
+                SystemList.Inbox -> InboxIcon(Modifier.size(24.dp))
                 SystemList.Today -> StarIcon(Modifier.size(24.dp))
-                SystemList.Upcoming -> CalendarIcon(Modifier.size(22.dp))
+                SystemList.Upcoming -> CalendarIcon(Modifier.size(24.dp))
                 SystemList.Anytime -> LayersIcon(Modifier.size(24.dp))
                 SystemList.Someday -> ArchiveIcon(Modifier.size(24.dp))
                 SystemList.Logbook -> LogbookIcon(Modifier.size(24.dp))
@@ -331,7 +333,7 @@ private fun SystemRow(
                 ) {
                     Text(badge.toString(), style = ThingsType.Badge)
                 }
-                Spacer(Modifier.width(10.dp))
+                Spacer(Modifier.width(8.dp))
             }
             if (count > 0) {
                 Text(count.toString(), style = ThingsType.Count)
@@ -366,7 +368,7 @@ private fun AreaRow(
                     contentDescription = if (expanded) "Collapse" else "Expand",
                     tint = ThingsColors.TextSecondary,
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(24.dp)
                         .rotate(rotation),
                 )
             }
@@ -387,7 +389,7 @@ private fun ProjectRow(project: Project, onClick: () -> Unit) {
 @Composable
 private fun SectionDivider() {
     HorizontalDivider(
-        modifier = Modifier.padding(horizontal = ScreenPaddingStart),
+        modifier = Modifier.padding(horizontal = ScreenPadding),
         thickness = 1.dp,
         color = ThingsColors.Divider,
     )
@@ -405,7 +407,7 @@ private fun AddButton(
     // focusable) here and there is never a duplicate + behind the panel.
     Box(
         modifier
-            .size(52.dp)
+            .size(ThingsSpacing.FabSize)
             .onGloballyPositioned { onBoundsChanged(it.boundsInWindow()) }
     ) {
         if (!hidden) {
@@ -413,7 +415,7 @@ private fun AddButton(
                 Modifier
                     .fillMaxSize()
                     .shadow(
-                        elevation = 6.dp,
+                        elevation = 8.dp,
                         shape = CircleShape,
                         ambientColor = FabShadowColor,
                         spotColor = FabShadowColor,

@@ -66,6 +66,7 @@ import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.home.StarIcon
 import com.things.app.ui.home.SystemList
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
@@ -74,11 +75,17 @@ private const val HideMillis = 140
 private val PanelShape = RoundedCornerShape(28.dp)
 private val PanelOrigin = TransformOrigin(0.5f, 0f)
 
+/** The popover is 16dp from the left, right and top edges, and 16dp inside its own edges. */
+private val PanelMargin = 16.dp
+
 /**
  * Static Quick Find popover: a dimmed scrim and a panel at the top with the search field, a close
  * button, the recent lists and a hint. Typing does not filter anything yet. Draw it above the
  * screen (for example in a Box over the NavHost). Tapping the scrim, the close button or going
  * back calls [onDismiss].
+ *
+ * Inside the panel the search icon, the "Recent" label, the divider and the list icons all start at
+ * the same x, and the list names start where the search text starts.
  */
 @Composable
 fun QuickFindOverlay(
@@ -133,7 +140,7 @@ private fun QuickFindPanel(
     Column(
         Modifier
             .statusBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+            .padding(PanelMargin)
             .widthIn(max = 480.dp)
             .fillMaxWidth()
             .shadow(24.dp, PanelShape)
@@ -142,24 +149,24 @@ private fun QuickFindPanel(
             // Taps on the panel itself must not reach the scrim and dismiss it.
             .pointerInput(Unit) { detectTapGestures { } }
             .semantics { paneTitle = "Quick Find" }
-            .padding(16.dp)
+            .padding(PanelMargin)
     ) {
         SearchRow(query = query, onQueryChange = { query = it }, onClose = onDismiss)
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(24.dp))
         Text(
             "Recent",
             style = ThingsType.Count.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(horizontal = 4.dp),
+            modifier = Modifier.padding(horizontal = PanelMargin),
         )
         Spacer(Modifier.height(8.dp))
-        HorizontalDivider(Modifier.padding(horizontal = 4.dp), color = ThingsColors.Divider)
+        HorizontalDivider(Modifier.padding(horizontal = PanelMargin), color = ThingsColors.Divider)
 
         state.recent.forEach { item ->
             QuickFindRow(item = item, onClick = { onItemClick(item) })
         }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             "Quickly switch lists, find to-dos, search for tags...",
             style = ThingsType.Count.copy(fontSize = 15.sp),
@@ -168,7 +175,7 @@ private fun QuickFindPanel(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp),
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -178,17 +185,17 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onClose: (
         Row(
             Modifier
                 .weight(1f)
-                .height(44.dp)
+                .height(ThingsSpacing.RowHeight)
                 .clip(CircleShape)
                 .background(ThingsColors.SearchBackground)
-                .padding(horizontal = 14.dp),
+                .padding(horizontal = PanelMargin),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Outlined.Search,
                 contentDescription = null,
                 tint = ThingsColors.SearchContent,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
             Spacer(Modifier.width(8.dp))
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
@@ -208,7 +215,7 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onClose: (
         Spacer(Modifier.width(8.dp))
         Box(
             Modifier
-                .size(44.dp)
+                .size(ThingsSpacing.RowHeight)
                 .clip(CircleShape)
                 .background(ThingsColors.SearchBackground)
                 .clickable(role = Role.Button, onClick = onClose)
@@ -219,7 +226,7 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onClose: (
                 Icons.Rounded.Close,
                 contentDescription = null,
                 tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -230,13 +237,13 @@ private fun QuickFindRow(item: QuickFindItem, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .height(46.dp)
+            .height(ThingsSpacing.RowHeight)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 4.dp),
+            .padding(horizontal = PanelMargin),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { TargetIcon(item) }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             item.title,
             style = ThingsType.RowTitle,
@@ -249,7 +256,7 @@ private fun QuickFindRow(item: QuickFindItem, onClick: () -> Unit) {
                 Icons.Rounded.Check,
                 contentDescription = "Current list",
                 tint = ThingsColors.Fab,
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
     }
@@ -259,9 +266,9 @@ private fun QuickFindRow(item: QuickFindItem, onClick: () -> Unit) {
 private fun TargetIcon(item: QuickFindItem) {
     when (val target = item.target) {
         is QuickFindTarget.System -> when (target.list) {
-            SystemList.Inbox -> InboxIcon(Modifier.size(22.dp))
+            SystemList.Inbox -> InboxIcon(Modifier.size(24.dp))
             SystemList.Today -> StarIcon(Modifier.size(24.dp))
-            SystemList.Upcoming -> CalendarIcon(Modifier.size(22.dp))
+            SystemList.Upcoming -> CalendarIcon(Modifier.size(24.dp))
             SystemList.Anytime -> LayersIcon(Modifier.size(24.dp))
             SystemList.Someday -> ArchiveIcon(Modifier.size(24.dp))
             SystemList.Logbook -> LogbookIcon(Modifier.size(24.dp))

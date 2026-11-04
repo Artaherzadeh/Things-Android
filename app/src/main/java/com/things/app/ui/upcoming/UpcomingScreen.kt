@@ -22,6 +22,7 @@ import com.things.app.ui.components.RecurringStyle
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.CalendarIcon
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
@@ -46,7 +47,7 @@ fun UpcomingScreen(
 
     ListPageScaffold(
         title = "Upcoming",
-        icon = { CalendarIcon(Modifier.size(26.dp)) },
+        icon = { CalendarIcon(Modifier.size(28.dp)) },
         modifier = modifier,
         titleTag = "upcoming_title",
         onBack = onBack,
@@ -77,14 +78,14 @@ private fun DayHeader(day: UpcomingDay) {
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = ThingsSpacing.PageMargin),
         verticalAlignment = Alignment.Top,
     ) {
         Text(day.dayNumber.toString(), style = ThingsType.DayNumber)
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             HorizontalDivider(
-                modifier = Modifier.padding(top = 10.dp),
+                modifier = Modifier.padding(top = 8.dp),
                 thickness = 1.dp,
                 color = ThingsColors.Divider,
             )

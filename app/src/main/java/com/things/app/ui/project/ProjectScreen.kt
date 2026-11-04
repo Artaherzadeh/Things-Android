@@ -45,10 +45,11 @@ import com.things.app.ui.components.TitleMenuButton
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
-private val ToggleGap = 22.dp
+private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
 
 /**
@@ -164,7 +165,7 @@ fun ProjectScreen(
 @Composable
 private fun NotesLine(notes: String) {
     val isEmpty = notes.isBlank()
-    Column(Modifier.padding(start = 18.dp, end = 18.dp)) {
+    Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
         Text(
             text = if (isEmpty) "Notes" else notes,
             style = ThingsType.RowTitle.copy(
@@ -177,7 +178,7 @@ private fun NotesLine(notes: String) {
 
 /**
  * A heading: blue bold title, menu dots at the end of the line, and a thin divider under it.
- * [topGap] is the space above the heading.
+ * [topGap] is the space above the heading. The dots end 20dp from the screen edge.
  */
 @Composable
 private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
@@ -186,8 +187,8 @@ private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
         Row(
             Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .padding(start = 18.dp, end = 6.dp),
+                .height(ThingsSpacing.RowHeight)
+                .padding(start = ThingsSpacing.PageMargin, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -207,11 +208,11 @@ private fun HeadingRow(title: String, topGap: Dp, onMenuClick: () -> Unit) {
             }
         }
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 18.dp),
+            modifier = Modifier.padding(horizontal = ThingsSpacing.PageMargin),
             thickness = 1.dp,
             color = ThingsColors.Divider,
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -222,9 +223,9 @@ private fun ToggleRow(text: String, topGap: Dp, onClick: () -> Unit) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(44.dp)
+                .height(ThingsSpacing.RowHeight)
                 .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = 18.dp),
+                .padding(horizontal = ThingsSpacing.PageMargin),
             contentAlignment = Alignment.CenterStart,
         ) {
             Text(text, style = ThingsType.Count)
@@ -232,33 +233,33 @@ private fun ToggleRow(text: String, topGap: Dp, onClick: () -> Unit) {
     }
 }
 
-/** A completed to-do: filled checkbox, blue date, grey title and grey markers. */
+/** A completed to-do: filled checkbox at x = 20dp, blue date, grey title and grey markers. */
 @Composable
 private fun LoggedRow(task: LoggedTaskModel, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 44.dp)
+            .heightIn(min = ThingsSpacing.RowHeight)
             .clickable(onClick = onClick)
-            .padding(start = 12.dp, end = 18.dp)
+            .padding(horizontal = ThingsSpacing.PageMargin)
             .semantics(mergeDescendants = true) { stateDescription = "Completed" },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             Modifier
-                .size(18.dp)
+                .size(20.dp)
                 .clip(RoundedCornerShape(4.dp))
                 .background(ThingsColors.ProjectBlue),
             contentAlignment = Alignment.Center,
         ) {
-            CheckMark(Modifier.size(18.dp))
+            CheckMark(Modifier.size(20.dp))
         }
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             task.dateLabel,
             style = ThingsType.Count.copy(fontSize = 16.sp, color = ThingsColors.ProjectBlue),
             maxLines = 1,
-            modifier = Modifier.width(46.dp),
+            modifier = Modifier.width(48.dp),
         )
         Text(
             task.title,

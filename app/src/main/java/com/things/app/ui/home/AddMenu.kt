@@ -72,13 +72,14 @@ private val MenuEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 internal fun addMenuSpec(opening: Boolean): AnimationSpec<Float> =
     tween(durationMillis = if (opening) OpenMillis else CloseMillis, easing = MenuEasing)
 
-// Geometry
+// Geometry. Every value is a multiple of 4dp; the button radius is half of the 52dp button, so it
+// stays a circle.
 private val PanelMaxWidth = 340.dp
 private val PanelEdgeMargin = 16.dp
 private val FabCornerRadius = 26.dp
 private val PanelCornerRadius = 24.dp
-private val FabElevation = 6.dp
-private val PanelElevation = 18.dp
+private val FabElevation = 8.dp
+private val PanelElevation = 16.dp
 internal val FabShadowColor = Color(0x334F8EEA)
 
 /** The "+" and chevron shown on the floating button. Shared by the button and the morphing surface. */
@@ -95,7 +96,7 @@ internal fun AddFabGlyph(modifier: Modifier = Modifier, contentDescription: Stri
             Icons.Rounded.KeyboardArrowDown,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(16.dp),
         )
     }
 }
@@ -193,7 +194,7 @@ internal fun AddMenuOverlay(
                     modifier = Modifier.graphicsLayer {
                         val reveal = ((progress.value - 0.3f) / 0.5f).coerceIn(0f, 1f)
                         alpha = reveal
-                        translationY = (1f - reveal) * 10.dp.toPx()
+                        translationY = (1f - reveal) * 8.dp.toPx()
                     },
                 )
             }
@@ -278,7 +279,7 @@ private fun MenuContent(
         modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
-            .padding(vertical = 10.dp)
+            .padding(vertical = 8.dp)
             // While closing, hide the actions from accessibility services.
             .then(if (expanded) Modifier else Modifier.clearAndSetSemantics { }),
     ) {
@@ -331,7 +332,7 @@ private fun MenuRow(
     ) {
         // Icon slot matches the title's line height so the icon aligns with the first line.
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { icon() }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = ThingsType.MenuTitle)
             Text(description, style = ThingsType.MenuDescription)

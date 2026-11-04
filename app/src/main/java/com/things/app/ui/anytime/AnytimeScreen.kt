@@ -24,6 +24,7 @@ import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.ProjectGroupHeader
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.LayersIcon
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
@@ -98,14 +99,15 @@ fun AnytimeScreen(
     }
 }
 
+/** "Show N more" starts at x = 52dp, in line with the to-do titles above it. */
 @Composable
 private fun ShowMoreRow(count: Int, onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(ThingsSpacing.RowHeight)
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(start = 18.dp, end = 18.dp),
+            .padding(start = ThingsSpacing.TextStart, end = ThingsSpacing.PageMargin),
         contentAlignment = Alignment.CenterStart,
     ) {
         Text("Show $count more", style = ThingsType.Count)
