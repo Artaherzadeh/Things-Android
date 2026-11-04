@@ -5,9 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,8 +25,10 @@ import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SwapHoriz
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,28 +110,34 @@ fun rememberSelectionState(): SelectionState = remember { SelectionState() }
  */
 val LocalSelection = compositionLocalOf<SelectionState?> { null }
 
-// The bar has 6dp of padding. A shape that sits inside another one looks right when its corner
-// radius is the outer radius minus that padding: 20dp outside, 14dp inside.
+// The inner corners of a box that sits in another one are the outer radius minus the space between
+// them, so both curves have the same centre: 22dp outside and 6dp of padding give 16dp inside.
+private val BarRadius = 22.dp
 private val BarPadding = 6.dp
-private val BarRadius = 20.dp
-private val InnerRadius = BarRadius - BarPadding
 private val BarShape = RoundedCornerShape(BarRadius)
-private val InnerShape = RoundedCornerShape(InnerRadius)
+private val InnerShape = RoundedCornerShape(BarRadius - BarPadding)
 
-/** Space between the bottom of the menu and the top of the bar. */
+private val MenuShape = RoundedCornerShape(24.dp)
+
+/** Space between the bar and the menu above it. */
 private val MenuGap = 8.dp
+
+/** Empty space around the menu inside its window, so its shadow is not cut off. */
+private val MenuShadowRoom = 12.dp
+
 private val DeleteTint = Color(0xFFFF453A)
 
 /**
  * The dark bar at the bottom of the select mode: When, Move and Delete (red), and a rounded square
- * button that opens the rest of the actions. The bar is as wide as its buttons need and no wider;
- * when the text is large the buttons shrink to fit the room [modifier] gives it (the page margins),
- * and the bar grows in height instead of passing them. The icon of each button sits 4dp from its
- * label. Everything is dimmed while [enabled] is false (nothing ticked). [completeLabel] is the name
+ * button that opens the rest of the actions. Give it the width of the page minus its side margins:
+ * the bar itself is only as wide as its content, centered in that room, and grows in height and
+ * width with the text size. The icon of each button sits 4dp from its label and the buttons are 2dp
+ * apart. Everything is dimmed while [enabled] is false (nothing ticked). [completeLabel] is the name
  * of the status entry of the menu (Mark as Completed, Undo or Switch Status). [onMenuOpenChange]
  * tells the page when the menu opens or closes so it can dim itself.
  *
- * The menu opens above the bar, 8dp over it, with its right edge on the right edge of the bar.
+ * The menu opens above the bar, 8dp over it, with its right edge in line with the right edge of the
+ * bar.
  */
 @Composable
 fun SelectionBottomBar(
@@ -145,32 +153,30 @@ fun SelectionBottomBar(
     LaunchedEffect(moreOpen) { onMenuOpenChange(moreOpen) }
 
     Box(modifier, contentAlignment = Alignment.Center) {
-        // The menu is anchored to this box, which is exactly as big as the bar.
-        Box {
-            Row(
-                Modifier
-                    .shadow(
-                        elevation = 6.dp,
-                        shape = BarShape,
-                        ambientColor = Color.Black.copy(alpha = 0.10f),
-                        spotColor = Color.Black.copy(alpha = 0.16f),
-                    )
-                    .clip(BarShape)
-                    .background(ThingsColors.MenuSurface)
-                    .padding(BarPadding),
-                horizontalArrangement = Arrangement.spacedBy(0.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BarButton("When", enabled, ThingsColors.MenuTitle, Modifier.weight(1f, fill = false), { onAction(SelectionAction.When) }) { tint ->
-                    Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
-                }
-                BarButton("Move", enabled, ThingsColors.MenuTitle, Modifier.weight(1f, fill = false), { onAction(SelectionAction.Move) }) { tint ->
-                    Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
-                }
-                BarButton("Delete", enabled, DeleteTint, Modifier.weight(1f, fill = false), { onAction(SelectionAction.Delete) }) { tint ->
-                    Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
-                }
-                Spacer(Modifier.width(2.dp))
+        Row(
+            Modifier
+                .shadow(
+                    elevation = 6.dp,
+                    shape = BarShape,
+                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                    spotColor = Color.Black.copy(alpha = 0.16f),
+                )
+                .clip(BarShape)
+                .background(ThingsColors.MenuSurface)
+                .padding(BarPadding),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BarButton("When", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.When) }) { tint ->
+                Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
+            }
+            BarButton("Move", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.Move) }) { tint ->
+                Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
+            }
+            BarButton("Delete", enabled, DeleteTint, { onAction(SelectionAction.Delete) }) { tint ->
+                Icon(Icons.Outlined.Delete, contentDescription = null, tint = tint, modifier = iconSize)
+            }
+            Box {
                 Box(
                     Modifier
                         .size(44.dp)
@@ -188,9 +194,8 @@ fun SelectionBottomBar(
                         modifier = iconSize,
                     )
                 }
-            }
-            if (moreOpen) {
                 MoreMenu(
+                    expanded = moreOpen,
                     completeLabel = completeLabel,
                     onDismiss = { moreOpen = false },
                     onAction = {
@@ -208,13 +213,12 @@ private fun BarButton(
     label: String,
     enabled: Boolean,
     color: Color,
-    modifier: Modifier,
     onClick: () -> Unit,
     icon: @Composable (Color) -> Unit,
 ) {
     val tint = if (enabled) color else color.copy(alpha = 0.4f)
     Row(
-        modifier
+        Modifier
             .heightIn(min = 44.dp)
             .clip(InnerShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -233,26 +237,49 @@ private fun BarButton(
     }
 }
 
-/** Puts a popup above its anchor with the right edges on one line and [gap] pixels between them. */
-private class AboveEndPositionProvider(private val gap: Int) : PopupPositionProvider {
+/**
+ * Puts a popup above its anchor with its right edge [endInset] past the anchor's right edge and
+ * [gap] between its bottom and the anchor's top. The popup window has [room] of empty space on every
+ * side (for the shadow), which is taken into account here.
+ */
+private class AboveEndPositioner(
+    private val endInset: Int,
+    private val gap: Int,
+    private val room: Int,
+) : PopupPositionProvider {
     override fun calculatePosition(
         anchorBounds: IntRect,
         windowSize: IntSize,
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize,
     ): IntOffset {
-        val x = (anchorBounds.right - popupContentSize.width).coerceAtLeast(0)
-        val y = (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(0)
+        val right = anchorBounds.right + endInset + room
+        val x = (right - popupContentSize.width)
+            .coerceIn(0, (windowSize.width - popupContentSize.width).coerceAtLeast(0))
+        val y = (anchorBounds.top - gap - popupContentSize.height + room).coerceAtLeast(0)
         return IntOffset(x, y)
     }
 }
 
 @Composable
 private fun MoreMenu(
+    expanded: Boolean,
     completeLabel: String,
     onDismiss: () -> Unit,
     onAction: (SelectionAction) -> Unit,
 ) {
+    if (!expanded) return
+
+    val density = LocalDensity.current
+    val positioner = remember(density) {
+        with(density) {
+            AboveEndPositioner(
+                endInset = BarPadding.roundToPx(),
+                gap = (BarPadding + MenuGap).roundToPx(),
+                room = MenuShadowRoom.roundToPx(),
+            )
+        }
+    }
     val groups: List<List<Pair<SelectionAction, ImageVector>>> = listOf(
         listOf(
             SelectionAction.MarkCompleted to Icons.Outlined.CheckBox,
@@ -265,20 +292,21 @@ private fun MoreMenu(
         ),
         listOf(SelectionAction.Share to Icons.Outlined.Share),
     )
-    val gapPx = with(LocalDensity.current) { MenuGap.roundToPx() }
-    val position = remember(gapPx) { AboveEndPositionProvider(gapPx) }
 
     Popup(
-        popupPositionProvider = position,
+        popupPositionProvider = positioner,
         onDismissRequest = onDismiss,
         properties = PopupProperties(focusable = true),
     ) {
         Column(
             Modifier
-                .widthIn(min = 240.dp)
-                .clip(BarShape)
+                .padding(MenuShadowRoom)
+                .shadow(8.dp, MenuShape)
+                .clip(MenuShape)
                 .background(ThingsColors.MenuSurface)
-                .padding(vertical = 6.dp),
+                .widthIn(min = 216.dp)
+                .width(IntrinsicSize.Max)
+                .padding(vertical = 8.dp),
         ) {
             groups.forEachIndexed { index, items ->
                 if (index > 0) {
@@ -289,18 +317,15 @@ private fun MoreMenu(
                 }
                 items.forEach { (action, icon) ->
                     val label = if (action == SelectionAction.MarkCompleted) completeLabel else action.label
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .clickable(role = Role.Button) { onAction(action) }
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(icon, contentDescription = null, tint = ThingsColors.Fab, modifier = Modifier.size(24.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(label, style = ThingsType.RowTitle.copy(color = ThingsColors.MenuTitle))
-                    }
+                    DropdownMenuItem(
+                        text = { Text(label, style = ThingsType.RowTitle.copy(color = Color.Unspecified)) },
+                        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                        onClick = { onAction(action) },
+                        colors = MenuDefaults.itemColors(
+                            textColor = ThingsColors.MenuTitle,
+                            leadingIconColor = ThingsColors.Fab,
+                        ),
+                    )
                 }
             }
         }
