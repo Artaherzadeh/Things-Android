@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.StarIcon
 import com.things.app.ui.theme.ThingsColors
@@ -49,6 +50,8 @@ data class TaskRowModel(
     val chip: String? = null,
     /** The row is a repeating template: it gets the blue round repeat badge before the title. */
     val isRepeatingTemplate: Boolean = false,
+    /** What the row shows when it is opened: notes, checklist, dates, tags. */
+    val details: TaskDetailsModel = TaskDetailsModel(),
 )
 
 /** Where the repeat marker of a recurring to-do is drawn. */
@@ -84,7 +87,12 @@ fun TaskRow(
             .padding(start = 6.dp, end = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TaskCheckbox(checked = task.checked, title = task.title, onToggle = onToggle)
+        TaskCheckbox(
+            checked = task.checked,
+            title = task.title,
+            onToggle = onToggle,
+            modifier = Modifier.heightIn(min = RowMinHeight),
+        )
 
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -150,12 +158,21 @@ private fun TrailingGlyph(description: String, glyph: @Composable () -> Unit) {
     Box(Modifier.semantics { contentDescription = description }) { glyph() }
 }
 
-/** A 38dp-wide tap slot so the visible 20dp box lines up 18dp from the start edge. */
+/**
+ * A 38dp-wide tap slot. With the default [startPadding] the visible 20dp box lines up 18dp from the
+ * start edge of a row. Give it a height (for example heightIn) to make the tap area taller.
+ */
 @Composable
-private fun TaskCheckbox(checked: Boolean, title: String, onToggle: () -> Unit) {
+internal fun TaskCheckbox(
+    checked: Boolean,
+    title: String,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    startPadding: Dp = 12.dp,
+) {
     val shape = RoundedCornerShape(5.dp)
     Box(
-        Modifier
+        modifier
             .width(38.dp)
             .fillMaxHeight()
             .clickable(onClickLabel = "Toggle $title", role = Role.Checkbox, onClick = onToggle)
@@ -164,7 +181,7 @@ private fun TaskCheckbox(checked: Boolean, title: String, onToggle: () -> Unit) 
     ) {
         Box(
             Modifier
-                .padding(start = 12.dp)
+                .padding(start = startPadding)
                 .size(CheckboxSize)
                 .clip(shape)
                 .then(if (checked) Modifier.background(ThingsColors.ProjectBlue) else Modifier)

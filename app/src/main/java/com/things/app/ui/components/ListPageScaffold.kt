@@ -1,27 +1,40 @@
 package com.things.app.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.KeyboardHide
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -41,7 +54,11 @@ import com.things.app.ui.theme.ThingsType
  * [titleBottomPadding] is the space between the title and the first row.
  * [onMenuAction] reports the action chosen in the three-dots menu; [enabledMenuActions] says which
  * of them can be chosen.
+ * Pass [expansion] when the page has to-dos that open in place: tapping anywhere that is not a
+ * button or the open card then closes the open to-do.
+ * While the keyboard is open a button at the top right hides it.
  */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ListPageScaffold(
     title: String,
@@ -54,15 +71,29 @@ fun ListPageScaffold(
     onMoreClick: () -> Unit = {},
     onMenuAction: (PageMenuAction) -> Unit = {},
     enabledMenuActions: Set<PageMenuAction> = DefaultEnabledMenuActions,
+    expansion: TaskExpansion? = null,
     onAddClick: () -> Unit = {},
     content: LazyListScope.() -> Unit,
 ) {
+    val imeVisible = WindowInsets.isImeVisible
+    val focusManager = LocalFocusManager.current
+
     Box(
         modifier
             .fillMaxSize()
             .background(ThingsColors.Background)
     ) {
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .then(
+                    if (expansion != null) {
+                        Modifier.pointerInput(expansion) { detectTapGestures { expansion.collapse() } }
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
             PageTopBar(
                 onBack = onBack,
                 onMoreClick = onMoreClick,
@@ -70,7 +101,9 @@ fun ListPageScaffold(
                 enabledActions = enabledMenuActions,
             )
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .imePadding(),
                 contentPadding = PaddingValues(bottom = 140.dp),
             ) {
                 item(key = "page-title") {
@@ -80,13 +113,23 @@ fun ListPageScaffold(
             }
         }
 
-        AddFab(
-            onClick = onAddClick,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 18.dp, bottom = 16.dp),
-        )
+        if (imeVisible) {
+            KeyboardDismissButton(
+                onClick = { focusManager.clearFocus() },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, end = 12.dp),
+            )
+        } else {
+            AddFab(
+                onClick = onAddClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 18.dp, bottom = 16.dp),
+            )
+        }
     }
 }
 
@@ -138,5 +181,31 @@ private fun AddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         PlusGlyph(Modifier.size(24.dp))
+    }
+}
+
+/** The blue pill at the top right that hides the keyboard. */
+@Composable
+private fun KeyboardDismissButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(width = 52.dp, height = 34.dp)
+            .shadow(
+                elevation = 6.dp,
+                shape = CircleShape,
+                ambientColor = FabShadowColor,
+                spotColor = FabShadowColor,
+            )
+            .clip(CircleShape)
+            .background(ThingsColors.Fab)
+            .clickable(onClickLabel = "Hide keyboard", role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            Icons.Rounded.KeyboardHide,
+            contentDescription = "Hide keyboard",
+            tint = Color.White,
+            modifier = Modifier.size(22.dp),
+        )
     }
 }
