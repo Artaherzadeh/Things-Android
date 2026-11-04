@@ -83,6 +83,11 @@ import java.util.UUID
 
 private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
+
+/** The "Show / Hide ... items" lines: 40dp high, with text one size smaller than a to-do title. */
+private val ToggleHeight = 40.dp
+private val ToggleTextSize = 15.sp
+
 private const val TaskPrefix = "task-"
 private const val HeadingPrefix = "heading-"
 private const val TopLevel = ""
@@ -528,12 +533,12 @@ private fun ToggleRow(text: String, topGap: Dp, onClick: () -> Unit) {
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(ThingsSpacing.RowHeight)
+                .height(ToggleHeight)
                 .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = ThingsSpacing.PageMargin),
             contentAlignment = Alignment.CenterStart,
         ) {
-            Text(text, style = ThingsType.Count)
+            Text(text, style = ThingsType.Count.copy(fontSize = ToggleTextSize))
         }
     }
 }
