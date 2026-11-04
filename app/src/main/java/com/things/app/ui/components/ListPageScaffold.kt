@@ -115,8 +115,9 @@ private val HeadingEdge = 72.dp
  * Select mode works on every page: the menu entry Select turns it on, a Done button replaces the
  * top bar, the add button gives way to a bar with When, Move, Delete and more, and
  * [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that are
- * ExpandableTaskRow pick the mode up on their own. A page that passes its own [selection] handles
- * the actions itself; otherwise Delete and Mark as Completed are applied through [expansion].
+ * ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and are
+ * applied to every ticked to-do through [expansion]. A page that passes its own [selection] handles
+ * Delete and Mark as Completed itself; otherwise they are applied through [expansion] too.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -155,6 +156,7 @@ fun ListPageScaffold(
     var dragPos by remember { mutableStateOf<Offset?>(null) }
     var pageMenuOpen by remember { mutableStateOf(false) }
     var imeWasVisible by remember { mutableStateOf(false) }
+    var bulk by remember { mutableStateOf<BulkRequest?>(null) }
     val scrimAlpha by animateFloatAsState(if (pageMenuOpen) 0.4f else 0f, label = "pageMenuScrim")
     val edgePx = with(density) { HeadingEdge.toPx() }
 
@@ -248,6 +250,9 @@ fun ListPageScaffold(
                                 else -> Unit
                             }
                         }
+                        if (action == SelectionAction.When || action == SelectionAction.SetTags) {
+                            bulk = BulkRequest(action, ids)
+                        }
                         onSelectionAction(action, ids)
                         ownSelection.finish()
                     },
@@ -337,6 +342,10 @@ fun ListPageScaffold(
                     PlusGlyph(Modifier.size(24.dp))
                 }
             }
+        }
+
+        bulk?.let { request ->
+            BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
         }
     }
 }
