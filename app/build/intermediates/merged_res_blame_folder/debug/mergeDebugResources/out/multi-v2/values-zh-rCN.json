@@ -1,27 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-zh-rCN/values-zh-rCN.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-zh-rCN/values-zh-rCN.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-zh-rCN\\values-zh-rCN.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,199,276,352,437,528,605,679,756,834,909,982,1057,1125,1206,1279,1351,1422,1495,1561",
-                        "endColumns": "91,76,75,84,90,76,73,76,77,74,72,74,67,80,72,71,70,72,65,119",
-                        "endOffsets": "194,271,347,432,523,600,674,751,829,904,977,1052,1120,1201,1274,1346,1417,1490,1556,1676"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "207,963,1040,1116,1201,1292,1369,1443,7914,7992,8067,8140,8215,8283,8364,8437,8509,8681,8754,8820",
-                        "endColumns": "91,76,75,84,90,76,73,76,77,74,72,74,67,80,72,71,70,72,65,119",
-                        "endOffsets": "294,1035,1111,1196,1287,1364,1438,1515,7987,8062,8135,8210,8278,8359,8432,8504,8575,8749,8815,8935"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -38,7 +21,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-zh-rCN\\values-zh-rCN.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,199,276,352,437,528,605,679,756,834,909,982,1057,1125,1206,1279,1351,1422,1495,1561",
+                        "endColumns": "91,76,75,84,90,76,73,76,77,74,72,74,67,80,72,71,70,72,65,119",
+                        "endOffsets": "194,271,347,432,523,600,674,751,829,904,977,1052,1120,1201,1274,1346,1417,1490,1556,1676"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "207,963,1040,1116,1201,1292,1369,1443,7914,7992,8067,8140,8215,8283,8364,8437,8509,8681,8754,8820",
+                        "endColumns": "91,76,75,84,90,76,73,76,77,74,72,74,67,80,72,71,70,72,65,119",
+                        "endOffsets": "294,1035,1111,1196,1287,1364,1438,1515,7987,8062,8135,8210,8278,8359,8432,8504,8575,8749,8815,8935"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-zh-rCN\\values-zh-rCN.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-sq/values-sq.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-sq/values-sq.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-sq\\values-sq.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-sq\\values-sq.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -38,24 +38,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-sq\\values-sq.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,214,309,392,491,593,689,770,863,955,1045,1132,1223,1296,1385,1460,1536,1609,1686,1752",
-                        "endColumns": "106,94,82,98,101,95,80,92,91,89,86,90,72,88,74,75,72,76,65,124",
-                        "endOffsets": "209,304,387,486,588,684,765,858,950,1040,1127,1218,1291,1380,1455,1531,1604,1681,1747,1872"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "222,1066,1161,1244,1343,1445,1541,1622,9062,9154,9244,9331,9422,9495,9584,9659,9735,9909,9986,10052",
-                        "endColumns": "106,94,82,98,101,95,80,92,91,89,86,90,72,88,74,75,72,76,65,124",
-                        "endOffsets": "324,1156,1239,1338,1440,1536,1617,1710,9149,9239,9326,9417,9490,9579,9654,9730,9803,9981,10047,10172"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-sq\\values-sq.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-sq\\values-sq.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -69,6 +52,23 @@
                         "startOffsets": "329,428,530,628,725,833,944,9808",
                         "endColumns": "98,101,97,96,107,110,121,100",
                         "endOffsets": "423,525,623,720,828,939,1061,9904"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-sq\\values-sq.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,214,309,392,491,593,689,770,863,955,1045,1132,1223,1296,1385,1460,1536,1609,1686,1752",
+                        "endColumns": "106,94,82,98,101,95,80,92,91,89,86,90,72,88,74,75,72,76,65,124",
+                        "endOffsets": "209,304,387,486,588,684,765,858,950,1040,1127,1218,1291,1380,1455,1531,1604,1681,1747,1872"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "222,1066,1161,1244,1343,1445,1541,1622,9062,9154,9244,9331,9422,9495,9584,9659,9735,9909,9986,10052",
+                        "endColumns": "106,94,82,98,101,95,80,92,91,89,86,90,72,88,74,75,72,76,65,124",
+                        "endOffsets": "324,1156,1239,1338,1440,1536,1617,1710,9149,9239,9326,9417,9490,9579,9654,9730,9803,9981,10047,10172"
                     }
                 }
             ]

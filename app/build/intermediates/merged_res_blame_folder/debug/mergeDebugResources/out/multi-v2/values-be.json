@@ -1,8 +1,25 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-be/values-be.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-be/values-be.xml",
             "map": [
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-be\\values-be.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,209,302,386,480,583,669,749,838,926,1008,1091,1178,1250,1337,1421,1499,1575,1660,1730",
+                        "endColumns": "101,92,83,93,102,85,79,88,87,81,82,86,71,86,83,77,75,84,69,126",
+                        "endOffsets": "204,297,381,475,578,664,744,833,921,1003,1086,1173,1245,1332,1416,1494,1570,1655,1725,1852"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "217,1050,1143,1227,1321,1424,1510,1590,9082,9170,9252,9335,9422,9494,9581,9665,9743,9920,10005,10075",
+                        "endColumns": "101,92,83,93,102,85,79,88,87,81,82,86,71,86,83,77,75,84,69,126",
+                        "endOffsets": "314,1138,1222,1316,1419,1505,1585,1674,9165,9247,9330,9417,9489,9576,9660,9738,9814,10000,10070,10197"
+                    }
+                },
                 {
                     "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\d473b0313b4caa6d7e6d1e0e550e9b29\\transformed\\material3\\res\\values-be\\values-be.xml",
                     "from": {
@@ -21,7 +38,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-be\\values-be.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-be\\values-be.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -38,24 +55,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-be\\values-be.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,209,302,386,480,583,669,749,838,926,1008,1091,1178,1250,1337,1421,1499,1575,1660,1730",
-                        "endColumns": "101,92,83,93,102,85,79,88,87,81,82,86,71,86,83,77,75,84,69,126",
-                        "endOffsets": "204,297,381,475,578,664,744,833,921,1003,1086,1173,1245,1332,1416,1494,1570,1655,1725,1852"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "217,1050,1143,1227,1321,1424,1510,1590,9082,9170,9252,9335,9422,9494,9581,9665,9743,9920,10005,10075",
-                        "endColumns": "101,92,83,93,102,85,79,88,87,81,82,86,71,86,83,77,75,84,69,126",
-                        "endOffsets": "314,1138,1222,1316,1419,1505,1585,1674,9165,9247,9330,9417,9489,9576,9660,9738,9814,10000,10070,10197"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-be\\values-be.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-be\\values-be.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

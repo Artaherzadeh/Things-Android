@@ -1,27 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-si/values-si.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-si/values-si.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-si\\values-si.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,207,296,379,478,577,659,744,835,921,1001,1080,1162,1235,1319,1394,1478,1559,1640,1707",
-                        "endColumns": "99,88,82,98,98,81,84,90,85,79,78,81,72,83,74,83,80,80,66,121",
-                        "endOffsets": "202,291,374,473,572,654,739,830,916,996,1075,1157,1230,1314,1389,1473,1554,1635,1702,1824"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "215,1047,1136,1219,1318,1417,1499,1584,8834,8920,9000,9079,9161,9234,9318,9393,9477,9659,9740,9807",
-                        "endColumns": "99,88,82,98,98,81,84,90,85,79,78,81,72,83,74,83,80,80,66,121",
-                        "endOffsets": "310,1131,1214,1313,1412,1494,1579,1670,8915,8995,9074,9156,9229,9313,9388,9472,9553,9735,9802,9924"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-si\\values-si.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-si\\values-si.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -38,7 +21,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-si\\values-si.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-si\\values-si.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,207,296,379,478,577,659,744,835,921,1001,1080,1162,1235,1319,1394,1478,1559,1640,1707",
+                        "endColumns": "99,88,82,98,98,81,84,90,85,79,78,81,72,83,74,83,80,80,66,121",
+                        "endOffsets": "202,291,374,473,572,654,739,830,916,996,1075,1157,1230,1314,1389,1473,1554,1635,1702,1824"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "215,1047,1136,1219,1318,1417,1499,1584,8834,8920,9000,9079,9161,9234,9318,9393,9477,9659,9740,9807",
+                        "endColumns": "99,88,82,98,98,81,84,90,85,79,78,81,72,83,74,83,80,80,66,121",
+                        "endOffsets": "310,1131,1214,1313,1412,1494,1579,1670,8915,8995,9074,9156,9229,9313,9388,9472,9553,9735,9802,9924"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-si\\values-si.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

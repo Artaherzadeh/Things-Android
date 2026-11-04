@@ -1,23 +1,40 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-lt/values-lt.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-lt/values-lt.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-lt\\values-lt.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-lt\\values-lt.xml",
                     "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,215,308,392,490,595,690,767,858,945,1029,1115,1203,1278,1366,1443,1520,1595,1675,1758",
-                        "endColumns": "107,92,83,97,104,94,76,90,86,83,85,87,74,87,76,76,74,79,82,125",
-                        "endOffsets": "210,303,387,485,590,685,762,853,940,1024,1110,1198,1273,1361,1438,1515,1590,1670,1753,1879"
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,153,263,362,465,576,686,806",
+                        "endColumns": "97,109,98,102,110,109,119,100",
+                        "endOffsets": "148,258,357,460,571,681,801,902"
                     },
                     "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "223,1082,1175,1259,1357,1462,1557,1634,9083,9170,9254,9340,9428,9503,9591,9668,9745,9921,10001,10084",
-                        "endColumns": "107,92,83,97,104,94,76,90,86,83,85,87,74,87,76,76,74,79,82,125",
-                        "endOffsets": "326,1170,1254,1352,1457,1552,1629,1720,9165,9249,9335,9423,9498,9586,9663,9740,9815,9996,10079,10205"
+                        "startLines": "4,5,6,7,8,9,10,93",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "331,429,539,638,741,852,962,9820",
+                        "endColumns": "97,109,98,102,110,109,119,100",
+                        "endOffsets": "424,534,633,736,847,957,1077,9916"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-lt\\values-lt.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,171,259",
+                        "endColumns": "115,87,87",
+                        "endOffsets": "166,254,342"
+                    },
+                    "to": {
+                        "startLines": "2,97,98",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "107,10210,10298",
+                        "endColumns": "115,87,87",
+                        "endOffsets": "218,10293,10381"
                     }
                 },
                 {
@@ -38,37 +55,20 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-lt\\values-lt.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-lt\\values-lt.xml",
                     "from": {
-                        "startLines": "2,3,4",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "55,171,259",
-                        "endColumns": "115,87,87",
-                        "endOffsets": "166,254,342"
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,215,308,392,490,595,690,767,858,945,1029,1115,1203,1278,1366,1443,1520,1595,1675,1758",
+                        "endColumns": "107,92,83,97,104,94,76,90,86,83,85,87,74,87,76,76,74,79,82,125",
+                        "endOffsets": "210,303,387,485,590,685,762,853,940,1024,1110,1198,1273,1361,1438,1515,1590,1670,1753,1879"
                     },
                     "to": {
-                        "startLines": "2,97,98",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "107,10210,10298",
-                        "endColumns": "115,87,87",
-                        "endOffsets": "218,10293,10381"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-lt\\values-lt.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,153,263,362,465,576,686,806",
-                        "endColumns": "97,109,98,102,110,109,119,100",
-                        "endOffsets": "148,258,357,460,571,681,801,902"
-                    },
-                    "to": {
-                        "startLines": "4,5,6,7,8,9,10,93",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "331,429,539,638,741,852,962,9820",
-                        "endColumns": "97,109,98,102,110,109,119,100",
-                        "endOffsets": "424,534,633,736,847,957,1077,9916"
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "223,1082,1175,1259,1357,1462,1557,1634,9083,9170,9254,9340,9428,9503,9591,9668,9745,9921,10001,10084",
+                        "endColumns": "107,92,83,97,104,94,76,90,86,83,85,87,74,87,76,76,74,79,82,125",
+                        "endOffsets": "326,1170,1254,1352,1457,1552,1629,1720,9165,9249,9335,9423,9498,9586,9663,9740,9815,9996,10079,10205"
                     }
                 }
             ]

@@ -1,10 +1,27 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-sv/values-sv.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-sv/values-sv.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-sv\\values-sv.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-sv\\values-sv.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,159,249",
+                        "endColumns": "103,89,88",
+                        "endOffsets": "154,244,333"
+                    },
+                    "to": {
+                        "startLines": "2,97,98",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "107,9995,10085",
+                        "endColumns": "103,89,88",
+                        "endOffsets": "206,10080,10169"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-sv\\values-sv.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +38,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-sv\\values-sv.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-sv\\values-sv.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -52,23 +69,6 @@
                         "startOffsets": "1663,1802,1935,2042,2174,2290,2386,2499,2643,2767,2922,3007,3106,3196,3290,3404,3526,3630,3763,3890,4025,4197,4325,4443,4569,4689,4780,4878,4996,5135,5231,5339,5442,5575,5718,5824,5921,6001,6099,6191,6307,6421,6532,6616,6701,6791,6892,6986,7066,7162,7247,7346,7446,7541,7641,7728,7832,7933,8037,8159,8239,8371,8491,8595,8694,8799",
                         "endColumns": "138,132,106,131,115,95,112,143,123,154,84,98,89,93,113,121,103,132,126,134,171,127,117,125,119,90,97,117,138,95,107,102,132,142,105,96,79,97,91,115,113,110,83,84,89,100,93,79,95,84,98,99,94,99,86,103,100,103,121,79,131,119,103,98,104,109",
                         "endOffsets": "1797,1930,2037,2169,2285,2381,2494,2638,2762,2917,3002,3101,3191,3285,3399,3521,3625,3758,3885,4020,4192,4320,4438,4564,4684,4775,4873,4991,5130,5226,5334,5437,5570,5713,5819,5916,5996,6094,6186,6302,6416,6527,6611,6696,6786,6887,6981,7061,7157,7242,7341,7441,7536,7636,7723,7827,7928,8032,8154,8234,8366,8486,8590,8689,8794,8904"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-sv\\values-sv.xml",
-                    "from": {
-                        "startLines": "2,3,4",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "55,159,249",
-                        "endColumns": "103,89,88",
-                        "endOffsets": "154,244,333"
-                    },
-                    "to": {
-                        "startLines": "2,97,98",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "107,9995,10085",
-                        "endColumns": "103,89,88",
-                        "endOffsets": "206,10080,10169"
                     }
                 }
             ]

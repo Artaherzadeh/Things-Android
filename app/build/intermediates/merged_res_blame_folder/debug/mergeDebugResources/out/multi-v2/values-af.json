@@ -1,10 +1,27 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-af/values-af.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-af/values-af.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-af\\values-af.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,158,245",
+                        "endColumns": "102,86,84",
+                        "endOffsets": "153,240,325"
+                    },
+                    "to": {
+                        "startLines": "2,97,98",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "107,9917,10004",
+                        "endColumns": "102,86,84",
+                        "endOffsets": "205,9999,10084"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +38,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-af\\values-af.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-af\\values-af.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -52,23 +69,6 @@
                         "startOffsets": "1671,1788,1906,2021,2137,2237,2341,2462,2603,2731,2873,2958,3057,3147,3243,3358,3479,3583,3711,3836,3968,4134,4259,4381,4504,4633,4724,4823,4939,5065,5165,5275,5378,5515,5655,5761,5859,5936,6030,6124,6228,6332,6435,6520,6608,6701,6806,6903,6984,7080,7163,7262,7360,7455,7553,7641,7744,7844,7947,8063,8144,8282,8415,8515,8611,8720",
                         "endColumns": "116,117,114,115,99,103,120,140,127,141,84,98,89,95,114,120,103,127,124,131,165,124,121,122,128,90,98,115,125,99,109,102,136,139,105,97,76,93,93,103,103,102,84,87,92,104,96,80,95,82,98,97,94,97,87,102,99,102,115,80,137,132,99,95,108,108",
                         "endOffsets": "1783,1901,2016,2132,2232,2336,2457,2598,2726,2868,2953,3052,3142,3238,3353,3474,3578,3706,3831,3963,4129,4254,4376,4499,4628,4719,4818,4934,5060,5160,5270,5373,5510,5650,5756,5854,5931,6025,6119,6223,6327,6430,6515,6603,6696,6801,6898,6979,7075,7158,7257,7355,7450,7548,7636,7739,7839,7942,8058,8139,8277,8410,8510,8606,8715,8824"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-af\\values-af.xml",
-                    "from": {
-                        "startLines": "2,3,4",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "55,158,245",
-                        "endColumns": "102,86,84",
-                        "endOffsets": "153,240,325"
-                    },
-                    "to": {
-                        "startLines": "2,97,98",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "107,9917,10004",
-                        "endColumns": "102,86,84",
-                        "endOffsets": "205,9999,10084"
                     }
                 }
             ]

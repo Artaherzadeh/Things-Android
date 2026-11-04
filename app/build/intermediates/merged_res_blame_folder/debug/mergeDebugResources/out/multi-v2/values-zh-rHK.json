@@ -1,27 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-zh-rHK/values-zh-rHK.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-zh-rHK/values-zh-rHK.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-zh-rHK\\values-zh-rHK.xml",
-                    "from": {
-                        "startLines": "2,3,4",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "55,155,236",
-                        "endColumns": "99,80,76",
-                        "endOffsets": "150,231,308"
-                    },
-                    "to": {
-                        "startLines": "2,97,98",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "107,8917,8998",
-                        "endColumns": "99,80,76",
-                        "endOffsets": "202,8993,9070"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-zh-rHK\\values-zh-rHK.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-zh-rHK\\values-zh-rHK.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -38,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-zh-rHK\\values-zh-rHK.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-zh-rHK\\values-zh-rHK.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -69,6 +52,23 @@
                         "startOffsets": "1518,1621,1723,1827,1928,2019,2108,2213,2318,2423,2539,2621,2717,2801,2889,2994,3107,3208,3316,3422,3530,3646,3751,3853,3958,4064,4149,4244,4349,4458,4548,4650,4748,4857,4971,5071,5162,5235,5325,5414,5505,5599,5691,5774,5856,5941,6030,6120,6200,6292,6374,6471,6565,6658,6751,6835,6931,7027,7122,7230,7310,7416,7517,7609,7699,7798",
                         "endColumns": "102,101,103,100,90,88,104,104,104,115,81,95,83,87,104,112,100,107,105,107,115,104,101,104,105,84,94,104,108,89,101,97,108,113,99,90,72,89,88,90,93,91,82,81,84,88,89,79,91,81,96,93,92,92,83,95,95,94,107,79,105,100,91,89,98,97",
                         "endOffsets": "1616,1718,1822,1923,2014,2103,2208,2313,2418,2534,2616,2712,2796,2884,2989,3102,3203,3311,3417,3525,3641,3746,3848,3953,4059,4144,4239,4344,4453,4543,4645,4743,4852,4966,5066,5157,5230,5320,5409,5500,5594,5686,5769,5851,5936,6025,6115,6195,6287,6369,6466,6560,6653,6746,6830,6926,7022,7117,7225,7305,7411,7512,7604,7694,7793,7891"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-zh-rHK\\values-zh-rHK.xml",
+                    "from": {
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,155,236",
+                        "endColumns": "99,80,76",
+                        "endOffsets": "150,231,308"
+                    },
+                    "to": {
+                        "startLines": "2,97,98",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "107,8917,8998",
+                        "endColumns": "99,80,76",
+                        "endOffsets": "202,8993,9070"
                     }
                 }
             ]

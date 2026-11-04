@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-sk/values-sk.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-sk/values-sk.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-sk\\values-sk.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-sk\\values-sk.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",
@@ -18,6 +18,23 @@
                         "startOffsets": "107,10009,10093",
                         "endColumns": "114,83,86",
                         "endOffsets": "217,10088,10175"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-sk\\values-sk.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,214,309,393,488,591,683,762,856,946,1027,1110,1197,1269,1359,1437,1513,1588,1666,1734",
+                        "endColumns": "106,94,83,94,102,91,78,93,89,80,82,86,71,89,77,75,74,77,67,117",
+                        "endOffsets": "209,304,388,483,586,678,757,851,941,1022,1105,1192,1264,1354,1432,1508,1583,1661,1729,1847"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "222,1066,1161,1245,1340,1443,1535,1614,8912,9002,9083,9166,9253,9325,9415,9493,9569,9745,9823,9891",
+                        "endColumns": "106,94,83,94,102,91,78,93,89,80,82,86,71,89,77,75,74,77,67,117",
+                        "endOffsets": "324,1156,1240,1335,1438,1530,1609,1703,8997,9078,9161,9248,9320,9410,9488,9564,9639,9818,9886,10004"
                     }
                 },
                 {
@@ -38,24 +55,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-sk\\values-sk.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,214,309,393,488,591,683,762,856,946,1027,1110,1197,1269,1359,1437,1513,1588,1666,1734",
-                        "endColumns": "106,94,83,94,102,91,78,93,89,80,82,86,71,89,77,75,74,77,67,117",
-                        "endOffsets": "209,304,388,483,586,678,757,851,941,1022,1105,1192,1264,1354,1432,1508,1583,1661,1729,1847"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "222,1066,1161,1245,1340,1443,1535,1614,8912,9002,9083,9166,9253,9325,9415,9493,9569,9745,9823,9891",
-                        "endColumns": "106,94,83,94,102,91,78,93,89,80,82,86,71,89,77,75,74,77,67,117",
-                        "endOffsets": "324,1156,1240,1335,1438,1530,1609,1703,8997,9078,9161,9248,9320,9410,9488,9564,9639,9818,9886,10004"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-sk\\values-sk.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-sk\\values-sk.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

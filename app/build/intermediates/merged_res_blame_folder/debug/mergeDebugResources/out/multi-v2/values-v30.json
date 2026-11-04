@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-v30/values-v30.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-v30/values-v30.xml",
             "map": [
                 {
                     "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\d473b0313b4caa6d7e6d1e0e550e9b29\\transformed\\material3\\res\\values-v30\\values-v30.xml",

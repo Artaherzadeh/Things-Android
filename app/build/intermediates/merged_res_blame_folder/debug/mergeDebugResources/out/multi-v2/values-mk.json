@@ -1,10 +1,27 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-mk/values-mk.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-mk/values-mk.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-mk\\values-mk.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-mk\\values-mk.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "55,153,255,352,450,555,658,774",
+                        "endColumns": "97,101,96,97,104,102,115,100",
+                        "endOffsets": "148,250,347,445,550,653,769,870"
+                    },
+                    "to": {
+                        "startLines": "4,5,6,7,8,9,10,93",
+                        "startColumns": "4,4,4,4,4,4,4,4",
+                        "startOffsets": "335,433,535,632,730,835,938,9821",
+                        "endColumns": "97,101,96,97,104,102,115,100",
+                        "endOffsets": "428,530,627,725,830,933,1049,9917"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-mk\\values-mk.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,20 +38,20 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-mk\\values-mk.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-mk\\values-mk.xml",
                     "from": {
-                        "startLines": "2,3,4,5,6,7,8,9",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "55,153,255,352,450,555,658,774",
-                        "endColumns": "97,101,96,97,104,102,115,100",
-                        "endOffsets": "148,250,347,445,550,653,769,870"
+                        "startLines": "2,3,4",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,173,267",
+                        "endColumns": "117,93,95",
+                        "endOffsets": "168,262,358"
                     },
                     "to": {
-                        "startLines": "4,5,6,7,8,9,10,93",
-                        "startColumns": "4,4,4,4,4,4,4,4",
-                        "startOffsets": "335,433,535,632,730,835,938,9821",
-                        "endColumns": "97,101,96,97,104,102,115,100",
-                        "endOffsets": "428,530,627,725,830,933,1049,9917"
+                        "startLines": "2,97,98",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "107,10199,10293",
+                        "endColumns": "117,93,95",
+                        "endOffsets": "220,10288,10384"
                     }
                 },
                 {
@@ -52,23 +69,6 @@
                         "startOffsets": "1699,1818,1936,2052,2170,2267,2362,2474,2607,2728,2876,2961,3060,3154,3250,3365,3489,3593,3738,3882,4024,4198,4329,4450,4577,4702,4797,4895,5021,5156,5256,5358,5471,5612,5761,5877,5979,6056,6150,6245,6364,6472,6579,6671,6757,6854,6968,7067,7150,7252,7335,7435,7537,7634,7731,7819,7926,8026,8128,8261,8344,8497,8635,8746,8849,8963",
                         "endColumns": "118,117,115,117,96,94,111,132,120,147,84,98,93,95,114,123,103,144,143,141,173,130,120,126,124,94,97,125,134,99,101,112,140,148,115,101,76,93,94,118,107,106,91,85,96,113,98,82,101,82,99,101,96,96,87,106,99,101,132,82,152,137,110,102,113,112",
                         "endOffsets": "1813,1931,2047,2165,2262,2357,2469,2602,2723,2871,2956,3055,3149,3245,3360,3484,3588,3733,3877,4019,4193,4324,4445,4572,4697,4792,4890,5016,5151,5251,5353,5466,5607,5756,5872,5974,6051,6145,6240,6359,6467,6574,6666,6752,6849,6963,7062,7145,7247,7330,7430,7532,7629,7726,7814,7921,8021,8123,8256,8339,8492,8630,8741,8844,8958,9071"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-mk\\values-mk.xml",
-                    "from": {
-                        "startLines": "2,3,4",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "55,173,267",
-                        "endColumns": "117,93,95",
-                        "endOffsets": "168,262,358"
-                    },
-                    "to": {
-                        "startLines": "2,97,98",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "107,10199,10293",
-                        "endColumns": "117,93,95",
-                        "endOffsets": "220,10288,10384"
                     }
                 }
             ]

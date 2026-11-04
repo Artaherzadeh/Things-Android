@@ -1,27 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.things.app-mergeDebugResources-41:/values-tr/values-tr.xml",
+            "outputFile": "com.things.app-mergeDebugResources-37:/values-tr/values-tr.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\5646fb839bd0292eef70449e78597e44\\transformed\\ui\\res\\values-tr\\values-tr.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "107,212,305,389,484,584,668,751,851,939,1023,1103,1191,1262,1346,1420,1495,1567,1645,1713",
-                        "endColumns": "104,92,83,94,99,83,82,99,87,83,79,87,70,83,73,74,71,77,67,121",
-                        "endOffsets": "207,300,384,479,579,663,746,846,934,1018,1098,1186,1257,1341,1415,1490,1562,1640,1708,1830"
-                    },
-                    "to": {
-                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "220,1038,1131,1215,1310,1410,1494,1577,8804,8892,8976,9056,9144,9215,9299,9373,9448,9621,9699,9767",
-                        "endColumns": "104,92,83,94,99,83,82,99,87,83,79,87,70,83,73,74,71,77,67,121",
-                        "endOffsets": "320,1126,1210,1305,1405,1489,1572,1672,8887,8971,9051,9139,9210,9294,9368,9443,9515,9694,9762,9884"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\37d34e795a9da587249c5fb5cebf7fd1\\transformed\\core-1.16.0\\res\\values-tr\\values-tr.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cdea6aa9b446fab7f83bc0721c711045\\transformed\\core-1.19.1\\res\\values-tr\\values-tr.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -38,7 +21,24 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\cf4e0310ff86ba57710a42a9bb1c5bfb\\transformed\\foundation\\res\\values-tr\\values-tr.xml",
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\8faa938d281a0cbf9402e765501a0146\\transformed\\ui\\res\\values-tr\\values-tr.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "107,212,305,389,484,584,668,751,851,939,1023,1103,1191,1262,1346,1420,1495,1567,1645,1713",
+                        "endColumns": "104,92,83,94,99,83,82,99,87,83,79,87,70,83,73,74,71,77,67,121",
+                        "endOffsets": "207,300,384,479,579,663,746,846,934,1018,1098,1186,1257,1341,1415,1490,1562,1640,1708,1830"
+                    },
+                    "to": {
+                        "startLines": "3,11,12,13,14,15,16,17,84,85,86,87,88,89,90,91,92,94,95,96",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "220,1038,1131,1215,1310,1410,1494,1577,8804,8892,8976,9056,9144,9215,9299,9373,9448,9621,9699,9767",
+                        "endColumns": "104,92,83,94,99,83,82,99,87,83,79,87,70,83,73,74,71,77,67,121",
+                        "endOffsets": "320,1126,1210,1305,1405,1489,1572,1672,8887,8971,9051,9139,9210,9294,9368,9443,9515,9694,9762,9884"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Artah\\.gradle\\caches\\9.8.2\\transforms\\ae32b55532035bdfc214b4e1cd0d2b6a\\transformed\\foundation\\res\\values-tr\\values-tr.xml",
                     "from": {
                         "startLines": "2,3,4",
                         "startColumns": "4,4,4",

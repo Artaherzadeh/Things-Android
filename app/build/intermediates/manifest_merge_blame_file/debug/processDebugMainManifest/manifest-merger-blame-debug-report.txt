@@ -8,26 +8,26 @@
 7-->INJECTED
 8        android:minSdkVersion="26"
 8-->INJECTED
-9        android:targetSdkVersion="35" />
+9        android:targetSdkVersion="37" />
 9-->INJECTED
 10
 11    <permission
-11-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:22:5-24:47
+11-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:22:5-24:47
 12        android:name="com.things.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-12-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:23:9-81
+12-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:23:9-81
 13        android:protectionLevel="signature" />
-13-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:24:9-44
+13-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:24:9-44
 14
 15    <uses-permission android:name="com.things.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-15-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:26:5-97
-15-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:26:22-94
+15-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:26:5-97
+15-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:26:22-94
 16
 17    <application
 17-->C:\Users\Artah\Documents\GitHub\Things-Android\app\src\main\AndroidManifest.xml:4:5-20:19
 18        android:allowBackup="true"
 18-->C:\Users\Artah\Documents\GitHub\Things-Android\app\src\main\AndroidManifest.xml:5:9-35
 19        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-19-->[androidx.core:core:1.16.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\37d34e795a9da587249c5fb5cebf7fd1\transformed\core-1.16.0\AndroidManifest.xml:28:18-86
+19-->[androidx.core:core:1.19.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\cdea6aa9b446fab7f83bc0721c711045\transformed\core-1.19.1\AndroidManifest.xml:28:18-86
 20        android:debuggable="true"
 21        android:extractNativeLibs="false"
 21-->INJECTED
@@ -61,61 +61,61 @@
 35            </intent-filter>
 36        </activity>
 37        <activity
-37-->[androidx.compose.ui:ui-tooling-android:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\8647cb4ffc28beb618a4b9cbc04e05dd\transformed\ui-tooling\AndroidManifest.xml:23:9-25:39
+37-->[androidx.compose.ui:ui-tooling-android:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\c59f384462b9d70741f399df23349d1b\transformed\ui-tooling\AndroidManifest.xml:23:9-25:39
 38            android:name="androidx.compose.ui.tooling.PreviewActivity"
-38-->[androidx.compose.ui:ui-tooling-android:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\8647cb4ffc28beb618a4b9cbc04e05dd\transformed\ui-tooling\AndroidManifest.xml:24:13-71
+38-->[androidx.compose.ui:ui-tooling-android:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\c59f384462b9d70741f399df23349d1b\transformed\ui-tooling\AndroidManifest.xml:24:13-71
 39            android:exported="true" />
-39-->[androidx.compose.ui:ui-tooling-android:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\8647cb4ffc28beb618a4b9cbc04e05dd\transformed\ui-tooling\AndroidManifest.xml:25:13-36
+39-->[androidx.compose.ui:ui-tooling-android:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\c59f384462b9d70741f399df23349d1b\transformed\ui-tooling\AndroidManifest.xml:25:13-36
 40
-41        <provider
-41-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
-42            android:name="androidx.startup.InitializationProvider"
-42-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
-43            android:authorities="com.things.app.androidx-startup"
-43-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
-44            android:exported="false" >
-44-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
-45            <meta-data
-45-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
-46                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-46-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
-47                android:value="androidx.startup" />
-47-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
-48            <meta-data
-48-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Artah\.gradle\caches\9.8.2\transforms\967cca11a635aa09042e679a21ae4b93\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:29:13-31:52
-49                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-49-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Artah\.gradle\caches\9.8.2\transforms\967cca11a635aa09042e679a21ae4b93\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:30:17-78
-50                android:value="androidx.startup" />
-50-->[androidx.lifecycle:lifecycle-process:2.9.4] C:\Users\Artah\.gradle\caches\9.8.2\transforms\967cca11a635aa09042e679a21ae4b93\transformed\lifecycle-process-2.9.4\AndroidManifest.xml:31:17-49
-51            <meta-data
-51-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
-52                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-52-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
-53                android:value="androidx.startup" />
-53-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
-54        </provider>
-55
-56        <uses-library
-56-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:23:9-25:40
-57            android:name="androidx.window.extensions"
-57-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:24:13-54
-58            android:required="false" />
-58-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:25:13-37
-59        <uses-library
-59-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:26:9-28:40
-60            android:name="androidx.window.sidecar"
-60-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:27:13-51
-61            android:required="false" />
-61-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:28:13-37
+41        <uses-library
+41-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:23:9-25:40
+42            android:name="androidx.window.extensions"
+42-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:24:13-54
+43            android:required="false" />
+43-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:25:13-37
+44        <uses-library
+44-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:26:9-28:40
+45            android:name="androidx.window.sidecar"
+45-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:27:13-51
+46            android:required="false" />
+46-->[androidx.window:window:1.5.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\f17e23e3faf85308eac3a3ace8bdb106\transformed\window-1.5.0\AndroidManifest.xml:28:13-37
+47
+48        <provider
+48-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:24:9-32:20
+49            android:name="androidx.startup.InitializationProvider"
+49-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:25:13-67
+50            android:authorities="com.things.app.androidx-startup"
+50-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:26:13-68
+51            android:exported="false" >
+51-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:27:13-37
+52            <meta-data
+52-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:29:13-31:52
+53                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+53-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:30:17-75
+54                android:value="androidx.startup" />
+54-->[androidx.emoji2:emoji2:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d9a9b3c8bf41ca36d654cfc6dd1f3550\transformed\emoji2-1.4.0\AndroidManifest.xml:31:17-49
+55            <meta-data
+55-->[androidx.lifecycle:lifecycle-process:2.11.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\db6126dcdadf1d52084b8ce11e4646ce\transformed\lifecycle-process-2.11.0\AndroidManifest.xml:29:13-31:52
+56                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+56-->[androidx.lifecycle:lifecycle-process:2.11.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\db6126dcdadf1d52084b8ce11e4646ce\transformed\lifecycle-process-2.11.0\AndroidManifest.xml:30:17-78
+57                android:value="androidx.startup" />
+57-->[androidx.lifecycle:lifecycle-process:2.11.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\db6126dcdadf1d52084b8ce11e4646ce\transformed\lifecycle-process-2.11.0\AndroidManifest.xml:31:17-49
+58            <meta-data
+58-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+59                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+59-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+60                android:value="androidx.startup" />
+60-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+61        </provider>
 62
 63        <activity
-63-->[androidx.compose.ui:ui-test-manifest:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\e967da5a200bd47f4d893f1929414303\transformed\ui-test-manifest-1.12.0\AndroidManifest.xml:23:9-26:79
+63-->[androidx.compose.ui:ui-test-manifest:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\470d52210d4a56ff642c96d9400075b1\transformed\ui-test-manifest-1.12.1\AndroidManifest.xml:23:9-26:79
 64            android:name="androidx.activity.ComponentActivity"
-64-->[androidx.compose.ui:ui-test-manifest:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\e967da5a200bd47f4d893f1929414303\transformed\ui-test-manifest-1.12.0\AndroidManifest.xml:24:13-63
+64-->[androidx.compose.ui:ui-test-manifest:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\470d52210d4a56ff642c96d9400075b1\transformed\ui-test-manifest-1.12.1\AndroidManifest.xml:24:13-63
 65            android:exported="true"
-65-->[androidx.compose.ui:ui-test-manifest:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\e967da5a200bd47f4d893f1929414303\transformed\ui-test-manifest-1.12.0\AndroidManifest.xml:25:13-36
+65-->[androidx.compose.ui:ui-test-manifest:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\470d52210d4a56ff642c96d9400075b1\transformed\ui-test-manifest-1.12.1\AndroidManifest.xml:25:13-36
 66            android:theme="@android:style/Theme.Material.Light.NoActionBar" />
-66-->[androidx.compose.ui:ui-test-manifest:1.12.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\e967da5a200bd47f4d893f1929414303\transformed\ui-test-manifest-1.12.0\AndroidManifest.xml:26:13-76
+66-->[androidx.compose.ui:ui-test-manifest:1.12.1] C:\Users\Artah\.gradle\caches\9.8.2\transforms\470d52210d4a56ff642c96d9400075b1\transformed\ui-test-manifest-1.12.1\AndroidManifest.xml:26:13-76
 67
 68        <receiver
 68-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\Artah\.gradle\caches\9.8.2\transforms\d8e06a246c63ba2ea6583cecf0c6e7db\transformed\profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
