@@ -1,0 +1,56 @@
+com.things.app-material-release-0 C:\Users\Artah\.gradle\caches\8.14.6\transforms\01ae405463e2af0e1554a4efa3d8b721\transformed\material-release\res
+com.things.app-foundation-release-1 C:\Users\Artah\.gradle\caches\8.14.6\transforms\03a423e2e68adf2f0dca8a31fc6b1de6\transformed\foundation-release\res
+com.things.app-navigation-common-2.8.2-2 C:\Users\Artah\.gradle\caches\8.14.6\transforms\048e514c67d8a86e9490cf4ec5b20419\transformed\navigation-common-2.8.2\res
+com.things.app-lifecycle-runtime-ktx-release-3 C:\Users\Artah\.gradle\caches\8.14.6\transforms\09b7740994075aafbbe81d0f666b23fe\transformed\lifecycle-runtime-ktx-release\res
+com.things.app-startup-runtime-1.1.1-4 C:\Users\Artah\.gradle\caches\8.14.6\transforms\09c0561f451d2d7b953adf4b6221f864\transformed\startup-runtime-1.1.1\res
+com.things.app-lifecycle-runtime-compose-release-5 C:\Users\Artah\.gradle\caches\8.14.6\transforms\11b1f09d5ac2d1778ea91dd42163f1a8\transformed\lifecycle-runtime-compose-release\res
+com.things.app-lifecycle-viewmodel-compose-release-6 C:\Users\Artah\.gradle\caches\8.14.6\transforms\140b77941c247c6953d40757391ec238\transformed\lifecycle-viewmodel-compose-release\res
+com.things.app-emoji2-1.3.0-7 C:\Users\Artah\.gradle\caches\8.14.6\transforms\189930128eba220a7ac739b41a9c2935\transformed\emoji2-1.3.0\res
+com.things.app-activity-ktx-1.9.2-8 C:\Users\Artah\.gradle\caches\8.14.6\transforms\18ca4ff70f0015a6138a30cfc53128f0\transformed\activity-ktx-1.9.2\res
+com.things.app-savedstate-ktx-1.2.1-9 C:\Users\Artah\.gradle\caches\8.14.6\transforms\201c99bb4e3456bad9404217396b038c\transformed\savedstate-ktx-1.2.1\res
+com.things.app-core-ktx-1.13.1-10 C:\Users\Artah\.gradle\caches\8.14.6\transforms\2467d7ae6b195c031d2a6d0a80d45e80\transformed\core-ktx-1.13.1\res
+com.things.app-lifecycle-viewmodel-release-11 C:\Users\Artah\.gradle\caches\8.14.6\transforms\289c60dd5ab0f6c4e623861600c19dd0\transformed\lifecycle-viewmodel-release\res
+com.things.app-material3-release-12 C:\Users\Artah\.gradle\caches\8.14.6\transforms\34360dd2c8011322709904da046671cf\transformed\material3-release\res
+com.things.app-lifecycle-runtime-release-13 C:\Users\Artah\.gradle\caches\8.14.6\transforms\37b49a5997735577c662f1eb7f5bb65f\transformed\lifecycle-runtime-release\res
+com.things.app-runtime-release-14 C:\Users\Artah\.gradle\caches\8.14.6\transforms\54e643a49f95412be78ba30dd6e9a6c3\transformed\runtime-release\res
+com.things.app-material-icons-extended-release-15 C:\Users\Artah\.gradle\caches\8.14.6\transforms\57010f74c73ff8499c7b94b0671b906a\transformed\material-icons-extended-release\res
+com.things.app-customview-poolingcontainer-1.0.0-16 C:\Users\Artah\.gradle\caches\8.14.6\transforms\61543d5ad634d5c69ab0cc283f3bca00\transformed\customview-poolingcontainer-1.0.0\res
+com.things.app-navigation-common-ktx-2.8.2-17 C:\Users\Artah\.gradle\caches\8.14.6\transforms\64c3b2f0bd388808f2e69fcf22a0575f\transformed\navigation-common-ktx-2.8.2\res
+com.things.app-navigation-runtime-2.8.2-18 C:\Users\Artah\.gradle\caches\8.14.6\transforms\6642472d4fc51aed2266e0dd1e556299\transformed\navigation-runtime-2.8.2\res
+com.things.app-navigation-compose-2.8.2-19 C:\Users\Artah\.gradle\caches\8.14.6\transforms\690dc7f09355a00727b87d64e8c5e8ff\transformed\navigation-compose-2.8.2\res
+com.things.app-foundation-layout-release-20 C:\Users\Artah\.gradle\caches\8.14.6\transforms\6ae0d6f2d61930a6fe6a5dda119465f6\transformed\foundation-layout-release\res
+com.things.app-annotation-experimental-1.4.1-21 C:\Users\Artah\.gradle\caches\8.14.6\transforms\6bbab3c19c737fb23a6be80b2bdf131b\transformed\annotation-experimental-1.4.1\res
+com.things.app-core-1.13.1-22 C:\Users\Artah\.gradle\caches\8.14.6\transforms\71965a8c27919ccf48dfcfe06aa105f4\transformed\core-1.13.1\res
+com.things.app-ui-util-release-23 C:\Users\Artah\.gradle\caches\8.14.6\transforms\753bc8e3b49d85a6f99f1f6a37861e59\transformed\ui-util-release\res
+com.things.app-animation-core-release-24 C:\Users\Artah\.gradle\caches\8.14.6\transforms\7abd0640052d8f8e6ac598579345cf9f\transformed\animation-core-release\res
+com.things.app-animation-release-25 C:\Users\Artah\.gradle\caches\8.14.6\transforms\834f9e777350865d4e887f288bc87cb6\transformed\animation-release\res
+com.things.app-savedstate-1.2.1-26 C:\Users\Artah\.gradle\caches\8.14.6\transforms\8881172a45a92f56e02d6fddec081048\transformed\savedstate-1.2.1\res
+com.things.app-lifecycle-livedata-core-2.8.6-27 C:\Users\Artah\.gradle\caches\8.14.6\transforms\8b4f1a3055350860489d1ad720b5e09f\transformed\lifecycle-livedata-core-2.8.6\res
+com.things.app-material-ripple-release-28 C:\Users\Artah\.gradle\caches\8.14.6\transforms\90ec1875f92014e577973cef34f82560\transformed\material-ripple-release\res
+com.things.app-ui-unit-release-29 C:\Users\Artah\.gradle\caches\8.14.6\transforms\a1f94c4b559faf662a61acfc3ee56e56\transformed\ui-unit-release\res
+com.things.app-core-runtime-2.2.0-30 C:\Users\Artah\.gradle\caches\8.14.6\transforms\aa40e76fe53528781b41afdc06eebd15\transformed\core-runtime-2.2.0\res
+com.things.app-navigation-runtime-ktx-2.8.2-31 C:\Users\Artah\.gradle\caches\8.14.6\transforms\ac0529d079ae87779f88c01156f3cb36\transformed\navigation-runtime-ktx-2.8.2\res
+com.things.app-graphics-path-1.0.1-32 C:\Users\Artah\.gradle\caches\8.14.6\transforms\ad0b3965f0f1d16769545ca4664af104\transformed\graphics-path-1.0.1\res
+com.things.app-profileinstaller-1.3.1-33 C:\Users\Artah\.gradle\caches\8.14.6\transforms\af2777622d00a0ed4bc5680b818c1516\transformed\profileinstaller-1.3.1\res
+com.things.app-lifecycle-viewmodel-savedstate-2.8.6-34 C:\Users\Artah\.gradle\caches\8.14.6\transforms\c1edad3bee8039e4e8c8c7e2c5f64290\transformed\lifecycle-viewmodel-savedstate-2.8.6\res
+com.things.app-lifecycle-process-2.8.6-35 C:\Users\Artah\.gradle\caches\8.14.6\transforms\c6c89f3eeb645a46dc1cac87c632a1be\transformed\lifecycle-process-2.8.6\res
+com.things.app-ui-tooling-release-36 C:\Users\Artah\.gradle\caches\8.14.6\transforms\d057a53c525f944fb582dc26965e96da\transformed\ui-tooling-release\res
+com.things.app-ui-release-37 C:\Users\Artah\.gradle\caches\8.14.6\transforms\deddc6c137f3337a9c2221c3f8df0a0f\transformed\ui-release\res
+com.things.app-activity-compose-1.9.2-38 C:\Users\Artah\.gradle\caches\8.14.6\transforms\df4e506aa3db610105a3e0eee2f67aca\transformed\activity-compose-1.9.2\res
+com.things.app-ui-tooling-data-release-39 C:\Users\Artah\.gradle\caches\8.14.6\transforms\dfed152894a1aa10da2dc83a9126d48e\transformed\ui-tooling-data-release\res
+com.things.app-ui-geometry-release-40 C:\Users\Artah\.gradle\caches\8.14.6\transforms\e29a21627af363fb3604139ac406aeef\transformed\ui-geometry-release\res
+com.things.app-material-icons-core-release-41 C:\Users\Artah\.gradle\caches\8.14.6\transforms\ea5f6d59ddc0141e1f70a0525d953438\transformed\material-icons-core-release\res
+com.things.app-lifecycle-viewmodel-ktx-2.8.6-42 C:\Users\Artah\.gradle\caches\8.14.6\transforms\f0d54884ebfbcaa3155fe6b299b2ce83\transformed\lifecycle-viewmodel-ktx-2.8.6\res
+com.things.app-runtime-saveable-release-43 C:\Users\Artah\.gradle\caches\8.14.6\transforms\f57813505c1e9d02aa33ffc056875020\transformed\runtime-saveable-release\res
+com.things.app-ui-graphics-release-44 C:\Users\Artah\.gradle\caches\8.14.6\transforms\f6a6b7bf48a2d3b2ec453db60eb1d639\transformed\ui-graphics-release\res
+com.things.app-ui-tooling-preview-release-45 C:\Users\Artah\.gradle\caches\8.14.6\transforms\f79085081ce6494e38c5e64a86f31657\transformed\ui-tooling-preview-release\res
+com.things.app-activity-1.9.2-46 C:\Users\Artah\.gradle\caches\8.14.6\transforms\fb14baf4c2859b3507a7d0a5f1cd5167\transformed\activity-1.9.2\res
+com.things.app-ui-text-release-47 C:\Users\Artah\.gradle\caches\8.14.6\transforms\feceb14aa999382a031fb3fc65a40b5b\transformed\ui-text-release\res
+com.things.app-pngs-48 C:\Users\Artah\Documents\GitHub\Things UI\app\build\generated\res\pngs\debug
+com.things.app-resValues-49 C:\Users\Artah\Documents\GitHub\Things UI\app\build\generated\res\resValues\debug
+com.things.app-updated_navigation_xml-50 C:\Users\Artah\Documents\GitHub\Things UI\app\build\generated\updated_navigation_xml\debug
+com.things.app-packageDebugResources-51 C:\Users\Artah\Documents\GitHub\Things UI\app\build\intermediates\incremental\debug\packageDebugResources\merged.dir
+com.things.app-packageDebugResources-52 C:\Users\Artah\Documents\GitHub\Things UI\app\build\intermediates\incremental\debug\packageDebugResources\stripped.dir
+com.things.app-debug-53 C:\Users\Artah\Documents\GitHub\Things UI\app\build\intermediates\merged_res\debug\mergeDebugResources
+com.things.app-debug-54 C:\Users\Artah\Documents\GitHub\Things UI\app\src\debug\res
+com.things.app-main-55 C:\Users\Artah\Documents\GitHub\Things UI\app\src\main\res
