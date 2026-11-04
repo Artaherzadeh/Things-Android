@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,6 +68,11 @@ import java.util.UUID
 import kotlin.math.roundToInt
 
 private val ItemTextStyle = ThingsType.RowTitle.copy(fontSize = 17.sp)
+private val FocusShape = RoundedCornerShape(12.dp)
+private val ItemKeyboard = KeyboardOptions(
+    capitalization = KeyboardCapitalization.Sentences,
+    imeAction = ImeAction.Next,
+)
 
 private fun <T> List<T>.swap(a: Int, b: Int): List<T> =
     toMutableList().also {
@@ -81,8 +87,10 @@ private fun <T> List<T>.swap(a: Int, b: Int): List<T> =
  * space, the text, then the 24dp handle and 8dp of space. Place the section so that the circle lines
  * up with the to-do title.
  *
- * When [adding] is true an empty line at the end takes new items; every item is saved as soon as it
- * is typed.
+ * The line being edited, new or old, has a grey rounded box behind it. Text starts with a capital.
+ * Enter (Next on the keyboard) saves the line and opens a new empty one right under it; an empty
+ * line is dropped when the cursor leaves it. When [adding] is true an empty line at the end takes
+ * new items.
  *
  * Backspace on a line that is already empty deletes that line and puts the cursor at the end of
  * the line above it. Press and drag the handle to move a line up or down.
@@ -119,6 +127,12 @@ fun ChecklistSection(
                         onItemsChange(items.filter { it.id != item.id })
                         focusAtEnd = items.getOrNull(index - 1)?.id
                     },
+                    onEnter = {
+                        val fresh = ChecklistItemModel(UUID.randomUUID().toString(), "")
+                        onItemsChange(items.take(index + 1) + fresh + items.drop(index + 1))
+                        focusAtEnd = fresh.id
+                    },
+                    onBlurBlank = { onItemsChange(items.filter { it.id != item.id }) },
                     dragging = draggingId == item.id,
                     dragOffset = if (draggingId == item.id) dragY else 0f,
                     onHeight = { heights[item.id] = it },
@@ -176,6 +190,8 @@ private fun ChecklistRow(
     onFocusHandled: () -> Unit,
     onChange: (ChecklistItemModel) -> Unit,
     onBackspaceOnEmpty: () -> Unit,
+    onEnter: () -> Unit,
+    onBlurBlank: () -> Unit,
     dragging: Boolean,
     dragOffset: Float,
     onHeight: (Int) -> Unit,
@@ -184,6 +200,8 @@ private fun ChecklistRow(
     onDragEnd: () -> Unit,
 ) {
     var value by remember { mutableStateOf(TextFieldValue(item.title, TextRange(item.title.length))) }
+    var focused by remember { mutableStateOf(false) }
+    var hadFocus by remember { mutableStateOf(false) }
     val currentDragStart by rememberUpdatedState(onDragStart)
     val currentDrag by rememberUpdatedState(onDrag)
     val currentDragEnd by rememberUpdatedState(onDragEnd)
@@ -209,6 +227,15 @@ private fun ChecklistRow(
             .then(if (dragging) Modifier.background(ThingsColors.Background) else Modifier)
             .onSizeChanged { onHeight(it.height) }
             .fillMaxWidth()
+            .then(
+                if (focused) {
+                    Modifier
+                        .clip(FocusShape)
+                        .background(ThingsColors.SearchBackground)
+                } else {
+                    Modifier
+                }
+            )
             .heightIn(min = ThingsSpacing.RowHeight)
             .padding(start = 8.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -225,13 +252,29 @@ private fun ChecklistRow(
                 value = it
                 if (it.text != item.title) onChange(item.copy(title = it.text))
             },
+            singleLine = true,
             textStyle = ItemTextStyle.copy(
                 color = if (item.done) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
             ),
             cursorBrush = SolidColor(ThingsColors.Fab),
+            keyboardOptions = ItemKeyboard,
+            keyboardActions = KeyboardActions(
+                onNext = {
+                    if (value.text.isNotBlank()) onEnter() else onBlurBlank()
+                },
+            ),
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(requester)
+                .onFocusChanged { state ->
+                    focused = state.isFocused
+                    if (state.isFocused) {
+                        hadFocus = true
+                    } else if (hadFocus) {
+                        hadFocus = false
+                        if (value.text.isBlank()) onBlurBlank()
+                    }
+                }
                 .onPreviewKeyEvent { event ->
                     if (event.type == KeyEventType.KeyDown && event.key == Key.Backspace && value.text.isEmpty()) {
                         onBackspaceOnEmpty()
@@ -315,7 +358,7 @@ private fun NewChecklistRow(
         Modifier
             .fillMaxWidth()
             .heightIn(min = ThingsSpacing.RowHeight)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(FocusShape)
             .background(ThingsColors.SearchBackground)
             .padding(start = 8.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -334,7 +377,7 @@ private fun NewChecklistRow(
             singleLine = true,
             textStyle = ItemTextStyle.copy(color = ThingsColors.TextPrimary),
             cursorBrush = SolidColor(ThingsColors.Fab),
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+            keyboardOptions = ItemKeyboard,
             keyboardActions = KeyboardActions(
                 onNext = {
                     if (text.isNotBlank()) {

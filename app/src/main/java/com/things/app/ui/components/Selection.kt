@@ -29,6 +29,7 @@ import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -89,6 +90,12 @@ class SelectionState {
 
 @Composable
 fun rememberSelectionState(): SelectionState = remember { SelectionState() }
+
+/**
+ * The select mode of the page the row is on. ListPageScaffold provides it, so every row that is an
+ * ExpandableTaskRow can be ticked without the page passing anything.
+ */
+val LocalSelection = compositionLocalOf<SelectionState?> { null }
 
 private val BarShape = RoundedCornerShape(28.dp)
 

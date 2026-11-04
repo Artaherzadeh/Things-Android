@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,6 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -73,7 +75,8 @@ private val Indent = 32.dp
  *
  * Everything except the title and the notes is optional. A line shows only when it is set, and the
  * button that sets it shows only while it is not: calendar (When), tag, checklist, flag (deadline).
- * The title is plain text; Markdown applies to the notes only.
+ * The title is plain text; Markdown applies to the notes only. With [autoFocus] the title takes the
+ * keyboard as soon as the card opens (a new to-do).
  *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
  * the row opens. The card has a soft shadow and leaves 12dp under it (4dp above) so the row below
@@ -84,6 +87,7 @@ fun TaskCard(
     task: TaskRowModel,
     onEdit: ((TaskRowModel) -> TaskRowModel) -> Unit,
     modifier: Modifier = Modifier,
+    autoFocus: Boolean = false,
     onToggle: () -> Unit = {},
     onScheduleClick: () -> Unit = {},
     onDeadlineClick: () -> Unit = {},
@@ -93,6 +97,11 @@ fun TaskCard(
     var notes by remember(task.id) { mutableStateOf(TextFieldValue(details.notes)) }
     var addingChecklist by rememberSaveable(task.id) { mutableStateOf(false) }
     val showChecklist = details.checklist.isNotEmpty() || addingChecklist
+    val titleRequester = remember { FocusRequester() }
+
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) titleRequester.requestFocus()
+    }
 
     Column(
         modifier
@@ -140,6 +149,7 @@ fun TaskCard(
                 modifier = Modifier
                     .weight(1f)
                     .padding(top = 8.dp, bottom = 8.dp, end = 8.dp)
+                    .focusRequester(titleRequester)
                     .testTag("task_title_field"),
             )
         }
