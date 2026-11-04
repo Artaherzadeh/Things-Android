@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
@@ -90,7 +93,7 @@ private fun <T> List<T>.swap(a: Int, b: Int): List<T> =
  * The line being edited, new or old, has a grey rounded box behind it. Text starts with a capital.
  * Enter (Next on the keyboard) saves the line and opens a new empty one right under it; an empty
  * line is dropped when the cursor leaves it. When [adding] is true an empty line at the end takes
- * new items.
+ * new items. Only the 16dp circle reacts when it is pressed, not the whole tap area around it.
  *
  * Backspace on a line that is already empty deletes that line and puts the cursor at the end of
  * the line above it. Press and drag the handle to move a line up or down.
@@ -310,13 +313,24 @@ private fun ChecklistRow(
     }
 }
 
-/** A blue circle (16dp, in a 24dp tap area), or a grey check mark once the item is done. */
+/**
+ * A blue circle (16dp, in a 24dp tap area), or a grey check mark once the item is done. The whole
+ * tap area takes the touch, but only the circle reacts to it: it fills lightly while pressed.
+ */
 @Composable
 private fun ChecklistMark(done: Boolean, description: String, onClick: () -> Unit) {
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
     Box(
         Modifier
             .size(width = 24.dp, height = ThingsSpacing.RowHeight)
-            .clickable(onClickLabel = "Toggle $description", role = Role.Checkbox, onClick = onClick)
+            .clickable(
+                interactionSource = source,
+                indication = null,
+                onClickLabel = "Toggle $description",
+                role = Role.Checkbox,
+                onClick = onClick,
+            )
             .semantics { stateDescription = if (done) "Done" else "Not done" },
         contentAlignment = Alignment.Center,
     ) {
@@ -324,13 +338,15 @@ private fun ChecklistMark(done: Boolean, description: String, onClick: () -> Uni
             Icon(
                 Icons.Rounded.Check,
                 contentDescription = null,
-                tint = ThingsColors.TextSecondary,
+                tint = if (pressed) ThingsColors.ProjectBlue else ThingsColors.TextSecondary,
                 modifier = Modifier.size(16.dp),
             )
         } else {
             Box(
                 Modifier
                     .size(16.dp)
+                    .clip(CircleShape)
+                    .background(if (pressed) ThingsColors.ProjectBlue.copy(alpha = 0.25f) else Color.Transparent)
                     .border(2.dp, ThingsColors.ProjectBlue, CircleShape)
             )
         }

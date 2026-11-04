@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,8 +36,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,8 +48,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.derivedStateOf
@@ -70,9 +78,13 @@ private val IconSlot = 24.dp
 private val IconTextGap = 8.dp
 private val GroupGap = 12.dp
 
+/** How far the list has to be pulled down from the top before Quick Find opens. */
+private val PullToSearchDistance = 96.dp
+
 /**
  * The home screen. It lists no to-dos: only the system lists, projects and areas. Settings is the
  * last row of the list, so it scrolls with the rest instead of staying on screen.
+ * Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
  */
 @Composable
 fun HomeScreen(
@@ -88,6 +100,32 @@ fun HomeScreen(
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val listState = rememberLazyListState()
+    val currentOnSearch by rememberUpdatedState(onSearchClick)
+    val pullPx = with(LocalDensity.current) { PullToSearchDistance.toPx() }
+    val pullToSearch = remember(pullPx) {
+        object : NestedScrollConnection {
+            private var pulled = 0f
+            private var fired = false
+
+            override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+                if (source == NestedScrollSource.UserInput && available.y > 0f && !listState.canScrollBackward) {
+                    pulled += available.y
+                    if (!fired && pulled >= pullPx) {
+                        fired = true
+                        currentOnSearch()
+                    }
+                }
+                return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                pulled = 0f
+                fired = false
+                return Velocity.Zero
+            }
+        }
+    }
 
     // Add menu: one boolean drives a single animated progress value, so rapid taps can't stack overlays.
     var menuExpanded by remember { mutableStateOf(false) }
@@ -120,7 +158,10 @@ fun HomeScreen(
             .onGloballyPositioned { rootOrigin = it.positionInWindow() }
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .nestedScroll(pullToSearch),
             contentPadding = PaddingValues(top = statusBarTop + 12.dp, bottom = 140.dp),
         ) {
             item { QuickFind(onClick = onSearchClick) }
