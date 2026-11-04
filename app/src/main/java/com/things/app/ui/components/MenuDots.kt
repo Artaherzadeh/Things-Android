@@ -12,10 +12,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.theme.ThingsColors
 
-/** Three dots in a row. Grey next to a page title, blue at the end of a heading. */
+/** Three dots in a row, 24dp wide and 8dp high. Grey next to a page title, blue at the end of a heading. */
 @Composable
 fun MenuDots(color: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier.size(width = 22.dp, height = 6.dp)) {
+    Canvas(modifier.size(width = 24.dp, height = 8.dp)) {
         val radius = size.height / 2f
         repeat(3) { index ->
             drawCircle(

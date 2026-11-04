@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.StarIcon
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsType
 
 /** Everything a list row needs to draw one to-do. Pure UI data; no business rules. */
@@ -57,12 +58,11 @@ data class TaskRowModel(
 /** Where the repeat marker of a recurring to-do is drawn. */
 enum class RecurringStyle { TrailingIcon, LeadingBadge }
 
-private val RowMinHeight = 44.dp
-private val TwoLineRowMinHeight = 56.dp
 private val CheckboxSize = 20.dp
 
 /**
- * One to-do row. The checkbox sits at the start. Next to it is a column with two parts:
+ * One to-do row. The checkbox box sits at x = 20dp and the title starts at x = 52dp, the same x as
+ * the names on Home. Next to the checkbox is a column with two parts:
  *  - the title line: chip, repeat badge and star before the title, then the reminder, note, tag
  *    and checklist icons right after the title, all on the same line;
  *  - the subtitle (project or area name), drawn under the first element of the title line, so it
@@ -82,16 +82,16 @@ fun TaskRow(
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = if (task.subtitle == null) RowMinHeight else TwoLineRowMinHeight)
+            .heightIn(min = if (task.subtitle == null) ThingsSpacing.RowHeight else ThingsSpacing.TwoLineRowHeight)
             .clickable(onClick = onClick)
-            .padding(start = 6.dp, end = 18.dp),
+            .padding(start = 8.dp, end = ThingsSpacing.PageMargin),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TaskCheckbox(
             checked = task.checked,
             title = task.title,
             onToggle = onToggle,
-            modifier = Modifier.heightIn(min = RowMinHeight),
+            modifier = Modifier.heightIn(min = ThingsSpacing.RowHeight),
         )
 
         Column(Modifier.weight(1f)) {
@@ -105,7 +105,7 @@ fun TaskRow(
                     Spacer(Modifier.width(8.dp))
                 }
                 if (task.isToday) {
-                    StarIcon(Modifier.size(18.dp))
+                    StarIcon(Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                 }
 
@@ -146,9 +146,9 @@ private fun TaskChip(text: String) {
         style = ThingsType.Count,
         maxLines = 1,
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(8.dp))
             .background(ThingsColors.SearchBackground)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
     )
 }
 
@@ -159,8 +159,9 @@ private fun TrailingGlyph(description: String, glyph: @Composable () -> Unit) {
 }
 
 /**
- * A 38dp-wide tap slot. With the default [startPadding] the visible 20dp box lines up 18dp from the
- * start edge of a row. Give it a height (for example heightIn) to make the tap area taller.
+ * The checkbox and its tap area. With the defaults the tap area is 44dp wide, from x = 8dp to
+ * x = 52dp, the 20dp box sits at x = 20dp and 12dp of space separates it from the title. Give the
+ * modifier a height to make the tap area taller.
  */
 @Composable
 internal fun TaskCheckbox(
@@ -169,11 +170,12 @@ internal fun TaskCheckbox(
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
     startPadding: Dp = 12.dp,
+    slotWidth: Dp = 44.dp,
 ) {
-    val shape = RoundedCornerShape(5.dp)
+    val shape = RoundedCornerShape(4.dp)
     Box(
         modifier
-            .width(38.dp)
+            .width(slotWidth)
             .fillMaxHeight()
             .clickable(onClickLabel = "Toggle $title", role = Role.Checkbox, onClick = onToggle)
             .semantics { stateDescription = if (checked) "Completed" else "Not completed" },
@@ -185,7 +187,7 @@ internal fun TaskCheckbox(
                 .size(CheckboxSize)
                 .clip(shape)
                 .then(if (checked) Modifier.background(ThingsColors.ProjectBlue) else Modifier)
-                .border(1.5.dp, if (checked) ThingsColors.ProjectBlue else ThingsColors.CheckboxStroke, shape),
+                .border(2.dp, if (checked) ThingsColors.ProjectBlue else ThingsColors.CheckboxStroke, shape),
             contentAlignment = Alignment.Center,
         ) {
             if (checked) CheckMark(Modifier.size(CheckboxSize))

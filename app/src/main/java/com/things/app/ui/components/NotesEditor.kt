@@ -48,9 +48,9 @@ import com.things.app.ui.theme.ThingsType
 import kotlin.math.roundToInt
 
 private val NotesTextStyle = ThingsType.RowTitle.copy(fontSize = 17.sp)
-private val ToolbarShape = RoundedCornerShape(14.dp)
+private val ToolbarShape = RoundedCornerShape(16.dp)
 private val ToolbarWidthEstimate = 240.dp
-private val ToolbarGap = 6.dp
+private val ToolbarGap = 8.dp
 
 private val InlineStyles = listOf(
     MarkdownStyle.Bold,
@@ -191,7 +191,7 @@ private fun FormatToolbar(
             active = false,
             onClick = onSwitchLevel,
         ) {
-            Text(if (showBlockStyles) "\u2039" else "\u203A", style = GlyphStyle.copy(fontSize = 22.sp))
+            Text(if (showBlockStyles) "\u2039" else "\u203A", style = GlyphStyle.copy(fontSize = 24.sp))
         }
     }
 }
@@ -207,8 +207,8 @@ private fun ToolbarButton(
 ) {
     Box(
         Modifier
-            .size(width = 40.dp, height = 38.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .size(width = 40.dp, height = 40.dp)
+            .clip(RoundedCornerShape(12.dp))
             .background(if (active) ThingsColors.MenuTitle.copy(alpha = 0.22f) else Color.Transparent)
             .clickable(role = Role.Button, onClick = onClick)
             .semantics {
@@ -235,10 +235,10 @@ private fun StyleGlyph(style: MarkdownStyle) {
                 background = ThingsColors.Today.copy(alpha = 0.75f),
             ),
         )
-        MarkdownStyle.Code -> Text("</>", style = GlyphStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 13.sp))
+        MarkdownStyle.Code -> Text("</>", style = GlyphStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp))
         MarkdownStyle.Heading -> Text("H", style = GlyphStyle.copy(fontWeight = FontWeight.Bold, fontSize = 18.sp))
         MarkdownStyle.Quote -> Text("\u201C", style = GlyphStyle.copy(fontSize = 24.sp))
-        MarkdownStyle.BulletList -> Text("\u2022", style = GlyphStyle.copy(fontSize = 22.sp))
+        MarkdownStyle.BulletList -> Text("\u2022", style = GlyphStyle.copy(fontSize = 24.sp))
         MarkdownStyle.NumberedList -> Text("1.", style = GlyphStyle.copy(fontFamily = FontFamily.Monospace))
         MarkdownStyle.TaskList -> Text("[ ]", style = GlyphStyle.copy(fontFamily = FontFamily.Monospace, fontSize = 14.sp))
     }

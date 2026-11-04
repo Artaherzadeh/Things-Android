@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -56,8 +57,12 @@ import com.things.app.ui.theme.ThingsType
 
 private val CardShape = RoundedCornerShape(20.dp)
 
-/** Text and icons inside the card line up with the title text, after the checkbox. */
-private val Indent = 38.dp
+/**
+ * Text and icons inside the card start 32dp after the start of the card content. The card is 8dp
+ * from the screen edge and has 12dp of padding, so this puts them at x = 52dp: in line with the
+ * title of a closed row. The right edge of every block is 20dp from the screen edge.
+ */
+private val Indent = 32.dp
 
 /**
  * An open (expanded) to-do: the row grows into a card with the editable title, the Markdown notes,
@@ -68,6 +73,9 @@ private val Indent = 38.dp
  * Everything except the title and the notes is optional. A line shows only when it is set, and the
  * button that sets it shows only while it is not: calendar (When), tag, checklist, flag (deadline).
  * The title is plain text; Markdown applies to the notes only.
+ *
+ * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
+ * the row opens.
  */
 @Composable
 fun TaskCard(
@@ -87,13 +95,13 @@ fun TaskCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp)
             .shadow(8.dp, CardShape)
             .background(ThingsColors.Background, CardShape)
             .border(1.dp, ThingsColors.Divider, CardShape)
             // Taps on the card must not reach the page behind it, which closes the card.
             .pointerInput(Unit) { detectTapGestures { } }
-            .padding(start = 16.dp, end = 12.dp, top = 6.dp, bottom = 4.dp)
+            .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
             .testTag("task_card_${task.id}")
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -103,6 +111,7 @@ fun TaskCard(
                 onToggle = onToggle,
                 modifier = Modifier.height(44.dp),
                 startPadding = 0.dp,
+                slotWidth = Indent,
             )
             BasicTextField(
                 value = task.title,
@@ -123,7 +132,7 @@ fun TaskCard(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 8.dp)
+                    .padding(top = 8.dp, bottom = 8.dp, end = 8.dp)
                     .testTag("task_title_field"),
             )
         }
@@ -143,7 +152,7 @@ fun TaskCard(
                 }
             },
             modifier = Modifier
-                .padding(start = Indent, end = 4.dp, top = 2.dp)
+                .padding(start = Indent, end = 8.dp, top = 4.dp)
                 .heightIn(min = 56.dp),
         )
 
@@ -160,7 +169,7 @@ fun TaskCard(
                 },
                 adding = addingChecklist,
                 onAddingChange = { addingChecklist = it },
-                modifier = Modifier.padding(start = Indent - 8.dp, top = 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 4.dp),
             )
         }
 
@@ -169,8 +178,8 @@ fun TaskCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(schedule.label, style = ThingsType.RowTitle)
                     schedule.reminder?.let { time ->
-                        Spacer(Modifier.width(10.dp))
-                        BellIcon(Modifier.size(14.dp))
+                        Spacer(Modifier.width(8.dp))
+                        BellIcon(Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
                         Text(time, style = ThingsType.Count)
                     }
@@ -219,7 +228,7 @@ fun TaskCard(
     }
 }
 
-/** One line under the notes: an icon in the 24dp slot and one or two lines of text. */
+/** One line under the notes: an icon in a 24dp slot, 8dp of space, and one or two lines of text. */
 @Composable
 private fun DetailRow(
     onClick: (() -> Unit)?,
@@ -230,11 +239,11 @@ private fun DetailRow(
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .padding(start = Indent, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            .padding(start = Indent, end = 8.dp, top = 4.dp, bottom = 4.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { icon() }
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f), content = content)
     }
 }
@@ -258,7 +267,8 @@ private fun ScheduleIcon(kind: ScheduleKind) {
  * The tags at the start and the add buttons at the end. Each button shows only while there is
  * nothing of its kind yet: the calendar until a date is set, the tag button until a tag is set (the
  * tag chips take its place and open the tag list), the checklist button until a checklist exists,
- * the flag until a deadline is set.
+ * the flag until a deadline is set. The icons are 24dp in 40dp buttons; the last icon ends 20dp
+ * from the screen edge.
  */
 @Composable
 private fun BottomBar(
@@ -275,31 +285,31 @@ private fun BottomBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(top = 2.dp),
+            .padding(top = 4.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
             Modifier
                 .weight(1f)
                 .padding(start = Indent),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             tags.forEach { TagChip(it, onClick = onTags) }
         }
         if (showDate) {
             CardIconButton("Add date", onDate) {
-                Icon(Icons.Outlined.CalendarMonth, null, tint = ThingsColors.TextSecondary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.CalendarMonth, null, tint = ThingsColors.TextSecondary, modifier = Modifier.size(24.dp))
             }
         }
         if (showTags) {
-            CardIconButton("Add tags", onTags) { TagIcon(Modifier.size(20.dp)) }
+            CardIconButton("Add tags", onTags) { TagIcon(Modifier.size(24.dp)) }
         }
         if (showChecklist) {
-            CardIconButton("Add checklist", onChecklist) { ChecklistIcon(Modifier.size(20.dp)) }
+            CardIconButton("Add checklist", onChecklist) { ChecklistIcon(Modifier.size(24.dp)) }
         }
         if (showDeadline) {
             CardIconButton("Add deadline", onDeadline) {
-                Icon(Icons.Outlined.Flag, null, tint = ThingsColors.TextSecondary, modifier = Modifier.size(22.dp))
+                Icon(Icons.Outlined.Flag, null, tint = ThingsColors.TextSecondary, modifier = Modifier.size(24.dp))
             }
         }
     }
@@ -327,6 +337,6 @@ private fun TagChip(name: String, onClick: () -> Unit) {
             .clip(CircleShape)
             .background(ThingsColors.AnytimeLight.copy(alpha = 0.25f))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
     )
 }

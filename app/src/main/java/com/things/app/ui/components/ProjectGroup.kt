@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsType
 
 /** Vertical gap between one project block and the block above it. */
@@ -37,7 +38,10 @@ data class TaskGroupModel(
     val items: List<TaskRowModel>,
 )
 
-/** A tappable project line: blue progress ring, bold name and a small chevron. */
+/**
+ * A tappable project line: blue progress ring (24dp, at x = 20dp), bold name (at x = 52dp, in line
+ * with the to-do titles and the names on Home) and a small chevron.
+ */
 @Composable
 fun ProjectLinkRow(
     title: String,
@@ -48,9 +52,9 @@ fun ProjectLinkRow(
     Row(
         modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(ThingsSpacing.RowHeight)
             .clickable(onClickLabel = "Open $title", role = Role.Button, onClick = onClick)
-            .padding(start = 18.dp, end = 18.dp),
+            .padding(horizontal = ThingsSpacing.PageMargin),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ProgressIcon(
@@ -58,7 +62,7 @@ fun ProjectLinkRow(
             modifier = Modifier.size(24.dp),
             color = ThingsColors.ProjectBlue,
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             title,
             style = ThingsType.RowTitleBold,
@@ -66,12 +70,12 @@ fun ProjectLinkRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f, fill = false),
         )
-        Spacer(Modifier.width(2.dp))
+        Spacer(Modifier.width(4.dp))
         Icon(
             Icons.AutoMirrored.Rounded.KeyboardArrowRight,
             contentDescription = null,
             tint = ThingsColors.TextSecondary,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(24.dp),
         )
     }
 }
@@ -92,7 +96,7 @@ fun ProjectGroupHeader(
         Spacer(Modifier.height(topGap))
         ProjectLinkRow(title = title, progress = progress, onClick = onClick)
         HorizontalDivider(
-            modifier = Modifier.padding(horizontal = 18.dp),
+            modifier = Modifier.padding(horizontal = ThingsSpacing.PageMargin),
             thickness = 1.dp,
             color = ThingsColors.Divider,
         )

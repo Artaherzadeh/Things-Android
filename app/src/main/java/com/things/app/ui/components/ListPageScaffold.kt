@@ -43,12 +43,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.FabShadowColor
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsType
 
 /**
  * Shared frame of every list page (Upcoming, Anytime, Inbox, ...): the top bar with the back button
  * and the three-dots menu, an icon plus large title that scroll with the list, and the floating add
- * button. [content] adds the rows.
+ * button, 20dp from the right and 20dp above the bottom edge.
+ * [content] adds the rows.
  *
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
  * [titleBottomPadding] is the space between the title and the first row.
@@ -119,7 +121,7 @@ fun ListPageScaffold(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 8.dp, end = 12.dp),
+                    .padding(top = 8.dp, end = ThingsSpacing.PageMargin),
             )
         } else {
             AddFab(
@@ -127,7 +129,7 @@ fun ListPageScaffold(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 18.dp, bottom = 16.dp),
+                    .padding(end = ThingsSpacing.FabMargin, bottom = ThingsSpacing.FabMargin),
             )
         }
     }
@@ -144,11 +146,16 @@ private fun TitleRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 18.dp, top = 12.dp, bottom = bottomPadding),
+            .padding(
+                start = ThingsSpacing.PageMargin,
+                end = ThingsSpacing.PageMargin,
+                top = 12.dp,
+                bottom = bottomPadding,
+            ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
-        Spacer(Modifier.width(14.dp))
+        Spacer(Modifier.width(12.dp))
         Text(
             title,
             style = ThingsType.PageTitle,
@@ -168,9 +175,9 @@ private fun TitleRow(
 private fun AddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
-            .size(52.dp)
+            .size(ThingsSpacing.FabSize)
             .shadow(
-                elevation = 6.dp,
+                elevation = 8.dp,
                 shape = CircleShape,
                 ambientColor = FabShadowColor,
                 spotColor = FabShadowColor,
@@ -189,9 +196,9 @@ private fun AddFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun KeyboardDismissButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
-            .size(width = 52.dp, height = 34.dp)
+            .size(width = 56.dp, height = 40.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 8.dp,
                 shape = CircleShape,
                 ambientColor = FabShadowColor,
                 spotColor = FabShadowColor,
@@ -205,7 +212,7 @@ private fun KeyboardDismissButton(onClick: () -> Unit, modifier: Modifier = Modi
             Icons.Rounded.KeyboardHide,
             contentDescription = "Hide keyboard",
             tint = Color.White,
-            modifier = Modifier.size(22.dp),
+            modifier = Modifier.size(24.dp),
         )
     }
 }

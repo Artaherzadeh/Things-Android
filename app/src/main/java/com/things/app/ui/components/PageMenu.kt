@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -18,6 +18,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -57,7 +57,8 @@ val DefaultEnabledMenuActions: Set<PageMenuAction> =
 
 /**
  * The bar at the top of every list page: back button at the start and the three-dots button at
- * the end. The button opens the page menu. [onMenuAction] reports the chosen action.
+ * the end. The circle of the three-dots button ends 20dp from the screen edge, like the page
+ * content. The button opens the page menu; [onMenuAction] reports the chosen action.
  */
 @Composable
 fun PageTopBar(
@@ -74,7 +75,7 @@ fun PageTopBar(
             .fillMaxWidth()
             .statusBarsPadding()
             .height(56.dp)
-            .padding(horizontal = 6.dp),
+            .padding(start = 4.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
@@ -82,7 +83,7 @@ fun PageTopBar(
                 Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
                 contentDescription = "Back",
                 tint = ThingsColors.TextSecondary,
-                modifier = Modifier.size(34.dp),
+                modifier = Modifier.size(32.dp),
             )
         }
         Spacer(Modifier.weight(1f))
@@ -94,7 +95,7 @@ fun PageTopBar(
                 },
                 modifier = Modifier.semantics { contentDescription = "More" },
             ) {
-                MoreCircleIcon(Modifier.size(30.dp))
+                MoreCircleIcon(Modifier.size(32.dp))
             }
             PageMenu(
                 expanded = menuOpen,
@@ -120,7 +121,7 @@ private fun PageMenu(
         expanded = expanded,
         onDismissRequest = onDismiss,
         modifier = Modifier.widthIn(min = 216.dp),
-        offset = DpOffset(0.dp, 6.dp),
+        offset = DpOffset(0.dp, 8.dp),
         shape = RoundedCornerShape(24.dp),
         containerColor = ThingsColors.Background,
         tonalElevation = 0.dp,
@@ -132,7 +133,7 @@ private fun PageMenu(
                     Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
                 },
                 onClick = { onAction(action) },
-                modifier = Modifier.heightIn(min = 46.dp),
+                modifier = Modifier.heightIn(min = 48.dp),
                 leadingIcon = {
                     Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { ActionIcon(action) }
                 },
@@ -151,7 +152,7 @@ private fun PageMenu(
 @Composable
 private fun ActionIcon(action: PageMenuAction) {
     val color = LocalContentColor.current
-    val size = Modifier.size(22.dp)
+    val size = Modifier.size(24.dp)
     when (action) {
         PageMenuAction.FilterByTag -> TagIcon(size, color)
         PageMenuAction.Select -> SelectIcon(size, color)

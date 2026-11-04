@@ -62,13 +62,13 @@ fun RepeatIcon(modifier: Modifier = Modifier, color: Color = ThingsColors.TextSe
 fun RepeatBadge(modifier: Modifier = Modifier) {
     Box(
         modifier
-            .size(22.dp)
+            .size(24.dp)
             .clip(CircleShape)
             .background(ThingsColors.ProjectBlue.copy(alpha = 0.2f))
             .semantics { contentDescription = "Repeats" },
         contentAlignment = Alignment.Center,
     ) {
-        RepeatIcon(Modifier.size(14.dp), ThingsColors.ProjectBlue)
+        RepeatIcon(Modifier.size(16.dp), ThingsColors.ProjectBlue)
     }
 }
 
