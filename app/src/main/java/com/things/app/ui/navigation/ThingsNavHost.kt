@@ -390,7 +390,10 @@ fun ThingsNavHost() {
                 LogbookScreen(
                     state = sampleLogbookState(),
                     onBack = { navController.popBackStack() },
-                    onRestore = { entry -> restoredTasks = restoredTasks + entry.restored() },
+                    onRestoreEntry = { id ->
+                        val entry = sampleLogbookState().months.flatMap { it.entries }.firstOrNull { it.id == id }
+                        if (entry != null) restoredTasks = restoredTasks + entry.restored()
+                    },
                 )
             }
             composable(Routes.INBOX) {
