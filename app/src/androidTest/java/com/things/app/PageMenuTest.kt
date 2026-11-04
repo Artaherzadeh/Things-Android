@@ -9,12 +9,16 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.things.app.ui.components.PageMenuAction
+import com.things.app.ui.area.AreaScreen
+import com.things.app.ui.area.sampleAreaState
+import com.things.app.ui.components.AreaMenuActions
+import com.things.app.ui.components.DefaultMenuActions
 import com.things.app.ui.inbox.InboxScreen
 import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.today.TodayScreen
 import com.things.app.ui.today.sampleTodayState
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -30,7 +34,7 @@ class PageMenuTest {
 
         rule.onNodeWithContentDescription("More").performClick()
 
-        PageMenuAction.entries.forEach { rule.onNodeWithText(it.label).assertIsDisplayed() }
+        DefaultMenuActions.forEach { rule.onNodeWithText(it.label).assertIsDisplayed() }
         rule.onNodeWithText("Filter by Tag").assertIsNotEnabled()
         rule.onNodeWithText("Select").assertIsEnabled()
     }
@@ -51,6 +55,20 @@ class PageMenuTest {
 
         rule.onNodeWithContentDescription("More").performClick()
 
-        PageMenuAction.entries.forEach { rule.onNodeWithText(it.label).assertIsDisplayed() }
+        DefaultMenuActions.forEach { rule.onNodeWithText(it.label).assertIsDisplayed() }
+    }
+
+    @Test
+    fun areaPageHasAddTagsDeleteAreaAndShare() {
+        var deleted = 0
+        rule.setContent { ThingsTheme { AreaScreen(sampleAreaState(), onDeleteArea = { deleted++ }) } }
+
+        rule.onNodeWithContentDescription("More").performClick()
+
+        AreaMenuActions.forEach { rule.onNodeWithText(it.label).assertIsDisplayed() }
+        rule.onNodeWithText("Select").assertDoesNotExist()
+
+        rule.onNodeWithText("Delete Area").performClick()
+        assertEquals(1, deleted)
     }
 }
