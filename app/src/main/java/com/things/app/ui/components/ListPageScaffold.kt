@@ -61,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -121,13 +122,16 @@ private fun shareText(context: Context, lines: List<String>) {
 
 /**
  * Shared frame of every list page (Upcoming, Anytime, Inbox, ...): the top bar with the back button
- * and the three-dots menu, an icon plus large title that scroll with the list, and the floating add
- * button, 20dp from the right and 20dp above the bottom edge.
- * [content] adds the rows.
+ * and the three-dots menu, an icon plus large title, and the floating add button, 20dp from the
+ * right and 20dp above the bottom edge. [content] adds the rows.
+ *
+ * The title does not scroll: it stays under the top bar and the rows slide under it. A soft fade
+ * (the page colour turning transparent) hangs under the title, so a row that goes up dissolves
+ * before it reaches the title instead of being cut off. At rest, the room between the title and the
+ * first row is [titleBottomPadding]; it is the first thing of the list, so it scrolls away.
  *
  * A long title goes on to the next lines; the icon stays centered on the first line.
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
- * [titleBottomPadding] is the space between the title and the first row.
  * Pass [onTitleChange] to make the title editable (a project's name).
  * [menuActions] are the entries of the three-dots menu, [enabledMenuActions] says which of them can
  * be chosen and [onMenuAction] reports the chosen one. While that menu is open the page behind it
@@ -208,6 +212,7 @@ fun ListPageScaffold(
     val edgePx = with(density) { HeadingEdge.toPx() }
     val gapPx = with(density) { DropGapHeight.toPx() }
     val fabRadiusPx = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
+    val fadeHeight = titleBottomPadding.coerceIn(12.dp, 24.dp)
 
     // Closing the keyboard (back gesture, hide button, anything) also ends the editing: no cursor
     // keeps blinking in a field that cannot be typed into.
@@ -334,26 +339,45 @@ fun ListPageScaffold(
                         actions = menuActions,
                     )
                 }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .weight(1f)
-                        .onGloballyPositioned { listTop = it.positionInRoot().y }
-                        .imePadding(),
-                    contentPadding = PaddingValues(bottom = 140.dp),
-                ) {
-                    item(key = "page-title") {
-                        TitleRow(
-                            title = title,
-                            icon = icon,
-                            titleTag = titleTag,
-                            trailing = titleTrailing,
-                            bottomPadding = titleBottomPadding,
-                            gapBelow = dropSlot.atTop,
-                            onTitleChange = onTitleChange,
-                        )
+
+                // The title: fixed, it does not scroll with the list.
+                TitleRow(
+                    title = title,
+                    icon = icon,
+                    titleTag = titleTag,
+                    trailing = titleTrailing,
+                    onTitleChange = onTitleChange,
+                )
+
+                Box(Modifier.weight(1f)) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onGloballyPositioned { listTop = it.positionInRoot().y }
+                            .imePadding(),
+                        contentPadding = PaddingValues(bottom = 140.dp),
+                    ) {
+                        item(key = "page-top-gap") {
+                            Column {
+                                Spacer(Modifier.height(titleBottomPadding))
+                                if (dropSlot.atTop) Spacer(Modifier.height(DropGapHeight))
+                            }
+                        }
+                        content()
                     }
-                    content()
+
+                    // The fade under the title: what scrolls up dissolves into the page colour.
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(fadeHeight)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(ThingsColors.Background, ThingsColors.Background.copy(alpha = 0f))
+                                )
+                            )
+                    )
                 }
             }
 
@@ -517,8 +541,8 @@ private fun SelectTopBar(onDone: () -> Unit) {
 }
 
 /**
- * The icon and the title. A long title goes on to the next lines; the icon sits in a box as high as
- * the first line of the title, so it stays centered on that line.
+ * The icon and the title, fixed under the top bar. A long title goes on to the next lines; the icon
+ * sits in a box as high as the first line of the title, so it stays centered on that line.
  */
 @Composable
 private fun TitleRow(
@@ -526,75 +550,70 @@ private fun TitleRow(
     icon: @Composable () -> Unit,
     titleTag: String,
     trailing: (@Composable () -> Unit)?,
-    bottomPadding: Dp,
-    gapBelow: Boolean,
     onTitleChange: ((String) -> Unit)?,
 ) {
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     var firstLine by remember { mutableStateOf(28.dp) }
 
-    Column {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = ThingsSpacing.PageMargin,
-                    end = ThingsSpacing.PageMargin,
-                    top = 12.dp,
-                    bottom = bottomPadding,
-                ),
-            verticalAlignment = Alignment.Top,
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .background(ThingsColors.Background)
+            .padding(
+                start = ThingsSpacing.PageMargin,
+                end = ThingsSpacing.PageMargin,
+                top = 12.dp,
+            ),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            Modifier.size(width = 28.dp, height = maxOf(28.dp, firstLine)),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
-                Modifier.size(width = 28.dp, height = maxOf(28.dp, firstLine)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
-            }
-            Spacer(Modifier.width(12.dp))
-            if (onTitleChange != null) {
-                BasicTextField(
-                    value = title,
-                    onValueChange = onTitleChange,
-                    textStyle = ThingsType.PageTitle,
-                    cursorBrush = SolidColor(ThingsColors.Fab),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Done,
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    onTextLayout = { layout ->
-                        if (layout.lineCount > 0) {
-                            firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .semantics { heading() }
-                        .testTag(titleTag),
-                )
-            } else {
-                Text(
-                    title,
-                    style = ThingsType.PageTitle,
-                    onTextLayout = { layout ->
-                        if (layout.lineCount > 0) {
-                            firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .semantics { heading() }
-                        .testTag(titleTag),
-                )
-            }
-            if (trailing != null) {
-                Spacer(Modifier.width(4.dp))
-                trailing()
-            }
+            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
         }
-        if (gapBelow) Spacer(Modifier.height(DropGapHeight))
+        Spacer(Modifier.width(12.dp))
+        if (onTitleChange != null) {
+            BasicTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                textStyle = ThingsType.PageTitle,
+                cursorBrush = SolidColor(ThingsColors.Fab),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                onTextLayout = { layout ->
+                    if (layout.lineCount > 0) {
+                        firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .semantics { heading() }
+                    .testTag(titleTag),
+            )
+        } else {
+            Text(
+                title,
+                style = ThingsType.PageTitle,
+                onTextLayout = { layout ->
+                    if (layout.lineCount > 0) {
+                        firstLine = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .semantics { heading() }
+                    .testTag(titleTag),
+            )
+        }
+        if (trailing != null) {
+            Spacer(Modifier.width(4.dp))
+            trailing()
+        }
     }
 }
 

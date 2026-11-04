@@ -185,6 +185,9 @@ fun rememberTaskExpansion(): TaskExpansion =
  *   holds: a mark stays only if there is something behind it.
  * - While the add button is dragged over the page the row makes room for the new to-do (see
  *   [DropSlot]).
+ * - A page that draws the closed row differently (the Logbook, with the date in front) gives
+ *   [closedRow]; the card, the sheets and everything else stay the same. [closedRow] gets the to-do,
+ *   an action that opens the card and the action of the checkbox. Such a row cannot be swiped.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -197,6 +200,7 @@ fun ExpandableTaskRow(
     onOpen: () -> Unit = {},
     onToggle: () -> Unit = {},
     onDelete: (() -> Unit)? = null,
+    closedRow: (@Composable (task: TaskRowModel, open: () -> Unit, toggle: () -> Unit) -> Unit)? = null,
 ) {
     val sel = selection ?: LocalSelection.current
     val slot = LocalDropSlot.current
@@ -210,6 +214,10 @@ fun ExpandableTaskRow(
     val toggle = {
         expansion.edit(task) { it.copy(checked = !current.checked) }
         onToggle()
+    }
+    val open = {
+        expansion.expand(task.id)
+        onOpen()
     }
 
     // The row folds up first; the page drops it from its list when the animation is over.
@@ -277,15 +285,14 @@ fun ExpandableTaskRow(
                             onTagsClick = { sheet = TaskSheet.Tags },
                         )
                     }
+                } else if (closedRow != null) {
+                    closedRow(current, open, toggle)
                 } else {
                     SwipeToDeleteRow(onDelete = { expansion.delete(task.id) }) {
                         TaskRow(
                             task = current,
                             recurringStyle = recurringStyle,
-                            onClick = {
-                                expansion.expand(task.id)
-                                onOpen()
-                            },
+                            onClick = open,
                             onToggle = toggle,
                         )
                     }
@@ -301,6 +308,7 @@ fun ExpandableTaskRow(
                         expansion = expansion,
                         recurringStyle = recurringStyle,
                         selection = selection,
+                        closedRow = closedRow,
                     )
                 }
             }
