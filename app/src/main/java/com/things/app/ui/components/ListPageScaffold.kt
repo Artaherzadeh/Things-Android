@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -131,8 +130,9 @@ private fun shareText(context: Context, lines: List<String>) {
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
  * [titleBottomPadding] is the space between the title and the first row.
  * Pass [onTitleChange] to make the title editable (a project's name).
- * [onMenuAction] reports the action chosen in the three-dots menu; [enabledMenuActions] says which
- * of them can be chosen. While that menu is open the page behind it is dimmed.
+ * [menuActions] are the entries of the three-dots menu, [enabledMenuActions] says which of them can
+ * be chosen and [onMenuAction] reports the chosen one. While that menu is open the page behind it
+ * is dimmed.
  * Pass [expansion] when the page has to-dos that open in place: while one is open, the first touch
  * anywhere outside its card only closes the card and goes no further.
  * While the keyboard is open a button at the top right hides it; when the keyboard closes by any
@@ -145,12 +145,12 @@ private fun shareText(context: Context, lines: List<String>) {
  * of its to-do. Dropping near the left edge adds a heading instead.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
- * Select mode works on every page: the menu entry Select turns it on, a Done button replaces the
- * top bar, the add button gives way to a bar with When, Move, Delete and more, and
- * [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that are
- * ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and are
- * applied to every ticked to-do through [expansion], as are Delete, the status change and Share.
- * Duplicate is applied through [expansion] unless the page passes its own [selection].
+ * Select mode works on every page that has the Select entry in its menu: Select turns it on, a Done
+ * button replaces the top bar, the add button gives way to a bar with When, Move, Delete and more,
+ * and [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that
+ * are ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and
+ * are applied to every ticked to-do through [expansion], as are Delete, the status change and
+ * Share. Duplicate is applied through [expansion] unless the page passes its own [selection].
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -174,6 +174,7 @@ fun ListPageScaffold(
     selection: SelectionState? = null,
     onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
     onTitleChange: ((String) -> Unit)? = null,
+    menuActions: List<PageMenuAction> = DefaultMenuActions,
     content: LazyListScope.() -> Unit,
 ) {
     val imeVisible = WindowInsets.isImeVisible
@@ -294,6 +295,7 @@ fun ListPageScaffold(
                         },
                         enabledActions = enabledMenuActions,
                         onMenuOpenChange = { pageMenuOpen = it },
+                        actions = menuActions,
                     )
                 }
                 LazyColumn(
@@ -405,13 +407,12 @@ fun ListPageScaffold(
                         .fillMaxWidth()
                         .height(GhostHeight)
                         .shadow(
-                            elevation = 6.dp,
+                            elevation = 10.dp,
                             shape = GhostShape,
-                            ambientColor = Color.Black.copy(alpha = 0.06f),
-                            spotColor = Color.Black.copy(alpha = 0.10f),
+                            ambientColor = Color.Black.copy(alpha = 0.16f),
+                            spotColor = Color.Black.copy(alpha = 0.05f),
                         )
                         .background(ThingsColors.Background, GhostShape)
-                        .border(1.dp, ThingsColors.Divider, GhostShape)
                         .padding(start = 44.dp),
                     contentAlignment = Alignment.CenterStart,
                 ) {

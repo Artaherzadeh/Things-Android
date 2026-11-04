@@ -1,7 +1,6 @@
 package com.things.app.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -82,8 +81,8 @@ private val Indent = 32.dp
  * date, deadline or repeat line follows, so there is no big hole above them.
  *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
- * the row opens. The card has a soft shadow and leaves 12dp under it (4dp above) so the row below
- * does not touch it.
+ * the row opens. The card has no outline, only a very soft shadow all around it. It keeps 8dp from
+ * the row above and 24dp from the row below.
  */
 @Composable
 fun TaskCard(
@@ -111,15 +110,14 @@ fun TaskCard(
     Column(
         modifier
             .fillMaxWidth()
-            .padding(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 12.dp)
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 24.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 10.dp,
                 shape = CardShape,
-                ambientColor = Color.Black.copy(alpha = 0.06f),
-                spotColor = Color.Black.copy(alpha = 0.10f),
+                ambientColor = Color.Black.copy(alpha = 0.16f),
+                spotColor = Color.Black.copy(alpha = 0.05f),
             )
             .background(ThingsColors.Background, CardShape)
-            .border(1.dp, ThingsColors.Divider, CardShape)
             // Taps on the card must not reach the page behind it, which closes the card.
             .pointerInput(Unit) { detectTapGestures { } }
             .padding(start = 12.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
