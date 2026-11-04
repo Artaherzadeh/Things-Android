@@ -81,7 +81,9 @@ private val SelectShape = RoundedCornerShape(12.dp)
  *
  * A long title goes on to the next lines. Without a subtitle the checkbox stays at the top of the
  * row, centered on the first line of the title, and the title has the same space above and below
- * so a one-line row is still 44dp high.
+ * so a one-line row is still 44dp high. Every row has 1dp of room above and below it, so two rows
+ * are 2dp apart; in select mode the light blue backgrounds of two ticked rows under each other
+ * keep that 2dp between them.
  *
  * In select mode ([selecting]) a ring appears at the end of the row, centered in the 44dp of the
  * first line, filled blue when [selected], and a selected row gets a light blue rounded background.
@@ -116,6 +118,7 @@ fun TaskRow(
     Row(
         modifier
             .fillMaxWidth()
+            .padding(vertical = 1.dp)
             .then(selectModifier)
             .heightIn(min = if (oneLine) ThingsSpacing.RowHeight else ThingsSpacing.TwoLineRowHeight)
             .clickable(onClick = onClick)

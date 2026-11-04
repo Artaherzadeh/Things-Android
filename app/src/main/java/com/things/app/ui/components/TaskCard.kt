@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -76,6 +77,21 @@ private val CardGapBottom = 28.dp
 private val TitleLineHeight = 44.dp
 
 /**
+ * The date and deadline lines: a size smaller than the title (16sp against 18sp) with the extra
+ * space of the line split evenly above and below the letters, so the text sits exactly in the middle
+ * of the 24dp icon box next to it.
+ */
+private val DetailTextStyle = ThingsType.RowTitle.copy(
+    fontSize = 16.sp,
+    lineHeight = 24.sp,
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Center,
+        trim = LineHeightStyle.Trim.None,
+    ),
+)
+private val DetailSecondaryStyle = ThingsType.Count.copy(fontSize = 15.sp)
+
+/**
  * Text and icons inside the card start 32dp after the start of the card content. The card is 8dp
  * from the screen edge and has 12dp of padding, so this puts them at x = 52dp: in line with the
  * title of a closed row. The right edge of every block is 20dp from the screen edge.
@@ -95,7 +111,8 @@ private val Indent = 32.dp
  * the checkbox stays centered on the first one.
  *
  * The notes area is 56dp high when the card ends under it, and only 32dp when a checklist or a
- * date, deadline or repeat line follows, so there is no big hole above them.
+ * date, deadline or repeat line follows, so there is no big hole above them. The tags and the add
+ * buttons at the bottom have 12dp of room above them.
  *
  * The checkbox box is at x = 20dp, exactly where it is in a closed row, so it does not move when
  * the row opens. The card has no outline, only a soft shadow all around it.
@@ -222,12 +239,12 @@ fun TaskCard(
         details.schedule?.let { schedule ->
             DetailRow(onClick = onScheduleClick, icon = { ScheduleIcon(schedule.kind) }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(schedule.label, style = ThingsType.RowTitle)
+                    Text(schedule.label, style = DetailTextStyle)
                     schedule.reminder?.let { time ->
                         Spacer(Modifier.width(8.dp))
                         BellIcon(Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text(time, style = ThingsType.Count)
+                        Text(time, style = DetailSecondaryStyle)
                     }
                 }
             }
@@ -245,18 +262,18 @@ fun TaskCard(
                 },
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(deadline.dateLabel, style = ThingsType.RowTitle)
+                    Text(deadline.dateLabel, style = DetailTextStyle)
                     deadline.remainingLabel?.let {
                         Spacer(Modifier.width(8.dp))
-                        Text(it, style = ThingsType.Count)
+                        Text(it, style = DetailSecondaryStyle)
                     }
                 }
             }
         }
         details.repeat?.let { repeat ->
-            DetailRow(onClick = null, icon = { RepeatIcon(Modifier.size(20.dp)) }) {
-                Text(repeat.title, style = ThingsType.RowTitle)
-                Text(repeat.summary, style = ThingsType.Count)
+            DetailRow(onClick = null, centered = false, icon = { RepeatIcon(Modifier.size(20.dp)) }) {
+                Text(repeat.title, style = DetailTextStyle)
+                Text(repeat.summary, style = DetailSecondaryStyle)
             }
         }
 
@@ -274,11 +291,16 @@ fun TaskCard(
     }
 }
 
-/** One line under the notes: an icon in a 24dp slot, 8dp of space, and one or two lines of text. */
+/**
+ * One line under the notes: an icon in a 24dp slot, 8dp of space, and the text. A line with one row
+ * of text is [centered] on its icon; the repeat note has two lines, so its icon stays level with the
+ * first one.
+ */
 @Composable
 private fun DetailRow(
     onClick: (() -> Unit)?,
     icon: @Composable () -> Unit,
+    centered: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Row(
@@ -286,7 +308,7 @@ private fun DetailRow(
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(start = Indent, end = 8.dp, top = 4.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = if (centered) Alignment.CenterVertically else Alignment.Top,
     ) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { icon() }
         Spacer(Modifier.width(8.dp))
@@ -314,7 +336,7 @@ private fun ScheduleIcon(kind: ScheduleKind) {
  * nothing of its kind yet: the calendar until a date is set, the tag button until a tag is set (the
  * tag chips take its place and open the tag list), the checklist button until a checklist exists,
  * the flag until a deadline is set. The icons are 24dp in 40dp buttons; the last icon ends 20dp
- * from the screen edge.
+ * from the screen edge. The bar has 12dp of room above it.
  */
 @Composable
 private fun BottomBar(
@@ -331,7 +353,7 @@ private fun BottomBar(
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp, end = 16.dp),
+            .padding(top = 12.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
