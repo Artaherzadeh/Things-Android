@@ -51,13 +51,16 @@ import androidx.compose.ui.unit.sp
 import com.things.app.ui.components.AddTarget
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
+import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ListPageScaffold
+import com.things.app.ui.components.LocalDropSlot
 import com.things.app.ui.components.MenuDots
 import com.things.app.ui.components.NotesEditor
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.TitleMenuButton
+import com.things.app.ui.components.insertedAt
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
@@ -68,6 +71,8 @@ import java.util.UUID
 
 private val ToggleGap = 24.dp
 private val HeadingGap = 48.dp
+private const val TaskPrefix = "task-"
+private const val HeadingPrefix = "heading-"
 
 /**
  * Project page: ring and title with the project menu, notes, the to-dos that are not under a
@@ -79,8 +84,9 @@ private val HeadingGap = 48.dp
  * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
  * scaffold and rows.
  *
- * Add button: a tap adds a to-do at the top, outside every heading; drag it over a heading's area
- * to add a to-do there; drag it to the left edge to add a heading at that spot.
+ * Add button: a tap adds a to-do at the top, outside every heading; drag it over the list and the
+ * rows make room where the to-do will land (in a heading's area it goes into that heading); drag it
+ * to the left edge to add a heading at that spot.
  */
 @Composable
 fun ProjectScreen(
@@ -109,8 +115,8 @@ fun ProjectScreen(
     fun insertHeading(atKey: Any?) {
         val id = "new-" + UUID.randomUUID()
         val key = atKey as? String
-        val taskIndex = if (key != null && key.startsWith("task-")) {
-            tasks.indexOfFirst { "task-${it.id}" == key }
+        val taskIndex = if (key != null && key.startsWith(TaskPrefix)) {
+            tasks.indexOfFirst { "$TaskPrefix${it.id}" == key }
         } else {
             -1
         }
@@ -119,15 +125,15 @@ fun ProjectScreen(
                 headings = listOf(ProjectHeadingModel(id, "", tasks.drop(taskIndex))) + headings
                 tasks = tasks.take(taskIndex)
             }
-            key != null && key.startsWith("heading-") -> {
-                val at = headings.indexOfFirst { "heading-${it.id}" == key }.coerceAtLeast(0)
+            key != null && key.startsWith(HeadingPrefix) -> {
+                val at = headings.indexOfFirst { "$HeadingPrefix${it.id}" == key }.coerceAtLeast(0)
                 headings = headings.toMutableList().also { it.add(at, ProjectHeadingModel(id, "", emptyList())) }
             }
-            key != null && key.startsWith("task-") -> {
-                val hi = headings.indexOfFirst { h -> h.tasks.any { "task-${it.id}" == key } }
+            key != null && key.startsWith(TaskPrefix) -> {
+                val hi = headings.indexOfFirst { h -> h.tasks.any { "$TaskPrefix${it.id}" == key } }
                 if (hi >= 0) {
                     val h = headings[hi]
-                    val ti = h.tasks.indexOfFirst { "task-${it.id}" == key }
+                    val ti = h.tasks.indexOfFirst { "$TaskPrefix${it.id}" == key }
                     headings = headings.toMutableList().also {
                         it[hi] = h.copy(tasks = h.tasks.take(ti))
                         it.add(hi + 1, ProjectHeadingModel(id, "", h.tasks.drop(ti)))
@@ -145,8 +151,15 @@ fun ProjectScreen(
         val task = TaskRowModel(id = "new-" + UUID.randomUUID(), title = "")
         when (target) {
             is AddTarget.Top -> tasks = listOf(task) + tasks
-            is AddTarget.InGroup -> headings = headings.map { h ->
-                if (h.id == target.groupId) h.copy(tasks = listOf(task) + h.tasks) else h
+            is AddTarget.At -> {
+                val groupId = target.groupId
+                if (groupId == null) {
+                    tasks = tasks.insertedAt(task, target.anchorTaskId, target.after)
+                } else {
+                    headings = headings.map { h ->
+                        if (h.id == groupId) h.copy(tasks = h.tasks.insertedAt(task, target.anchorTaskId, target.after)) else h
+                    }
+                }
             }
             is AddTarget.Heading -> {
                 insertHeading(target.atKey)
@@ -181,10 +194,13 @@ fun ProjectScreen(
             val s = key as? String
             when {
                 s == null -> null
-                s.startsWith("heading-") -> s.removePrefix("heading-")
-                s.startsWith("task-") -> headings.firstOrNull { h -> h.tasks.any { "task-${it.id}" == s } }?.id
+                s.startsWith(HeadingPrefix) -> s.removePrefix(HeadingPrefix)
+                s.startsWith(TaskPrefix) -> headings.firstOrNull { h -> h.tasks.any { "$TaskPrefix${it.id}" == s } }?.id
                 else -> null
             }
+        },
+        taskIdForKey = { key ->
+            (key as? String)?.takeIf { it.startsWith(TaskPrefix) }?.removePrefix(TaskPrefix)
         },
         onTitleChange = { title = it },
     ) {
@@ -195,7 +211,7 @@ fun ProjectScreen(
             }
         }
 
-        items(tasks, key = { "task-${it.id}" }) { task ->
+        items(tasks, key = { "$TaskPrefix${it.id}" }) { task ->
             ExpandableTaskRow(
                 task = task,
                 expansion = expansion,
@@ -205,8 +221,9 @@ fun ProjectScreen(
         }
 
         headings.forEachIndexed { index, heading ->
-            item(key = "heading-${heading.id}") {
+            item(key = "$HeadingPrefix${heading.id}") {
                 HeadingRow(
+                    id = heading.id,
                     title = heading.title,
                     topGap = if (index == 0 && tasks.isEmpty()) 0.dp else HeadingGap,
                     autoFocus = editingHeadingId == heading.id,
@@ -224,7 +241,7 @@ fun ProjectScreen(
                     onMenuClick = { onHeadingMenuClick(heading.id) },
                 )
             }
-            items(heading.tasks, key = { "task-${it.id}" }) { task ->
+            items(heading.tasks, key = { "$TaskPrefix${it.id}" }) { task ->
                 ExpandableTaskRow(
                     task = task,
                     expansion = expansion,
@@ -280,9 +297,11 @@ fun ProjectScreen(
  * [topGap] is the space above the heading. The dots end 20dp from the screen edge.
  * The title is a text field: tap it to edit. With [autoFocus] it takes the keyboard as soon as it
  * appears (a heading that was just added). [onEditDone] is called when the cursor leaves the title.
+ * While the add button is dragged over the top of this heading a gap opens under it.
  */
 @Composable
 private fun HeadingRow(
+    id: String,
     title: String,
     topGap: Dp,
     autoFocus: Boolean,
@@ -294,6 +313,7 @@ private fun HeadingRow(
     val focusManager = LocalFocusManager.current
     val requester = remember { FocusRequester() }
     var hadFocus by remember { mutableStateOf(false) }
+    val gapBelow = LocalDropSlot.current.afterGroupId == id
 
     LaunchedEffect(autoFocus) {
         if (autoFocus) requester.requestFocus()
@@ -353,6 +373,7 @@ private fun HeadingRow(
             color = ThingsColors.Divider,
         )
         Spacer(Modifier.height(8.dp))
+        if (gapBelow) Spacer(Modifier.height(DropGapHeight))
     }
 }
 

@@ -21,6 +21,7 @@ import com.things.app.ui.components.PageMenuAction
 import com.things.app.ui.components.ProjectGroupHeader
 import com.things.app.ui.components.SelectionAction
 import com.things.app.ui.components.TaskRowModel
+import com.things.app.ui.components.insertedAt
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberSelectionState
 import com.things.app.ui.components.rememberTaskExpansion
@@ -55,10 +56,11 @@ private fun List<TaskRowModel>.duplicate(ids: Set<String>, copy: (TaskRowModel) 
  * - Tap a to-do: opens it in place. Swipe it to the left for a red delete button.
  * - Hold a to-do or a project and move it: the row lifts and follows the finger. To-dos move inside
  *   their own block; projects move among projects, with every block folded while one is held.
- * - Add button: tap adds a to-do at the top; drag it over a project to add there. A new to-do
- *   opens with the keyboard and is deleted again if it is closed while empty.
- * - Menu, Select: tick to-dos, then Delete, Mark as Completed or Duplicate from the bottom bar.
- *   When, Move, tags, deadline, Convert to Project and Share only have a place in the bar for now.
+ * - Add button: tap adds a to-do at the top; drag it over the list and the other rows make room
+ *   where it will land. A new to-do opens with the keyboard and is deleted again if it is closed
+ *   while empty.
+ * - Menu, Select: tick to-dos, then use the bottom bar. Delete, status, Share, When and Set Tags are
+ *   done by the shared scaffold; this page adds Duplicate to its own lists.
  */
 @Composable
 fun TodayScreen(
@@ -101,11 +103,20 @@ fun TodayScreen(
         val task = TaskRowModel(id = "new-" + UUID.randomUUID(), title = "")
         when (target) {
             is AddTarget.Top -> looseItems = listOf(task) + looseItems
-            is AddTarget.InGroup -> {
-                groups = groups.map { g ->
-                    if (g.projectId == target.groupId) g.copy(items = listOf(task) + g.items) else g
+            is AddTarget.At -> {
+                val groupId = target.groupId
+                if (groupId == null) {
+                    looseItems = looseItems.insertedAt(task, target.anchorTaskId, target.after)
+                } else {
+                    groups = groups.map { g ->
+                        if (g.projectId == groupId) {
+                            g.copy(items = g.items.insertedAt(task, target.anchorTaskId, target.after))
+                        } else {
+                            g
+                        }
+                    }
+                    collapsed = collapsed - groupId
                 }
-                collapsed = collapsed - target.groupId
             }
             is AddTarget.Heading -> return // Today has no headings
         }
@@ -113,20 +124,12 @@ fun TodayScreen(
     }
 
     fun runSelectionAction(action: SelectionAction, ids: Set<String>) {
-        when (action) {
-            SelectionAction.Delete -> ids.forEach { deleteTask(it) }
-            SelectionAction.MarkCompleted ->
-                (looseItems + groups.flatMap { it.items }).filter { it.id in ids }.forEach { task ->
-                    expansion.edit(task) { it.copy(checked = true) }
-                }
-            SelectionAction.Duplicate -> {
-                val copy = { task: TaskRowModel ->
-                    expansion.resolve(task).copy(id = "copy-" + UUID.randomUUID())
-                }
-                looseItems = looseItems.duplicate(ids, copy)
-                groups = groups.map { g -> g.copy(items = g.items.duplicate(ids, copy)) }
+        if (action == SelectionAction.Duplicate) {
+            val copy = { task: TaskRowModel ->
+                expansion.resolve(task).copy(id = "copy-" + UUID.randomUUID())
             }
-            else -> Unit
+            looseItems = looseItems.duplicate(ids, copy)
+            groups = groups.map { g -> g.copy(items = g.items.duplicate(ids, copy)) }
         }
         onSelectionAction(action, ids)
     }
@@ -210,6 +213,9 @@ fun TodayScreen(
                 else -> null
             }
         },
+        taskIdForKey = { key ->
+            (key as? String)?.takeIf { it.startsWith(TodoPrefix) }?.removePrefix(TodoPrefix)
+        },
         selection = selection,
         onSelectionAction = { action, ids -> runSelectionAction(action, ids) },
     ) {
@@ -241,6 +247,7 @@ fun TodayScreen(
                             collapsed + group.projectId
                         }
                     },
+                    groupId = group.projectId,
                 )
             }
             if (group.projectId !in hidden) {

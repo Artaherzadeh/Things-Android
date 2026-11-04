@@ -1,12 +1,17 @@
 package com.things.app.ui.components
 
+import android.content.Context
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -55,9 +60,11 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -80,8 +87,12 @@ sealed interface AddTarget {
     /** Above everything: before every project and heading. */
     object Top : AddTarget
 
-    /** On the area of one project (or heading): from its title down to the next one. */
-    data class InGroup(val groupId: String) : AddTarget
+    /**
+     * Next to a to-do: under it when [after], above it otherwise. [groupId] is the project or
+     * heading it is in, null for a to-do that is in none. With no [anchorTaskId] the target is the
+     * start of that project or heading, right under its title.
+     */
+    data class At(val groupId: String?, val anchorTaskId: String?, val after: Boolean) : AddTarget
 
     /** At the left edge of the screen. [atKey] is the key of the list row under the finger, if any. */
     data class Heading(val atKey: Any?) : AddTarget
@@ -89,6 +100,27 @@ sealed interface AddTarget {
 
 /** Dropping the add button closer than this to the left edge of the screen adds a heading. */
 private val HeadingEdge = 72.dp
+private val GhostShape = RoundedCornerShape(20.dp)
+private val GhostHeight = 48.dp
+
+private fun slotFor(target: AddTarget): DropSlot = when (target) {
+    is AddTarget.Top -> DropSlot(atTop = true)
+    is AddTarget.At -> when {
+        target.anchorTaskId == null -> DropSlot(afterGroupId = target.groupId)
+        target.after -> DropSlot(afterTaskId = target.anchorTaskId)
+        else -> DropSlot(beforeTaskId = target.anchorTaskId)
+    }
+    is AddTarget.Heading -> DropSlot.None
+}
+
+private fun shareText(context: Context, lines: List<String>) {
+    if (lines.isEmpty()) return
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, lines.joinToString("\n"))
+    }
+    context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
 
 /**
  * Shared frame of every list page (Upcoming, Anytime, Inbox, ...): the top bar with the back button
@@ -101,23 +133,24 @@ private val HeadingEdge = 72.dp
  * Pass [onTitleChange] to make the title editable (a project's name).
  * [onMenuAction] reports the action chosen in the three-dots menu; [enabledMenuActions] says which
  * of them can be chosen. While that menu is open the page behind it is dimmed.
- * Pass [expansion] when the page has to-dos that open in place: tapping anywhere that is not a
- * button or the open card then closes the open to-do.
+ * Pass [expansion] when the page has to-dos that open in place: while one is open, the first touch
+ * anywhere outside its card only closes the card and goes no further.
  * While the keyboard is open a button at the top right hides it; when the keyboard closes by any
  * means the text cursor is removed from the field.
  *
  * The add button has up to three behaviours. A tap calls [onAddClick]. When [onAddAt] is given the
- * button can also be dragged: let go over a project or heading area (found with [groupForKey],
- * which turns the key of a list row into the id of its project or heading) to add inside it, or
- * near the left edge to add a heading.
+ * button can also be dragged: a card-shaped preview follows the finger and the list opens a gap
+ * where the to-do would land (the rows below slide down); let go to add it there. [groupForKey]
+ * turns the key of a list row into the id of its project or heading and [taskIdForKey] into the id
+ * of its to-do. Dropping near the left edge adds a heading instead.
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
  * Select mode works on every page: the menu entry Select turns it on, a Done button replaces the
  * top bar, the add button gives way to a bar with When, Move, Delete and more, and
  * [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that are
  * ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and are
- * applied to every ticked to-do through [expansion]. A page that passes its own [selection] handles
- * Delete and Mark as Completed itself; otherwise they are applied through [expansion] too.
+ * applied to every ticked to-do through [expansion], as are Delete, the status change and Share.
+ * Duplicate is applied through [expansion] unless the page passes its own [selection].
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -137,6 +170,7 @@ fun ListPageScaffold(
     listState: LazyListState = rememberLazyListState(),
     onAddAt: ((AddTarget) -> Unit)? = null,
     groupForKey: (Any) -> String? = { null },
+    taskIdForKey: (Any) -> String? = { null },
     selection: SelectionState? = null,
     onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
     onTitleChange: ((String) -> Unit)? = null,
@@ -145,20 +179,29 @@ fun ListPageScaffold(
     val imeVisible = WindowInsets.isImeVisible
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
+    val context = LocalContext.current
     val ownSelection = selection ?: rememberSelectionState()
     val selecting = ownSelection.active
 
     val currentOnAddAt by rememberUpdatedState(onAddAt)
     val currentGroupForKey by rememberUpdatedState(groupForKey)
+    val currentTaskIdForKey by rememberUpdatedState(taskIdForKey)
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
     var listTop by remember { mutableFloatStateOf(0f) }
     var fabCenter by remember { mutableStateOf(Offset.Zero) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
+    var dropSlot by remember { mutableStateOf(DropSlot.None) }
+    var dragTarget by remember { mutableStateOf<AddTarget?>(null) }
     var pageMenuOpen by remember { mutableStateOf(false) }
+    var selectionMenuOpen by remember { mutableStateOf(false) }
     var imeWasVisible by remember { mutableStateOf(false) }
     var bulk by remember { mutableStateOf<BulkRequest?>(null) }
-    val scrimAlpha by animateFloatAsState(if (pageMenuOpen) 0.4f else 0f, label = "pageMenuScrim")
+    val scrimAlpha by animateFloatAsState(
+        if (pageMenuOpen || selectionMenuOpen) 0.4f else 0f,
+        label = "menuScrim",
+    )
     val edgePx = with(density) { HeadingEdge.toPx() }
+    val gapPx = with(density) { DropGapHeight.toPx() }
 
     // Closing the keyboard (back gesture, hide button, anything) also ends the editing: no cursor
     // keeps blinking in a field that cannot be typed into.
@@ -167,19 +210,41 @@ fun ListPageScaffold(
         imeWasVisible = imeVisible
     }
 
+    // The top bar that reports the menu closing leaves the screen when the select mode starts, so
+    // the dimming has to be cleared here or the page stays grey.
+    LaunchedEffect(selecting) {
+        if (selecting) pageMenuOpen = false else selectionMenuOpen = false
+    }
+
     BackHandler(enabled = selecting) { ownSelection.finish() }
 
     fun targetAt(p: Offset): AddTarget {
         val y = (p.y - listTop).toInt()
-        val key = listState.layoutInfo.visibleItemsInfo
-            .firstOrNull { y >= it.offset && y < it.offset + it.size }
-            ?.key
+        val items = listState.layoutInfo.visibleItemsInfo
+        val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
+        val key = info?.key
         if (p.x < edgePx) return AddTarget.Heading(key)
-        val group = key?.let { currentGroupForKey(it) }
-        return if (group != null) AddTarget.InGroup(group) else AddTarget.Top
+        if (info == null || key == null) return AddTarget.Top
+        val taskId = currentTaskIdForKey(key)
+        val group = currentGroupForKey(key)
+        if (taskId == null) return if (group != null) AddTarget.At(group, null, true) else AddTarget.Top
+        // Measure the row without the gap that is open in it, so the gap does not move the target.
+        val top = info.offset + if (dropSlot.beforeTaskId == taskId) gapPx else 0f
+        val bottom = info.offset + info.size - if (dropSlot.afterTaskId == taskId) gapPx else 0f
+        return AddTarget.At(group, taskId, after = y >= (top + bottom) / 2f)
     }
 
-    CompositionLocalProvider(LocalSelection provides ownSelection) {
+    fun updateDrag(p: Offset?) {
+        dragPos = p
+        val target = p?.let { targetAt(it) }
+        dragTarget = target
+        dropSlot = target?.let { slotFor(it) } ?: DropSlot.None
+    }
+
+    CompositionLocalProvider(
+        LocalSelection provides ownSelection,
+        LocalDropSlot provides dropSlot,
+    ) {
         Box(
             modifier
                 .fillMaxSize()
@@ -191,7 +256,22 @@ fun ListPageScaffold(
                     .fillMaxSize()
                     .then(
                         if (expansion != null) {
-                            Modifier.pointerInput(expansion) { detectTapGestures { expansion.collapse() } }
+                            // While a card is open the first touch outside it only closes it.
+                            Modifier.pointerInput(expansion) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(
+                                        requireUnconsumed = false,
+                                        pass = PointerEventPass.Initial,
+                                    )
+                                    val open = expansion.expandedId != null
+                                    val inside = expansion.cardBounds?.contains(down.position + rootOrigin) == true
+                                    if (open && !inside) {
+                                        down.consume()
+                                        waitForUpOrCancellation(PointerEventPass.Initial)?.consume()
+                                        expansion.collapse()
+                                    }
+                                }
+                            }
                         } else {
                             Modifier
                         }
@@ -205,6 +285,7 @@ fun ListPageScaffold(
                         onMoreClick = onMoreClick,
                         onMenuAction = { action ->
                             if (action == PageMenuAction.Select) {
+                                pageMenuOpen = false
                                 expansion?.collapse()
                                 ownSelection.start()
                             } else {
@@ -224,7 +305,15 @@ fun ListPageScaffold(
                     contentPadding = PaddingValues(bottom = 140.dp),
                 ) {
                     item(key = "page-title") {
-                        TitleRow(title, icon, titleTag, titleTrailing, titleBottomPadding, onTitleChange)
+                        TitleRow(
+                            title = title,
+                            icon = icon,
+                            titleTag = titleTag,
+                            trailing = titleTrailing,
+                            bottomPadding = titleBottomPadding,
+                            gapBelow = dropSlot.atTop,
+                            onTitleChange = onTitleChange,
+                        )
                     }
                     content()
                 }
@@ -241,38 +330,41 @@ fun ListPageScaffold(
             } else if (selecting) {
                 SelectionBottomBar(
                     enabled = ownSelection.selected.isNotEmpty(),
+                    completeLabel = expansion?.completionLabel(ownSelection.selected) ?: "Mark as Completed",
                     onAction = { action ->
                         val ids = ownSelection.selected
-                        if (selection == null) {
-                            when (action) {
-                                SelectionAction.Delete -> expansion?.deleteAll(ids)
-                                SelectionAction.MarkCompleted -> expansion?.markCompleted(ids)
-                                else -> Unit
+                        when (action) {
+                            SelectionAction.Delete -> expansion?.deleteAll(ids)
+                            SelectionAction.MarkCompleted -> expansion?.toggleCompleted(ids)
+                            SelectionAction.Duplicate -> if (selection == null) expansion?.duplicate(ids)
+                            SelectionAction.Share -> if (expansion != null) {
+                                shareText(context, ids.mapNotNull { expansion.titleOf(it) })
                             }
-                        }
-                        if (action == SelectionAction.When || action == SelectionAction.SetTags) {
-                            bulk = BulkRequest(action, ids)
+                            SelectionAction.When, SelectionAction.SetTags -> bulk = BulkRequest(action, ids)
+                            else -> Unit
                         }
                         onSelectionAction(action, ids)
                         ownSelection.finish()
                     },
+                    onMenuOpenChange = { selectionMenuOpen = it },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(bottom = ThingsSpacing.FabMargin),
+                        .padding(start = ThingsSpacing.FabMargin, end = ThingsSpacing.FabMargin, bottom = ThingsSpacing.FabMargin)
+                        .fillMaxWidth(),
                 )
             } else {
                 AddFab(
                     onClick = onAddClick,
                     dragEnabled = onAddAt != null,
-                    onDragStart = { dragPos = fabCenter },
-                    onDrag = { delta -> dragPos = dragPos?.plus(delta) },
+                    onDragStart = { updateDrag(fabCenter) },
+                    onDrag = { delta -> updateDrag(dragPos?.plus(delta)) },
                     onDragEnd = {
-                        val p = dragPos
-                        dragPos = null
-                        if (p != null) currentOnAddAt?.invoke(targetAt(p))
+                        val target = dragTarget
+                        updateDrag(null)
+                        if (target != null) currentOnAddAt?.invoke(target)
                     },
-                    onDragCancel = { dragPos = null },
+                    onDragCancel = { updateDrag(null) },
                     onCenterChanged = { fabCenter = it },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -281,7 +373,7 @@ fun ListPageScaffold(
                 )
             }
 
-            // Dims the page while the three-dots menu is open. The menu itself is drawn above it.
+            // Dims the page while a menu is open. The menu itself is drawn above it.
             if (scrimAlpha > 0f) {
                 Box(
                     Modifier
@@ -292,54 +384,45 @@ fun ListPageScaffold(
 
             val p = dragPos
             if (p != null) {
-                val target = targetAt(p)
-                val half = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
                 val local = p - rootOrigin
+                val heading = dragTarget is AddTarget.Heading
 
-                Box(
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .width(6.dp)
-                        .fillMaxHeight(0.5f)
-                        .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
-                        .background(ThingsColors.Fab.copy(alpha = if (target is AddTarget.Heading) 1f else 0.3f))
-                )
-                Box(
-                    Modifier
-                        .offset {
-                            IntOffset(
-                                (local.x - 60.dp.toPx()).roundToInt().coerceAtLeast(8),
-                                (local.y - half - 56.dp.toPx()).roundToInt(),
-                            )
-                        }
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(ThingsColors.MenuSurface)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                ) {
-                    Text(
-                        when (target) {
-                            is AddTarget.Top -> "New to-do at the top"
-                            is AddTarget.InGroup -> "New to-do here"
-                            is AddTarget.Heading -> "New heading"
-                        },
-                        style = ThingsType.Count,
+                if (heading) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .width(6.dp)
+                            .fillMaxHeight(0.5f)
+                            .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                            .background(ThingsColors.Fab)
                     )
                 }
+                // A card like an open to-do, under the finger.
                 Box(
                     Modifier
-                        .offset { IntOffset((local.x - half).roundToInt(), (local.y - half).roundToInt()) }
-                        .size(ThingsSpacing.FabSize)
+                        .offset { IntOffset(0, (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()) }
+                        .padding(horizontal = 8.dp)
+                        .fillMaxWidth()
+                        .height(GhostHeight)
                         .shadow(
-                            elevation = 8.dp,
-                            shape = CircleShape,
-                            ambientColor = FabShadowColor,
-                            spotColor = FabShadowColor,
+                            elevation = 6.dp,
+                            shape = GhostShape,
+                            ambientColor = Color.Black.copy(alpha = 0.06f),
+                            spotColor = Color.Black.copy(alpha = 0.10f),
                         )
-                        .clip(CircleShape)
-                        .background(ThingsColors.Fab),
-                    contentAlignment = Alignment.Center,
+                        .background(ThingsColors.Background, GhostShape)
+                        .border(1.dp, ThingsColors.Divider, GhostShape)
+                        .padding(start = 44.dp),
+                    contentAlignment = Alignment.CenterStart,
                 ) {
-                    PlusGlyph(Modifier.size(24.dp))
+                    Text(
+                        if (heading) "New Heading" else "New To-Do",
+                        style = if (heading) {
+                            ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
+                        } else {
+                            ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary)
+                        },
+                    )
                 }
             }
         }
@@ -383,52 +466,56 @@ private fun TitleRow(
     titleTag: String,
     trailing: (@Composable () -> Unit)?,
     bottomPadding: Dp,
+    gapBelow: Boolean,
     onTitleChange: ((String) -> Unit)?,
 ) {
     val focusManager = LocalFocusManager.current
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(
-                start = ThingsSpacing.PageMargin,
-                end = ThingsSpacing.PageMargin,
-                top = 12.dp,
-                bottom = bottomPadding,
-            ),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
-        Spacer(Modifier.width(12.dp))
-        if (onTitleChange != null) {
-            BasicTextField(
-                value = title,
-                onValueChange = onTitleChange,
-                textStyle = ThingsType.PageTitle,
-                cursorBrush = SolidColor(ThingsColors.Fab),
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = ImeAction.Done,
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = ThingsSpacing.PageMargin,
+                    end = ThingsSpacing.PageMargin,
+                    top = 12.dp,
+                    bottom = bottomPadding,
                 ),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .semantics { heading() }
-                    .testTag(titleTag),
-            )
-        } else {
-            Text(
-                title,
-                style = ThingsType.PageTitle,
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .semantics { heading() }
-                    .testTag(titleTag),
-            )
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) { icon() }
+            Spacer(Modifier.width(12.dp))
+            if (onTitleChange != null) {
+                BasicTextField(
+                    value = title,
+                    onValueChange = onTitleChange,
+                    textStyle = ThingsType.PageTitle,
+                    cursorBrush = SolidColor(ThingsColors.Fab),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .semantics { heading() }
+                        .testTag(titleTag),
+                )
+            } else {
+                Text(
+                    title,
+                    style = ThingsType.PageTitle,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .semantics { heading() }
+                        .testTag(titleTag),
+                )
+            }
+            if (trailing != null) {
+                Spacer(Modifier.width(4.dp))
+                trailing()
+            }
         }
-        if (trailing != null) {
-            Spacer(Modifier.width(4.dp))
-            trailing()
-        }
+        if (gapBelow) Spacer(Modifier.height(DropGapHeight))
     }
 }
 
