@@ -55,7 +55,8 @@ private fun List<TaskRowModel>.duplicate(ids: Set<String>, copy: (TaskRowModel) 
  * - Tap a to-do: opens it in place. Swipe it to the left for a red delete button.
  * - Hold a to-do or a project and move it: the row lifts and follows the finger. To-dos move inside
  *   their own block; projects move among projects, with every block folded while one is held.
- * - Add button: tap adds a to-do at the top; drag it over a project to add there.
+ * - Add button: tap adds a to-do at the top; drag it over a project to add there. A new to-do
+ *   opens with the keyboard and is deleted again if it is closed while empty.
  * - Menu, Select: tick to-dos, then Delete, Mark as Completed or Duplicate from the bottom bar.
  *   When, Move, tags, deadline, Convert to Project and Share only have a place in the bar for now.
  */
@@ -108,7 +109,7 @@ fun TodayScreen(
             }
             is AddTarget.Heading -> return // Today has no headings
         }
-        expansion.expand(task.id)
+        expansion.expandNew(task.id)
     }
 
     fun runSelectionAction(action: SelectionAction, ids: Set<String>) {

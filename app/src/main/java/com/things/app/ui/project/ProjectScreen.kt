@@ -34,12 +34,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -73,7 +75,9 @@ private val HeadingGap = 48.dp
  * start dates, repeating templates) and logged items. Later and logged items are hidden until
  * revealed. Active and later to-dos open in place when tapped. Every action is a callback.
  *
- * The notes under the title can be edited in place; with no notes the line shows a grey "Notes".
+ * The project title, the heading titles and the notes under the title can be edited in place; with
+ * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
+ * scaffold and rows.
  *
  * Add button: a tap adds a to-do at the top, outside every heading; drag it over a heading's area
  * to add a to-do there; drag it to the left edge to add a heading at that spot.
@@ -94,6 +98,7 @@ fun ProjectScreen(
     var showLogged by rememberSaveable { mutableStateOf(false) }
     val expansion = rememberTaskExpansion()
 
+    var title by rememberSaveable(state.id) { mutableStateOf(state.title) }
     var tasks by remember(state) { mutableStateOf(state.tasks) }
     var headings by remember(state) { mutableStateOf(state.headings) }
     var editingHeadingId by remember { mutableStateOf<String?>(null) }
@@ -148,11 +153,11 @@ fun ProjectScreen(
                 return
             }
         }
-        expansion.expand(task.id)
+        expansion.expandNew(task.id)
     }
 
     ListPageScaffold(
-        title = state.title,
+        title = title,
         icon = {
             ProgressIcon(
                 progress = state.progress,
@@ -181,6 +186,7 @@ fun ProjectScreen(
                 else -> null
             }
         },
+        onTitleChange = { title = it },
     ) {
         item(key = "notes") {
             Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
@@ -203,17 +209,15 @@ fun ProjectScreen(
                 HeadingRow(
                     title = heading.title,
                     topGap = if (index == 0 && tasks.isEmpty()) 0.dp else HeadingGap,
-                    editing = editingHeadingId == heading.id,
+                    autoFocus = editingHeadingId == heading.id,
                     onTitleChange = { text ->
                         headings = headings.map { if (it.id == heading.id) it.copy(title = text) else it }
                     },
                     onEditDone = {
-                        if (editingHeadingId == heading.id) {
-                            editingHeadingId = null
-                            if (heading.title.isBlank()) {
-                                headings = headings.map {
-                                    if (it.id == heading.id) it.copy(title = "New Heading") else it
-                                }
+                        if (editingHeadingId == heading.id) editingHeadingId = null
+                        if (heading.title.isBlank()) {
+                            headings = headings.map {
+                                if (it.id == heading.id) it.copy(title = "New Heading") else it
                             }
                         }
                     },
@@ -274,18 +278,27 @@ fun ProjectScreen(
 /**
  * A heading: blue bold title, menu dots at the end of the line, and a thin divider under it.
  * [topGap] is the space above the heading. The dots end 20dp from the screen edge.
- * While [editing] the title is a text field that takes the keyboard.
+ * The title is a text field: tap it to edit. With [autoFocus] it takes the keyboard as soon as it
+ * appears (a heading that was just added). [onEditDone] is called when the cursor leaves the title.
  */
 @Composable
 private fun HeadingRow(
     title: String,
     topGap: Dp,
-    editing: Boolean,
+    autoFocus: Boolean,
     onTitleChange: (String) -> Unit,
     onEditDone: () -> Unit,
     onMenuClick: () -> Unit,
 ) {
     val titleStyle = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
+    val focusManager = LocalFocusManager.current
+    val requester = remember { FocusRequester() }
+    var hadFocus by remember { mutableStateOf(false) }
+
+    LaunchedEffect(autoFocus) {
+        if (autoFocus) requester.requestFocus()
+    }
+
     Column {
         Spacer(Modifier.height(topGap))
         Row(
@@ -295,44 +308,38 @@ private fun HeadingRow(
                 .padding(start = ThingsSpacing.PageMargin, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (editing) {
-                val requester = remember { FocusRequester() }
-                var hadFocus by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) { requester.requestFocus() }
-                BasicTextField(
-                    value = title,
-                    onValueChange = onTitleChange,
-                    singleLine = true,
-                    textStyle = titleStyle,
-                    cursorBrush = SolidColor(ThingsColors.ProjectBlue),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { onEditDone() }),
-                    decorationBox = { inner ->
-                        Box {
-                            if (title.isEmpty()) {
-                                Text("Heading", style = titleStyle.copy(color = ThingsColors.TextSecondary))
-                            }
-                            inner()
+            BasicTextField(
+                value = title,
+                onValueChange = onTitleChange,
+                singleLine = true,
+                textStyle = titleStyle,
+                cursorBrush = SolidColor(ThingsColors.ProjectBlue),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Done,
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                decorationBox = { inner ->
+                    Box {
+                        if (title.isEmpty()) {
+                            Text("Heading", style = titleStyle.copy(color = ThingsColors.TextSecondary))
                         }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(requester)
-                        .onFocusChanged { state ->
-                            if (state.isFocused) hadFocus = true else if (hadFocus) onEditDone()
-                        },
-                )
-            } else {
-                Text(
-                    title,
-                    style = titleStyle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f)
-                        .semantics { heading() },
-                )
-            }
+                        inner()
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(requester)
+                    .onFocusChanged { state ->
+                        if (state.isFocused) {
+                            hadFocus = true
+                        } else if (hadFocus) {
+                            hadFocus = false
+                            onEditDone()
+                        }
+                    }
+                    .semantics { heading() },
+            )
             IconButton(
                 onClick = onMenuClick,
                 modifier = Modifier.semantics { contentDescription = "Heading menu: $title" },
