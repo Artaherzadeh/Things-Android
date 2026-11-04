@@ -1,13 +1,11 @@
 package com.things.app.ui.inbox
 
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.things.app.ui.components.ListPageScaffold
-import com.things.app.ui.components.TaskRow
+import com.things.app.ui.components.FlatTaskListScreen
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.home.InboxIcon
 import com.things.app.ui.theme.ThingsTheme
@@ -28,7 +26,7 @@ fun sampleInboxState() = InboxUiState(
     ),
 )
 
-/** Flat static list: no project headers or grouping. Actions are callbacks only. */
+/** Flat static list. Actions are callbacks only. */
 @Composable
 fun InboxScreen(
     state: InboxUiState,
@@ -39,23 +37,18 @@ fun InboxScreen(
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
 ) {
-    ListPageScaffold(
+    FlatTaskListScreen(
         title = "Inbox",
         icon = { InboxIcon(Modifier.size(28.dp)) },
-        modifier = modifier,
+        tasks = state.tasks,
         titleTag = "inbox_title",
+        modifier = modifier,
         onBack = onBack,
         onMoreClick = onMoreClick,
         onAddClick = onAddClick,
-    ) {
-        items(state.tasks, key = { "inbox-task-${it.id}" }) { task ->
-            TaskRow(
-                task = task,
-                onClick = { onTaskClick(task.id) },
-                onToggle = { onToggleTask(task.id) },
-            )
-        }
-    }
+        onTaskClick = onTaskClick,
+        onToggleTask = onToggleTask,
+    )
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852, name = "Inbox")
