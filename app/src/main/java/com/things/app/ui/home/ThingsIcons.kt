@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -29,9 +30,6 @@ import kotlin.math.sin
  */
 
 private val IconSize = 24.dp
-
-/** How long the ring of a project takes to grow or shrink to a new value. */
-private const val ProgressMillis = 450
 
 private fun DrawScope.p(x: Float, y: Float) = Offset(size.width * x, size.height * y)
 
@@ -223,7 +221,7 @@ fun AreaIcon(
 
 /**
  * Project icon: a ring that fills clockwise as the project progresses (0f..1f). When [progress]
- * changes the filled part grows or shrinks smoothly instead of jumping.
+ * changes the fill grows or shrinks smoothly to the new value instead of jumping.
  */
 @Composable
 fun ProgressIcon(
@@ -231,9 +229,9 @@ fun ProgressIcon(
     modifier: Modifier = Modifier.size(IconSize),
     color: Color = ThingsColors.ProgressRing,
 ) {
-    val shown = animateFloatAsState(
+    val shown by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
-        animationSpec = tween(ProgressMillis, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 450, easing = FastOutSlowInEasing),
         label = "projectProgress",
     )
     Canvas(modifier) {
@@ -244,13 +242,12 @@ fun ProgressIcon(
             radius = size.width / 2f - inset,
             style = Stroke(width = ringWidth),
         )
-        val value = shown.value
-        if (value > 0f) {
+        if (shown > 0f) {
             val pieInset = size.width * 0.19f
             drawArc(
                 color = color,
                 startAngle = -90f,
-                sweepAngle = 360f * value.coerceIn(0f, 1f),
+                sweepAngle = 360f * shown,
                 useCenter = true,
                 topLeft = Offset(pieInset, pieInset),
                 size = Size(size.width - pieInset * 2, size.height - pieInset * 2),

@@ -52,6 +52,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -68,6 +69,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -122,13 +124,14 @@ private fun shareText(context: Context, lines: List<String>) {
 
 /**
  * Shared frame of every list page (Upcoming, Anytime, Inbox, ...): the top bar with the back button
- * and the three-dots menu, an icon plus large title, and the floating add button, 20dp from the
- * right and 20dp above the bottom edge. [content] adds the rows.
+ * and the three-dots menu, the icon plus large title, the list, and the floating add button, 20dp
+ * from the right and 20dp above the bottom edge.
+ * [content] adds the rows.
  *
- * The title does not scroll: it stays under the top bar and the rows slide under it. A soft fade
- * (the page colour turning transparent) hangs under the title, so a row that goes up dissolves
- * before it reaches the title instead of being cut off. At rest, the room between the title and the
- * first row is [titleBottomPadding]; it is the first thing of the list, so it scrolls away.
+ * The title does not scroll. It stays under the top bar and the rows go under it as the list
+ * moves: just below the title a fade (the page color becoming see-through) hides them little by
+ * little, so they melt away instead of being cut by a hard edge. At rest the first row starts
+ * [titleBottomPadding] under the title.
  *
  * A long title goes on to the next lines; the icon stays centered on the first line.
  * [titleTrailing] is an optional control drawn right after the title (the project menu).
@@ -195,6 +198,7 @@ fun ListPageScaffold(
     val currentTaskIdForKey by rememberUpdatedState(taskIdForKey)
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
     var listTop by remember { mutableFloatStateOf(0f) }
+    var titleHeightPx by remember { mutableIntStateOf(0) }
     var fabCenter by remember { mutableStateOf(Offset.Zero) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
     var leftFab by remember { mutableStateOf(false) }
@@ -212,7 +216,9 @@ fun ListPageScaffold(
     val edgePx = with(density) { HeadingEdge.toPx() }
     val gapPx = with(density) { DropGapHeight.toPx() }
     val fabRadiusPx = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
+    val titleHeight = with(density) { titleHeightPx.toDp() }
     val fadeHeight = titleBottomPadding.coerceIn(12.dp, 24.dp)
+    val headerBottomPx = titleHeightPx + with(density) { titleBottomPadding.toPx() }
 
     // Closing the keyboard (back gesture, hide button, anything) also ends the editing: no cursor
     // keeps blinking in a field that cannot be typed into.
@@ -231,6 +237,8 @@ fun ListPageScaffold(
 
     fun targetAt(p: Offset): AddTarget {
         val y = (p.y - listTop).toInt()
+        // Over the title: before everything.
+        if (y < headerBottomPx) return if (p.x < edgePx) AddTarget.Heading(null) else AddTarget.Top
         val items = listState.layoutInfo.visibleItemsInfo
         val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
         val key = info?.key
@@ -339,16 +347,6 @@ fun ListPageScaffold(
                         actions = menuActions,
                     )
                 }
-
-                // The title: fixed, it does not scroll with the list.
-                TitleRow(
-                    title = title,
-                    icon = icon,
-                    titleTag = titleTag,
-                    trailing = titleTrailing,
-                    onTitleChange = onTitleChange,
-                )
-
                 Box(Modifier.weight(1f)) {
                     LazyColumn(
                         state = listState,
@@ -356,28 +354,48 @@ fun ListPageScaffold(
                             .fillMaxSize()
                             .onGloballyPositioned { listTop = it.positionInRoot().y }
                             .imePadding(),
-                        contentPadding = PaddingValues(bottom = 140.dp),
+                        contentPadding = PaddingValues(
+                            top = titleHeight + titleBottomPadding,
+                            bottom = 140.dp,
+                        ),
                     ) {
-                        item(key = "page-top-gap") {
-                            Column {
-                                Spacer(Modifier.height(titleBottomPadding))
-                                if (dropSlot.atTop) Spacer(Modifier.height(DropGapHeight))
-                            }
+                        // Room that opens under the title while the add button is dragged over it.
+                        item(key = "drop-gap-top") {
+                            Spacer(Modifier.height(if (dropSlot.atTop) DropGapHeight else 0.dp))
                         }
                         content()
                     }
 
-                    // The fade under the title: what scrolls up dissolves into the page colour.
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(fadeHeight)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(ThingsColors.Background, ThingsColors.Background.copy(alpha = 0f))
-                                )
+                    // The title and the fade under it, drawn over the list.
+                    Column(Modifier.align(Alignment.TopCenter).fillMaxWidth()) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .background(ThingsColors.Background)
+                                .onSizeChanged { titleHeightPx = it.height }
+                        ) {
+                            TitleRow(
+                                title = title,
+                                icon = icon,
+                                titleTag = titleTag,
+                                trailing = titleTrailing,
+                                onTitleChange = onTitleChange,
                             )
-                    )
+                        }
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(fadeHeight)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            ThingsColors.Background,
+                                            ThingsColors.Background.copy(alpha = 0f),
+                                        )
+                                    )
+                                )
+                        )
+                    }
                 }
             }
 
@@ -541,7 +559,7 @@ private fun SelectTopBar(onDone: () -> Unit) {
 }
 
 /**
- * The icon and the title, fixed under the top bar. A long title goes on to the next lines; the icon
+ * The icon and the title, 12dp under the top bar. A long title goes on to the next lines; the icon
  * sits in a box as high as the first line of the title, so it stays centered on that line.
  */
 @Composable
@@ -559,7 +577,6 @@ private fun TitleRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .background(ThingsColors.Background)
             .padding(
                 start = ThingsSpacing.PageMargin,
                 end = ThingsSpacing.PageMargin,
