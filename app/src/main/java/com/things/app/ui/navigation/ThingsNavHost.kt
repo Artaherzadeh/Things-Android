@@ -17,6 +17,8 @@ import com.things.app.ui.home.CreationType
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.sampleHomeState
+import com.things.app.ui.inbox.InboxScreen
+import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.logbook.LogbookScreen
 import com.things.app.ui.logbook.sampleLogbookState
 import com.things.app.ui.today.TodayScreen
@@ -31,7 +33,7 @@ object Routes {
     const val UPCOMING = "upcoming"
     const val ANYTIME = "anytime"
     const val LOGBOOK = "logbook"
-    // const val INBOX = "inbox"
+    const val INBOX = "inbox"
     // const val PROJECT = "project/{projectId}"
 }
 
@@ -92,6 +94,7 @@ fun ThingsNavHost() {
                 onNewArea = { pendingCreation = CreationType.Area },
                 onSystemListClick = { list ->
                     val route = when (list) {
+                        SystemList.Inbox -> Routes.INBOX
                         SystemList.Today -> Routes.TODAY
                         SystemList.Upcoming -> Routes.UPCOMING
                         SystemList.Anytime -> Routes.ANYTIME
@@ -123,6 +126,12 @@ fun ThingsNavHost() {
         composable(Routes.LOGBOOK) {
             LogbookScreen(
                 state = sampleLogbookState(),
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.INBOX) {
+            InboxScreen(
+                state = sampleInboxState(),
                 onBack = { navController.popBackStack() },
             )
         }
