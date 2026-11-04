@@ -57,6 +57,7 @@ fun rememberTaskExpansion(): TaskExpansion =
 /**
  * A to-do that opens in place. Tapping the row opens it as a [TaskCard] with an animated change of
  * height; opening another to-do, tapping outside (see ListPageScaffold) or going back closes it.
+ * Pass [onDelete] to let the closed row be swiped to the left to reveal a red delete button.
  */
 @Composable
 fun ExpandableTaskRow(
@@ -66,6 +67,7 @@ fun ExpandableTaskRow(
     recurringStyle: RecurringStyle = RecurringStyle.TrailingIcon,
     onOpen: () -> Unit = {},
     onToggle: () -> Unit = {},
+    onDelete: (() -> Unit)? = null,
 ) {
     val current = expansion.resolve(task)
     val toggle = {
@@ -82,15 +84,22 @@ fun ExpandableTaskRow(
                 onToggle = toggle,
             )
         } else {
-            TaskRow(
-                task = current,
-                recurringStyle = recurringStyle,
-                onClick = {
-                    expansion.expand(task.id)
-                    onOpen()
-                },
-                onToggle = toggle,
-            )
+            val row: @Composable () -> Unit = {
+                TaskRow(
+                    task = current,
+                    recurringStyle = recurringStyle,
+                    onClick = {
+                        expansion.expand(task.id)
+                        onOpen()
+                    },
+                    onToggle = toggle,
+                )
+            }
+            if (onDelete != null) {
+                SwipeToDeleteRow(onDelete = onDelete, content = row)
+            } else {
+                row()
+            }
         }
     }
 }
