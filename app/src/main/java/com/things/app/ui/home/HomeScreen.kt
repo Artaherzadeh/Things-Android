@@ -1,7 +1,5 @@
 package com.things.app.ui.home
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +80,8 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
+import com.things.app.ui.components.rememberReorderState
+import com.things.app.ui.components.reorderable
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
 import com.things.app.ui.theme.ThingsTheme
@@ -100,13 +101,11 @@ private val GroupGap = 12.dp
 private val QuickFindHeight = 40.dp
 private val ListTopPadding = 8.dp
 
-/** The divider block above an area: 12dp, the 1dp line, 12dp. */
-private val AreaDividerBlock = 25.dp
-
 /** How far the list has to be pulled down from the top before Quick Find opens. */
 private val PullToSearchDistance = 192.dp
 
-private const val LooseProjectsKey = "loose-projects"
+private const val ProjectPrefix = "project-"
+private const val AreaPrefix = "area-"
 private const val SettingsKey = "settings"
 
 /**
@@ -115,12 +114,14 @@ private const val SettingsKey = "settings"
  *
  * - Pulling the list down while it is at the top opens Quick Find, like tapping the search field.
  * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
- *   let go: over an area it goes into that area (at the row nearest the finger), over the loose
- *   projects it goes among them, anywhere else it becomes the first loose project.
- *   [onCreateProjectAt] gets the area id (null for no area) and the position in that list.
+ *   let go: next to the project or on the area under the finger, anywhere else it becomes the first
+ *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position.
  * - A project or area that was just created is named in place: the row with [editingId] is a text
  *   field with the keyboard open. [onTitleChange] reports each edit and [onEditDone] tells the page
  *   the cursor left the row, so it can drop the row if it is still empty.
+ * - Hold a project or an area and move it to change the order. A held area folds first, with all
+ *   its projects, and moves as one row. A project can move inside its area, to another area or out
+ *   of any area. [onMoveProject] and [onMoveArea] get the held row and the row it passed.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -138,8 +139,11 @@ fun HomeScreen(
     editingId: String? = null,
     onTitleChange: (id: String, title: String) -> Unit = { _, _ -> },
     onEditDone: (id: String) -> Unit = {},
+    onMoveProject: (fromId: String, toId: String) -> Unit = { _, _ -> },
+    onMoveArea: (fromId: String, toId: String) -> Unit = { _, _ -> },
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
+    var holdingArea by remember { mutableStateOf<String?>(null) }
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
@@ -173,6 +177,9 @@ fun HomeScreen(
         }
     }
 
+    // The areas that show no projects: the ones the person folded, and the held one.
+    val hiddenAreas = holdingArea?.let { collapsedAreas + it } ?: collapsedAreas
+
     // Closing the keyboard ends the naming: the cursor leaves the row and the page is told.
     LaunchedEffect(imeVisible) {
         if (imeWasVisible && !imeVisible) focusManager.clearFocus()
@@ -182,20 +189,18 @@ fun HomeScreen(
     // Show the row that is being named.
     LaunchedEffect(editingId) {
         val id = editingId ?: return@LaunchedEffect
-        val owner = state.areas.firstOrNull { a -> a.projects.any { it.id == id } }
-        val key = when {
-            state.areas.any { it.id == id } -> id
-            owner != null -> owner.id
-            else -> LooseProjectsKey
-        }
+        val key = if (state.areas.any { it.id == id }) "$AreaPrefix$id" else "$ProjectPrefix$id"
         val keys = buildList {
             add("quick-find")
             add("quick-find-gap")
             add("inbox")
             add("lists")
             add("logbook")
-            if (state.looseProjects.isNotEmpty()) add(LooseProjectsKey)
-            state.areas.forEach { add(it.id) }
+            state.looseProjects.forEach { add("$ProjectPrefix${it.id}") }
+            state.areas.forEach { area ->
+                add("$AreaPrefix${area.id}")
+                if (area.id !in collapsedAreas) area.projects.forEach { add("$ProjectPrefix${it.id}") }
+            }
             add(SettingsKey)
         }
         val index = keys.indexOf(key)
@@ -231,30 +236,52 @@ fun HomeScreen(
         val y = p.y - listTop
         val items = listState.layoutInfo.visibleItemsInfo
         val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
-        val key = info?.key
-        val rowPx = with(density) { RowHeight.toPx() }
-        val looseCount = state.looseProjects.size
-        if (info != null && key == LooseProjectsKey) {
-            val index = (((y - info.offset) / rowPx) + 0.5f).toInt().coerceIn(0, looseCount)
-            return null to index
+        val key = info?.key as? String
+        if (info == null || key == null) return null to 0
+        val after = y >= info.offset + info.size / 2f
+        if (key.startsWith(ProjectPrefix)) {
+            val id = key.removePrefix(ProjectPrefix)
+            val loose = state.looseProjects.indexOfFirst { it.id == id }
+            if (loose >= 0) return null to (loose + if (after) 1 else 0)
+            val area = state.areas.firstOrNull { a -> a.projects.any { it.id == id } }
+            if (area != null) return area.id to (area.projects.indexOfFirst { it.id == id } + if (after) 1 else 0)
         }
-        val area = state.areas.firstOrNull { it.id == key }
-        if (info != null && area != null) {
-            val dividerPx = if (state.areas.indexOf(area) > 0 || looseCount > 0) {
-                with(density) { AreaDividerBlock.toPx() }
-            } else {
-                0f
-            }
-            val count = area.projects.size
-            val index = if (area.id in collapsedAreas) {
-                count
-            } else {
-                (((y - info.offset - dividerPx - rowPx) / rowPx) + 0.5f).toInt().coerceIn(0, count)
-            }
-            return area.id to index
+        if (key.startsWith(AreaPrefix)) {
+            val area = state.areas.firstOrNull { it.id == key.removePrefix(AreaPrefix) }
+            if (area != null) return area.id to if (area.id in collapsedAreas) area.projects.size else 0
         }
-        return null to if (key == SettingsKey) looseCount else 0
+        return null to if (key == SettingsKey) state.looseProjects.size else 0
     }
+
+    // Hold-and-move ordering of projects and areas.
+    val reorder = rememberReorderState(listState)
+    reorder.canMove = { from, to ->
+        val f = from as? String
+        val t = to as? String
+        when {
+            f == null || t == null -> false
+            f.startsWith(AreaPrefix) -> t.startsWith(AreaPrefix)
+            f.startsWith(ProjectPrefix) -> t.startsWith(ProjectPrefix)
+            else -> false
+        }
+    }
+    reorder.onStart = { key ->
+        val s = key as? String
+        if (s != null && s.startsWith(AreaPrefix)) holdingArea = s.removePrefix(AreaPrefix)
+    }
+    reorder.onEnd = { holdingArea = null }
+    reorder.onMove = { from, to ->
+        val f = from as String
+        val t = to as String
+        if (f.startsWith(AreaPrefix)) {
+            onMoveArea(f.removePrefix(AreaPrefix), t.removePrefix(AreaPrefix))
+        } else {
+            onMoveProject(f.removePrefix(ProjectPrefix), t.removePrefix(ProjectPrefix))
+        }
+    }
+
+    fun rowModifier(key: String, id: String): Modifier =
+        if (editingId == id) Modifier else Modifier.reorderable(reorder, key)
 
     BackHandler(enabled = menuExpanded) { menuExpanded = false }
 
@@ -302,26 +329,23 @@ fun HomeScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            // Projects without an area
-            if (state.looseProjects.isNotEmpty()) {
-                item(key = LooseProjectsKey) {
-                    state.looseProjects.forEach { project ->
-                        ProjectRow(
-                            project = project,
-                            editing = editingId == project.id,
-                            onTitleChange = { onTitleChange(project.id, it) },
-                            onEditDone = { onEditDone(project.id) },
-                            onClick = { onProjectClick(project) },
-                        )
-                    }
-                }
+            // Projects without an area, one row each so each can be moved
+            items(state.looseProjects, key = { "$ProjectPrefix${it.id}" }) { project ->
+                ProjectRow(
+                    project = project,
+                    editing = editingId == project.id,
+                    onTitleChange = { onTitleChange(project.id, it) },
+                    onEditDone = { onEditDone(project.id) },
+                    onClick = { onProjectClick(project) },
+                    modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
+                )
             }
 
             // Areas and their projects
             state.areas.forEachIndexed { index, area ->
-                item(key = area.id) {
-                    val expanded = area.id !in collapsedAreas
-                    Column {
+                item(key = "$AreaPrefix${area.id}") {
+                    val expanded = area.id !in hiddenAreas
+                    Column(rowModifier("$AreaPrefix${area.id}", area.id)) {
                         if (index > 0 || state.looseProjects.isNotEmpty()) {
                             Spacer(Modifier.height(12.dp))
                             SectionDivider()
@@ -335,22 +359,25 @@ fun HomeScreen(
                             onEditDone = { onEditDone(area.id) },
                             onClick = { onAreaClick(area) },
                             onToggle = {
-                                collapsedAreas = if (expanded) collapsedAreas + area.id else collapsedAreas - area.id
+                                collapsedAreas = if (area.id in collapsedAreas) {
+                                    collapsedAreas - area.id
+                                } else {
+                                    collapsedAreas + area.id
+                                }
                             },
                         )
-                        AnimatedVisibility(visible = expanded) {
-                            Column(Modifier.animateContentSize()) {
-                                area.projects.forEach { project ->
-                                    ProjectRow(
-                                        project = project,
-                                        editing = editingId == project.id,
-                                        onTitleChange = { onTitleChange(project.id, it) },
-                                        onEditDone = { onEditDone(project.id) },
-                                        onClick = { onProjectClick(project) },
-                                    )
-                                }
-                            }
-                        }
+                    }
+                }
+                if (area.id !in hiddenAreas) {
+                    items(area.projects, key = { "$ProjectPrefix${it.id}" }) { project ->
+                        ProjectRow(
+                            project = project,
+                            editing = editingId == project.id,
+                            onTitleChange = { onTitleChange(project.id, it) },
+                            onEditDone = { onEditDone(project.id) },
+                            onClick = { onProjectClick(project) },
+                            modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
+                        )
                     }
                 }
             }
@@ -490,11 +517,12 @@ private fun HomeRow(
     titleStyle: TextStyle,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
     titleSlot: (@Composable RowScope.() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .height(RowHeight)
             .clickable(onClick = onClick)
@@ -657,12 +685,14 @@ private fun ProjectRow(
     onTitleChange: (String) -> Unit,
     onEditDone: () -> Unit,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     HomeRow(
         title = project.title,
         titleStyle = ThingsType.RowTitle,
         onClick = onClick,
         icon = { ProgressIcon(project.progress, Modifier.size(24.dp)) },
+        modifier = modifier,
         titleSlot = if (editing) {
             {
                 EditableTitle(

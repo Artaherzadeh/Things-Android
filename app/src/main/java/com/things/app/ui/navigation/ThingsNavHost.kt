@@ -131,6 +131,46 @@ private fun areaStateFor(areaId: String, home: HomeUiState): AreaUiState {
     }
 }
 
+/** The areas with [from] moved to where [to] is. */
+private fun HomeUiState.withAreaMoved(from: String, to: String): HomeUiState {
+    val fromIndex = areas.indexOfFirst { it.id == from }
+    val toIndex = areas.indexOfFirst { it.id == to }
+    if (fromIndex < 0 || toIndex < 0 || fromIndex == toIndex) return this
+    return copy(areas = areas.toMutableList().also { it.add(toIndex, it.removeAt(fromIndex)) })
+}
+
+/**
+ * The project [from] moved next to the project [to], which may be in another area or in none.
+ * Going down it lands under [to], going up it lands above it. "Down" means later in the Home list:
+ * the projects without an area first, then each area in turn.
+ */
+private fun HomeUiState.withProjectMoved(from: String, to: String): HomeUiState {
+    if (from == to) return this
+    val order = looseProjects.map { it.id } + areas.flatMap { a -> a.projects.map { it.id } }
+    val fromAt = order.indexOf(from)
+    val toAt = order.indexOf(to)
+    if (fromAt < 0 || toAt < 0) return this
+    val moved = (looseProjects + areas.flatMap { it.projects }).first { it.id == from }
+    val down = fromAt < toAt
+
+    fun List<Project>.without() = filter { it.id != from }
+    fun List<Project>.placed(): List<Project> {
+        val index = indexOfFirst { it.id == to }
+        if (index < 0) return this
+        return toMutableList().also { it.add(if (down) index + 1 else index, moved) }
+    }
+
+    return copy(
+        looseProjects = looseProjects.without().let { list ->
+            if (list.any { it.id == to }) list.placed() else list
+        },
+        areas = areas.map { area ->
+            val rest = area.projects.without()
+            area.copy(projects = if (rest.any { it.id == to }) rest.placed() else rest)
+        },
+    )
+}
+
 /**
  * Every page of the app is registered here. To add a page:
  *  1. Create its screen composable (for example ui/inbox/InboxScreen.kt).
@@ -146,7 +186,8 @@ private fun areaStateFor(areaId: String, home: HomeUiState): AreaUiState {
  *
  * Home keeps its projects and areas here while the app runs. New Project, New Area and the dragged
  * + add a row to the Home list and open it for naming in place; if it is left empty the row is
- * dropped again. Delete Area on an area page removes it.
+ * dropped again. Holding a project or an area on Home changes the order. Delete Area on an area
+ * page removes it.
  */
 @Composable
 fun ThingsNavHost() {
@@ -263,6 +304,8 @@ fun ThingsNavHost() {
                     editingId = editingId,
                     onTitleChange = { id, title -> renameInHome(id, title) },
                     onEditDone = { id -> finishNaming(id) },
+                    onMoveProject = { from, to -> homeState = homeState.withProjectMoved(from, to) },
+                    onMoveArea = { from, to -> homeState = homeState.withAreaMoved(from, to) },
                     onAreaClick = { area ->
                         navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
                     },
