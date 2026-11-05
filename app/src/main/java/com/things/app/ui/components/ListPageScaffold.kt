@@ -153,6 +153,8 @@ private fun shareText(context: Context, lines: List<String>) {
  * a grey cross at three quarters of its size; bring the finger back onto it and the cross grows to
  * full size and turns red: letting go there cancels. [groupForKey] turns the key of a list row into
  * the id of its project or heading and [taskIdForKey] into the id of its to-do.
+ * Pass allowHeading = false on a page without headings (the Area page): the left edge then does
+ * nothing special. [addLabel] is the text of the dragged card ("New Project" on the Area page).
  * Pass your own [listState] when the page needs to read or drive the list (reordering).
  *
  * Select mode works on every page that has the Select entry in its menu: Select turns it on, a Done
@@ -179,6 +181,8 @@ fun ListPageScaffold(
     onAddClick: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     onAddAt: ((AddTarget) -> Unit)? = null,
+    allowHeading: Boolean = true,
+    addLabel: String = "New To-Do",
     groupForKey: (Any) -> String? = { null },
     taskIdForKey: (Any) -> String? = { null },
     selection: SelectionState? = null,
@@ -243,11 +247,11 @@ fun ListPageScaffold(
         }
         val y = (p.y - fingerToGapTop - listTop).toInt()
         // Over the title: before everything.
-        if (y < headerBottomPx) return if (p.x < edgePx) AddTarget.Heading(null) else AddTarget.Top
+        if (y < headerBottomPx) return if (allowHeading && p.x < edgePx) AddTarget.Heading(null) else AddTarget.Top
         val items = listState.layoutInfo.visibleItemsInfo
         val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
         val key = info?.key
-        if (p.x < edgePx) return AddTarget.Heading(key)
+        if (allowHeading && p.x < edgePx) return AddTarget.Heading(key)
         if (info == null || key == null) return AddTarget.Top
         val taskId = currentTaskIdForKey(key)
         val group = currentGroupForKey(key)
@@ -522,7 +526,7 @@ fun ListPageScaffold(
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                "New To-Do",
+                                addLabel,
                                 style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
                             )
                         }
