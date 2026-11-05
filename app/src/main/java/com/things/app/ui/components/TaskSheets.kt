@@ -176,8 +176,10 @@ fun BulkSheets(request: BulkRequest, expansion: TaskExpansion?, onClose: () -> U
 
 /**
  * The dark rounded panel with a centered title and a round button at the top right: a cross that
- * closes, or a blue check when [confirm] is on. With [leadingClose] the cross sits at the start
- * instead and the button at the end is always a check (grey and inactive while [confirm] is off).
+ * closes, or a blue check when [confirm] is on. With [leadingClose] a cross sits at the start and
+ * the button at the end is always a check (grey and inactive while [confirm] is off). With
+ * [leadingBack] an arrow sits at the start instead and [onClose] is the way back; [showTrailing]
+ * false hides the button at the end, for a page that only goes back.
  */
 @Composable
 internal fun SheetFrame(
@@ -186,6 +188,8 @@ internal fun SheetFrame(
     confirm: Boolean,
     onConfirm: () -> Unit,
     leadingClose: Boolean = false,
+    leadingBack: Boolean = false,
+    showTrailing: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -203,18 +207,22 @@ internal fun SheetFrame(
                     .padding(start = 16.dp, end = 12.dp, top = 12.dp)
                     .height(48.dp)
             ) {
-                if (leadingClose) {
+                if (leadingClose || leadingBack) {
                     Box(
                         Modifier
                             .align(Alignment.CenterStart)
                             .size(44.dp)
                             .clip(CircleShape)
                             .background(ThingsColors.MenuTitle.copy(alpha = 0.14f))
-                            .clickable(onClickLabel = "Close", role = Role.Button, onClick = onClose),
+                            .clickable(
+                                onClickLabel = if (leadingBack) "Back" else "Close",
+                                role = Role.Button,
+                                onClick = onClose,
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
-                            Icons.Rounded.Close,
+                            if (leadingBack) Icons.AutoMirrored.Rounded.KeyboardArrowLeft else Icons.Rounded.Close,
                             contentDescription = null,
                             tint = ThingsColors.MenuTitle,
                             modifier = Modifier.size(24.dp),
@@ -226,30 +234,32 @@ internal fun SheetFrame(
                     style = ThingsType.RowTitleBold.copy(color = ThingsColors.MenuTitle),
                     modifier = Modifier.align(Alignment.Center),
                 )
-                Box(
-                    Modifier
-                        .align(Alignment.CenterEnd)
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (confirm) ThingsColors.Fab else ThingsColors.MenuTitle.copy(alpha = 0.14f))
-                        .clickable(
-                            onClickLabel = if (confirm) "Done" else "Close",
-                            role = Role.Button,
-                        ) {
-                            if (confirm) onConfirm() else if (!leadingClose) onClose()
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        if (confirm || leadingClose) Icons.Rounded.Check else Icons.Rounded.Close,
-                        contentDescription = null,
-                        tint = when {
-                            confirm -> Color.White
-                            leadingClose -> ThingsColors.MenuTitle.copy(alpha = 0.4f)
-                            else -> ThingsColors.MenuTitle
-                        },
-                        modifier = Modifier.size(24.dp),
-                    )
+                if (showTrailing) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (confirm) ThingsColors.Fab else ThingsColors.MenuTitle.copy(alpha = 0.14f))
+                            .clickable(
+                                onClickLabel = if (confirm) "Done" else "Close",
+                                role = Role.Button,
+                            ) {
+                                if (confirm) onConfirm() else if (!leadingClose) onClose()
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (confirm || leadingClose) Icons.Rounded.Check else Icons.Rounded.Close,
+                            contentDescription = null,
+                            tint = when {
+                                confirm -> Color.White
+                                leadingClose -> ThingsColors.MenuTitle.copy(alpha = 0.4f)
+                                else -> ThingsColors.MenuTitle
+                            },
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
             content()
@@ -388,15 +398,43 @@ private const val DeadlineWeeks = 160
 private val DeadlineRowHeight = 52.dp
 
 /**
- * The Deadline sheet: the weekday names, then the weeks one under another, starting with the week
- * of today, scrolling down for about three years. The first day of each month shows the month name
- * (January also the year) and a thin line runs around the days of that month. Days before today are
- * grey and cannot be chosen. The chosen day has a blue ring with its month above its number. A day
- * is reported through [onPick] and closes the sheet; Clear (shown when a deadline is set) reports
- * null. The text "N days left" is made here until the logic layer produces it.
+ * The Deadline sheet: the calendar of [DeadlineCalendar] under the title Deadline. A day is reported
+ * through [onPick] and closes the sheet; Clear (shown when a deadline is set) reports null.
  */
 @Composable
 fun DeadlineSheet(current: DeadlineModel?, onDismiss: () -> Unit, onPick: (DeadlineModel?) -> Unit) {
+    SheetFrame(title = "Deadline", onClose = onDismiss, confirm = false, onConfirm = {}) {
+        DeadlineCalendar(
+            current = current,
+            onPick = { picked ->
+                onPick(picked)
+                onDismiss()
+            },
+        )
+        if (current != null) {
+            ClearButton {
+                onPick(null)
+                onDismiss()
+            }
+        }
+    }
+}
+
+/**
+ * The calendar of the Deadline sheet, without a frame so another sheet can show it as one of its
+ * pages (the Repeat sheet does, for Next): the weekday names, then the weeks one under another,
+ * starting with the week of today, scrolling down for about three years. The first day of each month
+ * shows the month name (January also the year) and a thin line runs around the days of that month.
+ * Days before today are grey and cannot be chosen. The chosen day has a blue ring with its month
+ * above its number. A day is reported through [onPick]; [labelPattern] is the date format of its
+ * label. The text "N days left" is made here until the logic layer produces it.
+ */
+@Composable
+internal fun DeadlineCalendar(
+    current: DeadlineModel?,
+    onPick: (DeadlineModel) -> Unit,
+    labelPattern: String = "EEE, MMM d",
+) {
     val today = remember {
         Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
@@ -412,7 +450,7 @@ fun DeadlineSheet(current: DeadlineModel?, onDismiss: () -> Unit, onPick: (Deadl
         }
     }
     val weekdayFormat = remember { SimpleDateFormat("EEE", Locale.getDefault()) }
-    val labelFormat = remember { SimpleDateFormat("EEE, MMM d", Locale.getDefault()) }
+    val labelFormat = remember(labelPattern) { SimpleDateFormat(labelPattern, Locale.getDefault()) }
     val monthFormat = remember { SimpleDateFormat("MMM", Locale.getDefault()) }
 
     fun dateAt(offset: Int): Calendar =
@@ -429,7 +467,7 @@ fun DeadlineSheet(current: DeadlineModel?, onDismiss: () -> Unit, onPick: (Deadl
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startWeek)
     val listHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp
 
-    SheetFrame(title = "Deadline", onClose = onDismiss, confirm = false, onConfirm = {}) {
+    Column {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -468,15 +506,8 @@ fun DeadlineSheet(current: DeadlineModel?, onDismiss: () -> Unit, onPick: (Deadl
                             else -> "$diff days left"
                         }
                         onPick(DeadlineModel(labelFormat.format(date.time), remaining))
-                        onDismiss()
                     },
                 )
-            }
-        }
-        if (current != null) {
-            ClearButton {
-                onPick(null)
-                onDismiss()
             }
         }
     }
@@ -756,9 +787,12 @@ internal fun SheetButton(text: String, modifier: Modifier, onClick: () -> Unit) 
     }
 }
 
-/** A column of values that snaps to one of them: the one in the middle is the chosen one. */
+/**
+ * A column of values that snaps to one of them: the one in the middle is the chosen one. The page
+ * is told about the new value once the scrolling stops.
+ */
 @Composable
-private fun Wheel(values: List<String>, selected: Int, onSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
+internal fun Wheel(values: List<String>, selected: Int, onSelected: (Int) -> Unit, modifier: Modifier = Modifier) {
     val itemHeight = 44.dp
     val itemPx = with(LocalDensity.current) { itemHeight.toPx() }
     val state = rememberLazyListState(initialFirstVisibleItemIndex = selected)
