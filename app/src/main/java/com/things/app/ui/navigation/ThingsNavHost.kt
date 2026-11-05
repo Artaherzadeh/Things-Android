@@ -394,7 +394,7 @@ fun ThingsNavHost() {
                         val entry = sampleLogbookState().months.flatMap { it.entries }.firstOrNull { it.id == id }
                         if (entry != null) restoredTasks = restoredTasks + entry.restored()
                     },
-                )
+                    )
             }
             composable(Routes.INBOX) {
                 InboxScreen(
