@@ -223,10 +223,11 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  *
  * Home keeps its projects and areas here while the app runs. New Project, New Area and the dragged
  * + add a row to the Home list and open it for naming in place; if it is left empty the row is
- * dropped again. Holding a project or an area on Home changes the order, swiping one to the left
- * deletes it. The ring of a project on Home follows the to-dos done on its page. Delete Area on an
- * area page removes it. A to-do unticked in the Logbook is kept here and shows up again on the page
- * of the project with its name.
+ * dropped again. The dragged + creates a project, or an area near the left edge of Home, and a
+ * project on the Area page. Holding a project or an area on Home changes the order, swiping one to
+ * the left deletes it. The ring of a project on Home follows the to-dos done on its page. Delete
+ * Area on an area page removes it. A to-do unticked in the Logbook is kept here and shows up again
+ * on the page of the project with its name.
  */
 @Composable
 fun ThingsNavHost() {
@@ -257,6 +258,14 @@ fun ThingsNavHost() {
             )
         }
         editingId = project.id
+    }
+
+    /** Adds an empty area at [index] among the areas (last when null), names it in place. */
+    fun createArea(index: Int?) {
+        val area = Area(NewIdPrefix + UUID.randomUUID(), "", emptyList())
+        val at = (index ?: homeState.areas.size).coerceIn(0, homeState.areas.size)
+        homeState = homeState.copy(areas = homeState.areas.toMutableList().also { it.add(at, area) })
+        editingId = area.id
     }
 
     fun renameInHome(id: String, title: String) {
@@ -338,12 +347,9 @@ fun ThingsNavHost() {
                     onSearchClick = { quickFindOpen = true },
                     searchHidden = quickFindOpen,
                     onNewProject = { createProject(null, null) },
-                    onNewArea = {
-                        val area = Area(NewIdPrefix + UUID.randomUUID(), "", emptyList())
-                        homeState = homeState.copy(areas = homeState.areas + area)
-                        editingId = area.id
-                    },
+                    onNewArea = { createArea(null) },
                     onCreateProjectAt = { areaId, index -> createProject(areaId, index) },
+                    onCreateAreaAt = { index -> createArea(index) },
                     editingId = editingId,
                     onTitleChange = { id, title -> renameInHome(id, title) },
                     onEditDone = { id -> finishNaming(id) },
@@ -440,6 +446,10 @@ fun ThingsNavHost() {
                         deleteFromHome(areaId)
                         navController.popBackStack()
                     },
+                    onCreateProjectAt = { index -> createProject(areaId, index) },
+                    editingId = editingId,
+                    onTitleChange = { id, title -> renameInHome(id, title) },
+                    onEditDone = { id -> finishNaming(id) },
                 )
             }
         }
