@@ -92,6 +92,7 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
+import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.SwipeToDeleteRow
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.reorderable
@@ -122,6 +123,9 @@ private val ListTopPadding = 32.dp
 /** How far the list has to be pulled down from the top before Quick Find opens. */
 private val PullToSearchDistance = 192.dp
 
+/** Dropping the + closer than this to the left edge of the screen creates an area. */
+private val AreaEdge = 72.dp
+
 /** The grey of the cross that stays where the + was, and the red when it cancels. */
 private val DragGray = Color(0xFF8E8E93)
 private val CancelRed = Color(0xFFFF3B30)
@@ -129,6 +133,25 @@ private val CancelRed = Color(0xFFFF3B30)
 private const val ProjectPrefix = "project-"
 private const val AreaPrefix = "area-"
 private const val SettingsKey = "settings"
+
+/** What the dragged + would create if it were let go now. */
+private sealed interface HomeDrop {
+    /** A project in the area [areaId] (null: no area) at position [index]. */
+    data class ProjectAt(val areaId: String?, val index: Int) : HomeDrop
+
+    /** An area at position [index] among the areas. */
+    data class AreaAt(val index: Int) : HomeDrop
+}
+
+/** Where the list opens room for the dragged + (at most one of these is set). */
+private data class HomeGap(
+    val beforeProject: String? = null,
+    val afterProject: String? = null,
+    val beforeArea: String? = null,
+    val afterArea: String? = null,
+    val looseStart: Boolean = false,
+    val end: Boolean = false,
+)
 
 /**
  * The home screen. It lists no to-dos: only the system lists, projects and areas. Settings is the
@@ -139,10 +162,12 @@ private const val SettingsKey = "settings"
  * - The + button opens the create menu when tapped. Dragging it creates a new project where it is
  *   let go: next to the project or on the area under the finger, anywhere else it becomes the first
  *   loose project. [onCreateProjectAt] gets the area id (null for no area) and the position. A
- *   small card, only as wide as its text, follows the finger over the whole screen. While it is
- *   dragged the button's place shows a grey cross at three quarters of its size; bring the finger
- *   back onto it and the cross grows to full size and turns red: letting go there cancels and
- *   nothing is created.
+ *   small card, only as wide as its text, follows the finger over the whole screen and the rows
+ *   open a gap where the project would land. Near the left edge of the screen the card becomes a
+ *   new area instead and the gap opens between the areas; [onCreateAreaAt] gets the position among
+ *   the areas. While it is dragged the button's place shows a grey cross at three quarters of its
+ *   size; bring the finger back onto it and the cross grows to full size and turns red: letting go
+ *   there cancels and nothing is created.
  * - A project or area that was just created is named in place: the row with [editingId] is a text
  *   field with the keyboard open. [onTitleChange] reports each edit and [onEditDone] tells the page
  *   the cursor left the row, so it can drop the row if it is still empty.
@@ -166,6 +191,7 @@ fun HomeScreen(
     onNewArea: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onCreateProjectAt: (areaId: String?, index: Int) -> Unit = { _, _ -> },
+    onCreateAreaAt: (index: Int) -> Unit = {},
     editingId: String? = null,
     onTitleChange: (id: String, title: String) -> Unit = { _, _ -> },
     onEditDone: (id: String) -> Unit = {},
@@ -185,7 +211,9 @@ fun HomeScreen(
     var imeWasVisible by remember { mutableStateOf(false) }
     val currentOnSearch by rememberUpdatedState(onSearchClick)
     val currentOnCreateProjectAt by rememberUpdatedState(onCreateProjectAt)
+    val currentOnCreateAreaAt by rememberUpdatedState(onCreateAreaAt)
     val pullPx = with(density) { PullToSearchDistance.toPx() }
+    val edgePx = with(density) { AreaEdge.toPx() }
     val pullToSearch = remember(pullPx) {
         object : NestedScrollConnection {
             private var pulled = 0f
@@ -254,6 +282,7 @@ fun HomeScreen(
     var listTop by remember { mutableFloatStateOf(0f) }
     var dragPos by remember { mutableStateOf<Offset?>(null) }
     var leftFab by remember { mutableStateOf(false) }
+    var drop by remember { mutableStateOf<HomeDrop?>(null) }
     val fabRadiusPx = with(density) { ThingsSpacing.FabSize.toPx() / 2f }
 
     // Cancelling needs the finger to have left the button first, then come back onto it.
@@ -293,6 +322,67 @@ fun HomeScreen(
         }
         return null to if (key == SettingsKey) state.looseProjects.size else 0
     }
+
+    /**
+     * The position among the areas where an area dropped at this window position would go: before
+     * the area under the finger, after the area whose project is under the finger, first when the
+     * finger is over the lists above, last when it is over Settings.
+     */
+    fun areaIndexAt(p: Offset): Int {
+        val y = p.y - listTop
+        val items = listState.layoutInfo.visibleItemsInfo
+        val info = items.firstOrNull { y >= it.offset && y < it.offset + it.size } ?: items.lastOrNull()
+        val key = info?.key as? String ?: return 0
+        return when {
+            key.startsWith(AreaPrefix) ->
+                state.areas.indexOfFirst { it.id == key.removePrefix(AreaPrefix) }.coerceAtLeast(0)
+            key.startsWith(ProjectPrefix) -> {
+                val id = key.removePrefix(ProjectPrefix)
+                val owner = state.areas.indexOfFirst { a -> a.projects.any { it.id == id } }
+                if (owner >= 0) owner + 1 else 0
+            }
+            key == SettingsKey -> state.areas.size
+            else -> 0
+        }
+    }
+
+    /** Works out what the + would create at [p], or nothing while it would cancel. */
+    fun updateDrop(p: Offset?) {
+        if (p == null) {
+            drop = null
+            return
+        }
+        val center = fabBounds?.center
+        val cancel = leftFab && center != null && (p - center).getDistance() <= fabRadiusPx
+        drop = when {
+            cancel -> null
+            p.x - rootOrigin.x < edgePx -> HomeDrop.AreaAt(areaIndexAt(p))
+            else -> dropTarget(p).let { (areaId, index) -> HomeDrop.ProjectAt(areaId, index) }
+        }
+    }
+
+    /** The row next to which the list has to open room for what is being dragged. */
+    fun gapFor(d: HomeDrop?): HomeGap = when (d) {
+        null -> HomeGap()
+        is HomeDrop.AreaAt ->
+            if (d.index < state.areas.size) HomeGap(beforeArea = state.areas[d.index].id) else HomeGap(end = true)
+        is HomeDrop.ProjectAt -> {
+            val areaId = d.areaId
+            val list = if (areaId == null) {
+                state.looseProjects
+            } else {
+                state.areas.firstOrNull { it.id == areaId }?.projects.orEmpty()
+            }
+            when {
+                areaId != null && areaId in hiddenAreas -> HomeGap(afterArea = areaId)
+                d.index < list.size -> HomeGap(beforeProject = list[d.index].id)
+                list.isNotEmpty() -> HomeGap(afterProject = list.last().id)
+                areaId != null -> HomeGap(afterArea = areaId)
+                else -> HomeGap(looseStart = true)
+            }
+        }
+    }
+    val gap = gapFor(drop)
 
     // Hold-and-move ordering of projects and areas.
     val reorder = rememberReorderState(listState)
@@ -370,19 +460,28 @@ fun HomeScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
+            // Room for a project dragged onto an empty list of loose projects
+            if (gap.looseStart) {
+                item(key = "gap-loose-start") { Spacer(Modifier.height(DropGapHeight)) }
+            }
+
             // Projects without an area, one row each so each can be moved
             items(state.looseProjects, key = { "$ProjectPrefix${it.id}" }) { project ->
-                SwipeToDeleteRow(
-                    onDelete = { onDeleteProject(project.id) },
-                    modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
-                ) {
-                    ProjectRow(
-                        project = project,
-                        editing = editingId == project.id,
-                        onTitleChange = { onTitleChange(project.id, it) },
-                        onEditDone = { onEditDone(project.id) },
-                        onClick = { onProjectClick(project) },
-                    )
+                Column {
+                    if (gap.beforeProject == project.id) Spacer(Modifier.height(DropGapHeight))
+                    SwipeToDeleteRow(
+                        onDelete = { onDeleteProject(project.id) },
+                        modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
+                    ) {
+                        ProjectRow(
+                            project = project,
+                            editing = editingId == project.id,
+                            onTitleChange = { onTitleChange(project.id, it) },
+                            onEditDone = { onEditDone(project.id) },
+                            onClick = { onProjectClick(project) },
+                        )
+                    }
+                    if (gap.afterProject == project.id) Spacer(Modifier.height(DropGapHeight))
                 }
             }
 
@@ -391,6 +490,7 @@ fun HomeScreen(
                 item(key = "$AreaPrefix${area.id}") {
                     val expanded = area.id !in hiddenAreas
                     Column(rowModifier("$AreaPrefix${area.id}", area.id)) {
+                        if (gap.beforeArea == area.id) Spacer(Modifier.height(DropGapHeight))
                         if (index > 0 || state.looseProjects.isNotEmpty()) {
                             Spacer(Modifier.height(12.dp))
                             SectionDivider()
@@ -413,6 +513,7 @@ fun HomeScreen(
                                 },
                             )
                         }
+                        if (gap.afterArea == area.id) Spacer(Modifier.height(DropGapHeight))
                     }
                 }
                 val isExpanded = area.id !in hiddenAreas
@@ -428,20 +529,29 @@ fun HomeScreen(
                             shrinkTowards = Alignment.Top,
                         ) + fadeOut(tween(250)),
                     ) {
-                        SwipeToDeleteRow(
-                            onDelete = { onDeleteProject(project.id) },
-                            modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
-                        ) {
-                            ProjectRow(
-                                project = project,
-                                editing = editingId == project.id,
-                                onTitleChange = { onTitleChange(project.id, it) },
-                                onEditDone = { onEditDone(project.id) },
-                                onClick = { onProjectClick(project) },
-                            )
+                        Column {
+                            if (gap.beforeProject == project.id) Spacer(Modifier.height(DropGapHeight))
+                            SwipeToDeleteRow(
+                                onDelete = { onDeleteProject(project.id) },
+                                modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
+                            ) {
+                                ProjectRow(
+                                    project = project,
+                                    editing = editingId == project.id,
+                                    onTitleChange = { onTitleChange(project.id, it) },
+                                    onEditDone = { onEditDone(project.id) },
+                                    onClick = { onProjectClick(project) },
+                                )
+                            }
+                            if (gap.afterProject == project.id) Spacer(Modifier.height(DropGapHeight))
                         }
                     }
                 }
+            }
+
+            // Room for an area dragged below the last one
+            if (gap.end) {
+                item(key = "gap-end") { Spacer(Modifier.height(DropGapHeight)) }
             }
 
             // Settings: the last row of the list. Scroll to the end to see it.
@@ -490,6 +600,7 @@ fun HomeScreen(
                 onDragStart = {
                     leftFab = false
                     dragPos = fabBounds?.center
+                    updateDrop(dragPos)
                 },
                 onDrag = { delta ->
                     val next = dragPos?.plus(delta)
@@ -498,20 +609,23 @@ fun HomeScreen(
                     if (next != null && center != null && (next - center).getDistance() > fabRadiusPx * 1.3f) {
                         leftFab = true
                     }
+                    updateDrop(next)
                 },
                 onDragEnd = {
-                    val p = dragPos
-                    val wasCancelling = cancelling
+                    val d = drop
                     dragPos = null
                     leftFab = false
-                    if (p != null && !wasCancelling) {
-                        val (areaId, index) = dropTarget(p)
-                        currentOnCreateProjectAt(areaId, index)
+                    drop = null
+                    when (d) {
+                        is HomeDrop.ProjectAt -> currentOnCreateProjectAt(d.areaId, d.index)
+                        is HomeDrop.AreaAt -> currentOnCreateAreaAt(d.index)
+                        null -> Unit
                     }
                 },
                 onDragCancel = {
                     dragPos = null
                     leftFab = false
+                    drop = null
                 },
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
@@ -519,12 +633,14 @@ fun HomeScreen(
             )
         }
 
-        // The new project under the finger while the + is dragged (not while it would cancel). It is
-        // only as wide as its text, centered on the finger and kept on the screen.
+        // The new project (or area, near the left edge) under the finger while the + is dragged (not
+        // while it would cancel). It is only as wide as its text, centered on the finger and kept on
+        // the screen.
         val p = dragPos
         if (p != null && !cancelling) {
             val local = p - rootOrigin
             val top = (local.y - with(density) { RowHeight.toPx() } / 2f).roundToInt()
+            val areaGhost = drop is HomeDrop.AreaAt
             Box(
                 Modifier
                     .fillMaxSize()
@@ -551,10 +667,17 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.size(IconSlot), contentAlignment = Alignment.Center) {
-                        ProgressIcon(0f, Modifier.size(24.dp))
+                        if (areaGhost) {
+                            AreaIcon(Modifier.size(24.dp))
+                        } else {
+                            ProgressIcon(0f, Modifier.size(24.dp))
+                        }
                     }
                     Spacer(Modifier.width(IconTextGap))
-                    Text("New Project", style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary))
+                    Text(
+                        if (areaGhost) "New Area" else "New Project",
+                        style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
+                    )
                 }
             }
         }
