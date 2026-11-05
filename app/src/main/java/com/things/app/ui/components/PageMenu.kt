@@ -15,8 +15,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -45,27 +47,49 @@ import androidx.compose.ui.unit.dp
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsType
 
-/** What the three-dots menu at the top right of a page can offer. Each page lists the ones it uses. */
+/**
+ * What the three-dots menu at the top right of a page can offer. Each page lists the ones it uses.
+ * [Divider] is not an action: put it in the list where a thin line has to separate two sections.
+ */
 enum class PageMenuAction(val label: String) {
     FilterByTag("Filter by Tag"),
+    NewHeading("New Heading"),
     Select("Select"),
     Paste("Paste"),
     Share("Share"),
     AddTags("Add Tags"),
     DeleteArea("Delete Area"),
+    Divider(""),
 }
 
 /** The entries of the menu of a list page, in order. */
 val DefaultMenuActions: List<PageMenuAction> =
     listOf(PageMenuAction.FilterByTag, PageMenuAction.Select, PageMenuAction.Paste, PageMenuAction.Share)
 
-/** The entries of the menu of an area page, in order. */
-val AreaMenuActions: List<PageMenuAction> =
-    listOf(PageMenuAction.AddTags, PageMenuAction.DeleteArea, PageMenuAction.Share)
+/** The entries of the menu of a project page, in order. */
+val ProjectMenuActions: List<PageMenuAction> = listOf(
+    PageMenuAction.FilterByTag,
+    PageMenuAction.NewHeading,
+    PageMenuAction.Select,
+    PageMenuAction.Paste,
+    PageMenuAction.Share,
+)
+
+/** The entries of the menu of an area page, in order: three sections with a thin line between them. */
+val AreaMenuActions: List<PageMenuAction> = listOf(
+    PageMenuAction.AddTags,
+    PageMenuAction.Divider,
+    PageMenuAction.DeleteArea,
+    PageMenuAction.Divider,
+    PageMenuAction.Share,
+)
 
 /** Filter by Tag stays greyed out until tags exist; the other actions are available. */
 val DefaultEnabledMenuActions: Set<PageMenuAction> =
     setOf(PageMenuAction.Select, PageMenuAction.Paste, PageMenuAction.Share)
+
+/** The same for a project page, where New Heading is available too. */
+val ProjectEnabledMenuActions: Set<PageMenuAction> = DefaultEnabledMenuActions + PageMenuAction.NewHeading
 
 /**
  * The bar at the top of every list page: back button at the start and the three-dots button at
@@ -148,23 +172,30 @@ private fun PageMenu(
         shadowElevation = 6.dp,
     ) {
         actions.forEach { action ->
-            DropdownMenuItem(
-                text = {
-                    Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
-                },
-                onClick = { onAction(action) },
-                modifier = Modifier.heightIn(min = 48.dp),
-                leadingIcon = {
-                    Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { ActionIcon(action) }
-                },
-                enabled = action in enabledActions,
-                colors = MenuDefaults.itemColors(
-                    textColor = ThingsColors.TextPrimary,
-                    leadingIconColor = ThingsColors.Fab,
-                    disabledTextColor = ThingsColors.TextSecondary,
-                    disabledLeadingIconColor = ThingsColors.TextSecondary,
-                ),
-            )
+            if (action == PageMenuAction.Divider) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = ThingsColors.Divider,
+                )
+            } else {
+                DropdownMenuItem(
+                    text = {
+                        Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
+                    },
+                    onClick = { onAction(action) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    leadingIcon = {
+                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { ActionIcon(action) }
+                    },
+                    enabled = action in enabledActions,
+                    colors = MenuDefaults.itemColors(
+                        textColor = ThingsColors.TextPrimary,
+                        leadingIconColor = ThingsColors.Fab,
+                        disabledTextColor = ThingsColors.TextSecondary,
+                        disabledLeadingIconColor = ThingsColors.TextSecondary,
+                    ),
+                )
+            }
         }
     }
 }
@@ -175,10 +206,12 @@ private fun ActionIcon(action: PageMenuAction) {
     val size = Modifier.size(24.dp)
     when (action) {
         PageMenuAction.FilterByTag, PageMenuAction.AddTags -> TagIcon(size, color)
+        PageMenuAction.NewHeading -> Icon(Icons.Outlined.Title, contentDescription = null, tint = color, modifier = size)
         PageMenuAction.Select -> SelectIcon(size, color)
         PageMenuAction.Paste -> PasteIcon(size, color)
         PageMenuAction.Share -> ShareIcon(size, color)
         PageMenuAction.DeleteArea -> Icon(Icons.Outlined.Delete, contentDescription = null, tint = color, modifier = size)
+        PageMenuAction.Divider -> Unit
     }
 }
 
