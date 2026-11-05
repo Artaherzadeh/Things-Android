@@ -7,6 +7,11 @@ fun TaskRowModel.withSchedule(schedule: ScheduleModel?): TaskRowModel = copy(
     hasReminder = schedule?.reminder != null,
 )
 
+/** The to-do with [deadline] set (or cleared when null). */
+fun TaskRowModel.withDeadline(deadline: DeadlineModel?): TaskRowModel = copy(
+    details = details.copy(deadline = deadline),
+)
+
 /** The to-do with exactly these [tags]. The tag mark in the closed row follows them. */
 fun TaskRowModel.withTags(tags: List<String>): TaskRowModel = copy(
     details = details.copy(tags = tags),

@@ -1,6 +1,7 @@
 package com.things.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -47,10 +49,14 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
@@ -70,7 +76,7 @@ import java.util.Calendar
 import java.util.Locale
 
 /** Which sheet an open to-do is showing. */
-enum class TaskSheet { When, Tags }
+enum class TaskSheet { When, Deadline, Tags }
 
 /** A tag and the tags nested under it. */
 data class TagModel(val name: String, val children: List<String> = emptyList())
@@ -186,6 +192,23 @@ private fun SheetRow(
     }
 }
 
+/** The wide red button at the bottom of a sheet that has a value to remove. */
+@Composable
+private fun ClearButton(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(26.dp))
+            .background(ClearRed)
+            .clickable(onClickLabel = "Clear", role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text("Clear", style = ThingsType.RowTitleBold.copy(color = Color.White))
+    }
+}
+
 /**
  * The When sheet: Today, This Evening, a calendar, Someday, a reminder time and Clear. A choice is
  * reported through [onPick] and closes the sheet. Setting a reminder keeps the sheet open; with no
@@ -252,20 +275,9 @@ fun WhenSheet(current: ScheduleModel?, onDismiss: () -> Unit, onPick: (ScheduleM
             labelColor = if (reminder != null) ThingsColors.MenuTitle else ThingsColors.TextSecondary,
         )
         if (current != null) {
-            Box(
-                Modifier
-                    .padding(start = 16.dp, end = 16.dp, top = 8.dp)
-                    .fillMaxWidth()
-                    .height(52.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(ClearRed)
-                    .clickable(onClickLabel = "Clear", role = Role.Button) {
-                        onPick(null)
-                        onDismiss()
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Clear", style = ThingsType.RowTitleBold.copy(color = Color.White))
+            ClearButton {
+                onPick(null)
+                onDismiss()
             }
         }
     }
@@ -278,6 +290,193 @@ fun WhenSheet(current: ScheduleModel?, onDismiss: () -> Unit, onPick: (ScheduleM
                 onPick((current ?: ScheduleModel(ScheduleKind.Today, "Today")).copy(reminder = text))
             },
         )
+    }
+}
+
+/** How many weeks the Deadline calendar scrolls through: about three years. */
+private const val DeadlineWeeks = 160
+private val DeadlineRowHeight = 52.dp
+
+/**
+ * The Deadline sheet: the weekday names, then the weeks one under another, starting with the week
+ * of today, scrolling down for about three years. The first day of each month shows the month name
+ * (January also the year) and a thin line runs around the days of that month. Days before today are
+ * grey and cannot be chosen. The chosen day has a blue ring with its month above its number. A day
+ * is reported through [onPick] and closes the sheet; Clear (shown when a deadline is set) reports
+ * null. The text "N days left" is made here until the logic layer produces it.
+ */
+@Composable
+fun DeadlineSheet(current: DeadlineModel?, onDismiss: () -> Unit, onPick: (DeadlineModel?) -> Unit) {
+    val today = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+    }
+    val firstDow = remember { Calendar.getInstance().firstDayOfWeek }
+    val gridStart = remember {
+        (today.clone() as Calendar).apply {
+            add(Calendar.DAY_OF_MONTH, -((get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7))
+        }
+    }
+    val weekdayFormat = remember { SimpleDateFormat("EEE", Locale.getDefault()) }
+    val labelFormat = remember { SimpleDateFormat("EEE, MMM d", Locale.getDefault()) }
+    val monthFormat = remember { SimpleDateFormat("MMM", Locale.getDefault()) }
+
+    fun dateAt(offset: Int): Calendar =
+        (gridStart.clone() as Calendar).apply { add(Calendar.DAY_OF_MONTH, offset) }
+
+    // Open at the week of the chosen day, so a far deadline is not hidden below the list.
+    val startWeek = remember(current) {
+        current?.let { c ->
+            (0 until DeadlineWeeks * 7)
+                .firstOrNull { labelFormat.format(dateAt(it).time) == c.dateLabel }
+                ?.div(7)
+        } ?: 0
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startWeek)
+    val listHeight = (LocalConfiguration.current.screenHeightDp * 0.55f).dp
+
+    SheetFrame(title = "Deadline", onClose = onDismiss, confirm = false, onConfirm = {}) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+        ) {
+            for (i in 0 until 7) {
+                val day = Calendar.getInstance().apply { set(Calendar.DAY_OF_WEEK, (firstDow - 1 + i) % 7 + 1) }
+                Text(
+                    weekdayFormat.format(day.time),
+                    style = ThingsType.Count.copy(color = ThingsColors.TextSecondary, fontSize = 14.sp),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp),
+                )
+            }
+        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .height(listHeight)
+                .padding(horizontal = 12.dp),
+        ) {
+            items(DeadlineWeeks) { week ->
+                DeadlineWeek(
+                    days = List(7) { dateAt(week * 7 + it) },
+                    today = today,
+                    labelFormat = labelFormat,
+                    monthFormat = monthFormat,
+                    selectedLabel = current?.dateLabel,
+                    onPick = { date ->
+                        val diff = Math.round((date.timeInMillis - today.timeInMillis) / 86_400_000.0).toInt()
+                        val remaining = when {
+                            diff <= 0 -> "Today"
+                            diff == 1 -> "1 day left"
+                            else -> "$diff days left"
+                        }
+                        onPick(DeadlineModel(labelFormat.format(date.time), remaining))
+                        onDismiss()
+                    },
+                )
+            }
+        }
+        if (current != null) {
+            ClearButton {
+                onPick(null)
+                onDismiss()
+            }
+        }
+    }
+}
+
+/**
+ * One week of the Deadline calendar. When the 1st of a month is in the week, a thin line runs
+ * along the top of that month's days and down its left side, and under the days of the month
+ * before it, with rounded corners where it turns.
+ */
+@Composable
+private fun DeadlineWeek(
+    days: List<Calendar>,
+    today: Calendar,
+    labelFormat: SimpleDateFormat,
+    monthFormat: SimpleDateFormat,
+    selectedLabel: String?,
+    onPick: (Calendar) -> Unit,
+) {
+    val firstCol = days.indexOfFirst { it.get(Calendar.DAY_OF_MONTH) == 1 }
+    val lineColor = ThingsColors.MenuTitle.copy(alpha = 0.3f)
+
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(DeadlineRowHeight)
+            .drawBehind {
+                if (firstCol >= 0) {
+                    val w = size.width
+                    val h = size.height
+                    val x = firstCol * (w / 7f)
+                    val r = 8.dp.toPx()
+                    val path = Path()
+                    if (firstCol == 0) {
+                        path.moveTo(0f, 0f)
+                        path.lineTo(w, 0f)
+                    } else {
+                        path.moveTo(0f, h)
+                        path.lineTo(x - r, h)
+                        path.quadraticBezierTo(x, h, x, h - r)
+                        path.lineTo(x, r)
+                        path.quadraticBezierTo(x, 0f, x + r, 0f)
+                        path.lineTo(w, 0f)
+                    }
+                    drawPath(path, lineColor, style = Stroke(width = 1.dp.toPx()))
+                }
+            },
+    ) {
+        days.forEach { date ->
+            val day = date.get(Calendar.DAY_OF_MONTH)
+            val past = date.before(today)
+            val selected = !past && labelFormat.format(date.time) == selectedLabel
+            val january = date.get(Calendar.MONTH) == Calendar.JANUARY
+            val withYear = day == 1 && january && !selected
+            val text = when {
+                selected || day == 1 -> buildString {
+                    append(monthFormat.format(date.time))
+                    append('\n')
+                    append(day)
+                    if (withYear) {
+                        append('\n')
+                        append(date.get(Calendar.YEAR))
+                    }
+                }
+                else -> day.toString()
+            }
+            val color = if (past) ThingsColors.TextSecondary else ThingsColors.MenuTitle
+            val style = when {
+                withYear -> ThingsType.RowTitle.copy(color = color, fontSize = 12.sp, lineHeight = 14.sp)
+                text.contains('\n') -> ThingsType.RowTitle.copy(color = color, fontSize = 13.sp, lineHeight = 15.sp)
+                else -> ThingsType.RowTitle.copy(color = color)
+            }
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .then(if (selected) Modifier.border(2.dp, ThingsColors.Fab, CircleShape) else Modifier)
+                        .clickable(enabled = !past, role = Role.Button) { onPick(date) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(text, style = style, textAlign = TextAlign.Center)
+                }
+            }
+        }
     }
 }
 

@@ -186,7 +186,8 @@ fun rememberTaskExpansion(): TaskExpansion =
  * - A new to-do opens with the keyboard on its title. If the keyboard is closed or the card is
  *   closed while the title is empty, the to-do is deleted.
  * - The calendar button and the date line of the card open the When sheet; the tag button and the
- *   tag chips open the Tags sheet. What is chosen is shown on the card and in the closed row.
+ *   tag chips open the Tags sheet; the flag button and the deadline line open the Deadline sheet.
+ *   What is chosen is shown on the card and in the closed row.
  * - When the card closes, the note, checklist and tag marks of the closed row follow what the card
  *   holds: a mark stays only if there is something behind it.
  * - While the add button is dragged over the page the row makes room for the new to-do (see
@@ -298,6 +299,7 @@ fun ExpandableTaskRow(
                             onToggle = toggle,
                             autoFocus = expansion.isNew(task.id) && current.title.isEmpty(),
                             onScheduleClick = { sheet = TaskSheet.When },
+                            onDeadlineClick = { sheet = TaskSheet.Deadline },
                             onTagsClick = { sheet = TaskSheet.Tags },
                         )
                     }
@@ -336,6 +338,11 @@ fun ExpandableTaskRow(
             current = current.details.schedule,
             onDismiss = { sheet = null },
             onPick = { schedule -> expansion.edit(task) { it.withSchedule(schedule) } },
+        )
+        TaskSheet.Deadline -> DeadlineSheet(
+            current = current.details.deadline,
+            onDismiss = { sheet = null },
+            onPick = { deadline -> expansion.edit(task) { it.withDeadline(deadline) } },
         )
         TaskSheet.Tags -> TagsSheet(
             selected = current.details.tags,
