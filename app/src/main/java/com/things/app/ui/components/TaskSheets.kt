@@ -81,13 +81,74 @@ enum class TaskSheet { When, Deadline, Tags }
 /** A tag and the tags nested under it. */
 data class TagModel(val name: String, val children: List<String> = emptyList())
 
-/** Static glue: the tag list the sheet offers until real tags exist. New tags are added here. */
+/**
+ * Static glue: the tag list the sheets offer until real tags exist. A tag is either a top-level tag
+ * or nested one level under a top-level tag. The Manage Tags and Edit Tag sheets change it here.
+ * Tags already put on to-dos are not touched when a tag is renamed or deleted.
+ */
 object SampleTagStore {
     val tags = mutableStateListOf(
         TagModel("Wishlist", listOf("Buy Next")),
         TagModel("Priority", listOf("Important", "ASAP")),
         TagModel("Next"),
     )
+
+    /** Every tag name, top-level and nested. */
+    fun names(): List<String> = tags.flatMap { listOf(it.name) + it.children }
+
+    /** The tag [name] is nested under, or null for a top-level tag. */
+    fun parentOf(name: String): String? = tags.firstOrNull { name in it.children }?.name
+
+    fun childrenOf(name: String): List<String> = tags.firstOrNull { it.name == name }?.children.orEmpty()
+
+    /** Adds a top-level tag unless a tag with that name (in any letter case) exists. */
+    fun add(name: String) {
+        if (names().none { it.equals(name, ignoreCase = true) }) tags.add(TagModel(name))
+    }
+
+    /** Removes a tag. The tags nested under it stay, as top-level tags in its place. */
+    fun remove(name: String) {
+        val top = tags.indexOfFirst { it.name == name }
+        if (top >= 0) {
+            val kids = tags[top].children
+            tags.removeAt(top)
+            tags.addAll(top, kids.map { TagModel(it) })
+        } else {
+            val p = tags.indexOfFirst { name in it.children }
+            if (p >= 0) tags[p] = tags[p].copy(children = tags[p].children - name)
+        }
+    }
+
+    /**
+     * Renames [old] to [new] and nests it under [parent] (null: top-level). A tag that has tags
+     * nested under it stays top-level, because tags go one level deep.
+     */
+    fun update(old: String, new: String, parent: String?) {
+        val top = tags.indexOfFirst { it.name == old }
+        if (top >= 0) {
+            val kids = tags[top].children
+            if (parent == null || kids.isNotEmpty()) {
+                tags[top] = TagModel(new, kids)
+                return
+            }
+            tags.removeAt(top)
+        } else {
+            val p = tags.indexOfFirst { old in it.children }
+            if (p >= 0) {
+                if (tags[p].name == parent) {
+                    tags[p] = tags[p].copy(children = tags[p].children.map { if (it == old) new else it })
+                    return
+                }
+                tags[p] = tags[p].copy(children = tags[p].children - old)
+            }
+        }
+        val target = if (parent == null) -1 else tags.indexOfFirst { it.name == parent }
+        if (target >= 0) {
+            tags[target] = tags[target].copy(children = tags[target].children + new)
+        } else {
+            tags.add(TagModel(new))
+        }
+    }
 }
 
 private val SheetShape = RoundedCornerShape(28.dp)
@@ -113,13 +174,18 @@ fun BulkSheets(request: BulkRequest, expansion: TaskExpansion?, onClose: () -> U
     }
 }
 
-/** The dark rounded panel with a centered title and a round button at the top right. */
+/**
+ * The dark rounded panel with a centered title and a round button at the top right: a cross that
+ * closes, or a blue check when [confirm] is on. With [leadingClose] the cross sits at the start
+ * instead and the button at the end is always a check (grey and inactive while [confirm] is off).
+ */
 @Composable
-private fun SheetFrame(
+internal fun SheetFrame(
     title: String,
     onClose: () -> Unit,
     confirm: Boolean,
     onConfirm: () -> Unit,
+    leadingClose: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -137,6 +203,24 @@ private fun SheetFrame(
                     .padding(start = 16.dp, end = 12.dp, top = 12.dp)
                     .height(48.dp)
             ) {
+                if (leadingClose) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterStart)
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(ThingsColors.MenuTitle.copy(alpha = 0.14f))
+                            .clickable(onClickLabel = "Close", role = Role.Button, onClick = onClose),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = null,
+                            tint = ThingsColors.MenuTitle,
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
+                }
                 Text(
                     title,
                     style = ThingsType.RowTitleBold.copy(color = ThingsColors.MenuTitle),
@@ -151,13 +235,19 @@ private fun SheetFrame(
                         .clickable(
                             onClickLabel = if (confirm) "Done" else "Close",
                             role = Role.Button,
-                        ) { if (confirm) onConfirm() else onClose() },
+                        ) {
+                            if (confirm) onConfirm() else if (!leadingClose) onClose()
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        if (confirm) Icons.Rounded.Check else Icons.Rounded.Close,
+                        if (confirm || leadingClose) Icons.Rounded.Check else Icons.Rounded.Close,
                         contentDescription = null,
-                        tint = if (confirm) Color.White else ThingsColors.MenuTitle,
+                        tint = when {
+                            confirm -> Color.White
+                            leadingClose -> ThingsColors.MenuTitle.copy(alpha = 0.4f)
+                            else -> ThingsColors.MenuTitle
+                        },
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -168,7 +258,7 @@ private fun SheetFrame(
 }
 
 @Composable
-private fun SheetRow(
+internal fun SheetRow(
     selected: Boolean,
     onClick: () -> Unit,
     icon: @Composable () -> Unit,
@@ -653,7 +743,7 @@ private fun TimePickerDialog(onCancel: () -> Unit, onSet: (String) -> Unit) {
 }
 
 @Composable
-private fun SheetButton(text: String, modifier: Modifier, onClick: () -> Unit) {
+internal fun SheetButton(text: String, modifier: Modifier, onClick: () -> Unit) {
     Box(
         modifier
             .height(48.dp)
@@ -711,7 +801,9 @@ private fun Wheel(values: List<String>, selected: Int, onSelected: (Int) -> Unit
 /**
  * The Tags sheet: the tag list with the tags nested under their parent. Tap a tag to tick it. The
  * round button at the top right is a cross until something changed, then a blue check that applies
- * the change through [onDone]. New Tag adds a tag to the list and ticks it.
+ * the change through [onDone]. New Tag adds a tag to the list and ticks it. Manage Tags opens the
+ * sheet that renames, regroups and deletes tags; a tag that no longer exists when the sheet is
+ * confirmed is dropped from the choice.
  */
 @Composable
 fun TagsSheet(
@@ -722,6 +814,7 @@ fun TagsSheet(
 ) {
     var chosen by remember { mutableStateOf(selected) }
     var creating by remember { mutableStateOf(false) }
+    var managing by remember { mutableStateOf(false) }
     val changed = chosen.toSet() != selected.toSet()
 
     fun toggle(name: String) {
@@ -733,7 +826,8 @@ fun TagsSheet(
         onClose = onDismiss,
         confirm = changed,
         onConfirm = {
-            onDone(chosen)
+            val existing = SampleTagStore.names().toSet()
+            onDone(chosen.filter { it in existing })
             onDismiss()
         },
     ) {
@@ -755,9 +849,16 @@ fun TagsSheet(
             Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SheetButton("Manage Tags", Modifier.weight(1f), onManageTags)
+            SheetButton("Manage Tags", Modifier.weight(1f)) {
+                managing = true
+                onManageTags()
+            }
             SheetButton("New Tag", Modifier.weight(1f)) { creating = true }
         }
+    }
+
+    if (managing) {
+        ManageTagsSheet(onDismiss = { managing = false })
     }
 
     if (creating) {
@@ -765,9 +866,7 @@ fun TagsSheet(
             onCancel = { creating = false },
             onAdd = { name ->
                 creating = false
-                if (SampleTagStore.tags.none { it.name.equals(name, ignoreCase = true) }) {
-                    SampleTagStore.tags.add(TagModel(name))
-                }
+                SampleTagStore.add(name)
                 if (name !in chosen) chosen = chosen + name
             },
         )
@@ -797,7 +896,7 @@ private fun TagRow(name: String, depth: Int, selected: Boolean, onClick: () -> U
 }
 
 @Composable
-private fun NewTagDialog(onCancel: () -> Unit, onAdd: (String) -> Unit) {
+internal fun NewTagDialog(onCancel: () -> Unit, onAdd: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
     val requester = remember { FocusRequester() }
     LaunchedEffect(Unit) { requester.requestFocus() }
