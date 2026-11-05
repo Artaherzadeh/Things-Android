@@ -74,6 +74,32 @@ enum class SelectionAction(val label: String) {
     Share("Share"),
 }
 
+/** The icon of an action in the menu. */
+private fun SelectionAction.icon(): ImageVector = when (this) {
+    SelectionAction.When -> Icons.Outlined.CalendarMonth
+    SelectionAction.Move -> Icons.AutoMirrored.Outlined.ArrowForward
+    SelectionAction.Delete -> Icons.Outlined.Delete
+    SelectionAction.MarkCompleted -> Icons.Outlined.CheckBox
+    SelectionAction.SetTags -> Icons.Outlined.LocalOffer
+    SelectionAction.SetDeadline -> Icons.Outlined.Flag
+    SelectionAction.Repeat -> Icons.Outlined.Repeat
+    SelectionAction.Duplicate -> Icons.Outlined.ContentCopy
+    SelectionAction.ConvertToProject -> Icons.Outlined.SwapHoriz
+    SelectionAction.Share -> Icons.Outlined.Share
+}
+
+/** The entries of the menu on the list pages: groups of actions, a thin line between the groups. */
+private val DefaultMenuGroups: List<List<SelectionAction>> = listOf(
+    listOf(
+        SelectionAction.MarkCompleted,
+        SelectionAction.SetTags,
+        SelectionAction.SetDeadline,
+        SelectionAction.Repeat,
+    ),
+    listOf(SelectionAction.Duplicate, SelectionAction.ConvertToProject),
+    listOf(SelectionAction.Share),
+)
+
 /**
  * The select mode of a list page: whether it is on and which to-dos are ticked. The page menu
  * entry Select turns it on; the Done button turns it off.
@@ -138,6 +164,10 @@ private val DeleteTint = Color(0xFFFF453A)
  * of the status entry of the menu (Mark as Completed, Undo or Switch Status). [onMenuOpenChange]
  * tells the page when the menu opens or closes so it can dim itself.
  *
+ * A page whose rows allow fewer actions turns When and Move off with [whenMoveEnabled] and lists its
+ * own menu entries in [menuGroups] (groups of actions with a thin line between them); with no
+ * [menuGroups] the menu of the list pages is shown.
+ *
  * The menu opens above the bar, 8dp over it, with its right edge in line with the right edge of the
  * bar.
  */
@@ -148,6 +178,8 @@ fun SelectionBottomBar(
     onAction: (SelectionAction) -> Unit,
     onMenuOpenChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    whenMoveEnabled: Boolean = true,
+    menuGroups: List<List<SelectionAction>>? = null,
 ) {
     var moreOpen by remember { mutableStateOf(false) }
     val iconSize = Modifier.size(24.dp)
@@ -169,10 +201,10 @@ fun SelectionBottomBar(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            BarButton("When", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.When) }) { tint ->
+            BarButton("When", enabled && whenMoveEnabled, ThingsColors.MenuTitle, { onAction(SelectionAction.When) }) { tint ->
                 Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = tint, modifier = iconSize)
             }
-            BarButton("Move", enabled, ThingsColors.MenuTitle, { onAction(SelectionAction.Move) }) { tint ->
+            BarButton("Move", enabled && whenMoveEnabled, ThingsColors.MenuTitle, { onAction(SelectionAction.Move) }) { tint ->
                 Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = tint, modifier = iconSize)
             }
             BarButton("Delete", enabled, DeleteTint, { onAction(SelectionAction.Delete) }) { tint ->
@@ -199,6 +231,7 @@ fun SelectionBottomBar(
                 MoreMenu(
                     expanded = moreOpen,
                     completeLabel = completeLabel,
+                    groups = menuGroups ?: DefaultMenuGroups,
                     onDismiss = { moreOpen = false },
                     onAction = {
                         moreOpen = false
@@ -267,6 +300,7 @@ private class AboveEndPositioner(
 private fun MoreMenu(
     expanded: Boolean,
     completeLabel: String,
+    groups: List<List<SelectionAction>>,
     onDismiss: () -> Unit,
     onAction: (SelectionAction) -> Unit,
 ) {
@@ -282,19 +316,6 @@ private fun MoreMenu(
             )
         }
     }
-    val groups: List<List<Pair<SelectionAction, ImageVector>>> = listOf(
-        listOf(
-            SelectionAction.MarkCompleted to Icons.Outlined.CheckBox,
-            SelectionAction.SetTags to Icons.Outlined.LocalOffer,
-            SelectionAction.SetDeadline to Icons.Outlined.Flag,
-            SelectionAction.Repeat to Icons.Outlined.Repeat,
-        ),
-        listOf(
-            SelectionAction.Duplicate to Icons.Outlined.ContentCopy,
-            SelectionAction.ConvertToProject to Icons.Outlined.SwapHoriz,
-        ),
-        listOf(SelectionAction.Share to Icons.Outlined.Share),
-    )
 
     Popup(
         popupPositionProvider = positioner,
@@ -318,11 +339,11 @@ private fun MoreMenu(
                         color = ThingsColors.MenuTitle.copy(alpha = 0.15f),
                     )
                 }
-                items.forEach { (action, icon) ->
+                items.forEach { action ->
                     val label = if (action == SelectionAction.MarkCompleted) completeLabel else action.label
                     DropdownMenuItem(
                         text = { Text(label, style = ThingsType.RowTitle.copy(color = Color.Unspecified)) },
-                        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
+                        leadingIcon = { Icon(action.icon(), contentDescription = null, modifier = Modifier.size(24.dp)) },
                         onClick = { onAction(action) },
                         colors = MenuDefaults.itemColors(
                             textColor = ThingsColors.MenuTitle,

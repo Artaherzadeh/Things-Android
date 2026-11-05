@@ -1,5 +1,6 @@
 package com.things.app.ui.home
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -75,6 +76,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -93,8 +95,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
 import com.things.app.ui.components.DropGapHeight
-import com.things.app.ui.components.SwipeToDeleteRow
+import com.things.app.ui.components.SelectionAction
+import com.things.app.ui.components.SelectionBottomBar
 import com.things.app.ui.components.rememberReorderState
+import com.things.app.ui.components.rememberSelectionState
 import com.things.app.ui.components.reorderable
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
@@ -174,8 +178,13 @@ private data class HomeGap(
  * - Hold a project or an area and move it to change the order. A held area folds first, with all
  *   its projects, and moves as one row. A project can move inside its area, to another area or out
  *   of any area. [onMoveProject] and [onMoveArea] get the held row and the row it passed.
- * - Swipe a project or an area to the left for a red cross that deletes it ([onDeleteProject],
- *   [onDeleteArea]; an area goes with its projects).
+ * - Swipe a project or an area to the left: the select mode starts with that row ticked. Every row
+ *   gets a ring, a tap ticks or unticks it, the blue Done pill ends the mode and the + gives way to
+ *   a bar with When, Move, Delete and a three-dots menu. When an area is among the ticked rows, When
+ *   and Move are off and the menu has Set Tags and Share; with only projects ticked everything is on
+ *   and the menu has Mark as Completed, Set Tags, Set Deadline, Repeat, Duplicate and Share. Delete
+ *   ([onDeleteProject], [onDeleteArea]; an area goes with its projects) and Share are done here; the
+ *   other actions are reported through [onSelectionAction].
  * - A long name goes on to the next lines; the icon stays level with the first line.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -199,6 +208,7 @@ fun HomeScreen(
     onMoveArea: (fromId: String, toId: String) -> Unit = { _, _ -> },
     onDeleteProject: (id: String) -> Unit = {},
     onDeleteArea: (id: String) -> Unit = {},
+    onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
     searchHidden: Boolean = false,
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -206,6 +216,7 @@ fun HomeScreen(
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
     var imeWasVisible by remember { mutableStateOf(false) }
@@ -237,6 +248,12 @@ fun HomeScreen(
             }
         }
     }
+
+    // The select mode: which projects and areas are ticked. Only projects ticked turns everything on.
+    val selection = rememberSelectionState()
+    val selecting = selection.active
+    val areaIds = state.areas.map { it.id }.toSet()
+    val projectsOnly = selection.selected.isNotEmpty() && selection.selected.none { it in areaIds }
 
     // The areas that show no projects: the ones the person folded, and the held one.
     val hiddenAreas = holdingArea?.let { collapsedAreas + it } ?: collapsedAreas
@@ -298,6 +315,32 @@ fun HomeScreen(
             CreationType.ToDo -> onNewToDo()
             CreationType.Project -> onNewProject()
             CreationType.Area -> onNewArea()
+        }
+    }
+
+    /** Does what the select bar asked for. Delete and Share are done here; the rest goes to the page. */
+    fun runSelectionAction(action: SelectionAction) {
+        val ids = selection.selected
+        when (action) {
+            SelectionAction.Delete -> {
+                ids.forEach { id -> if (id in areaIds) onDeleteArea(id) else onDeleteProject(id) }
+                selection.finish()
+            }
+            SelectionAction.Share -> {
+                val projects = state.looseProjects + state.areas.flatMap { it.projects }
+                val titles = ids.mapNotNull { id ->
+                    state.areas.firstOrNull { it.id == id }?.title ?: projects.firstOrNull { it.id == id }?.title
+                }.filter { it.isNotBlank() }
+                if (titles.isNotEmpty()) {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, titles.joinToString("\n"))
+                    }
+                    context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                selection.finish()
+            }
+            else -> onSelectionAction(action, ids)
         }
     }
 
@@ -412,9 +455,10 @@ fun HomeScreen(
     }
 
     fun rowModifier(key: String, id: String): Modifier =
-        if (editingId == id) Modifier else Modifier.reorderable(reorder, key)
+        if (editingId == id || selecting) Modifier else Modifier.reorderable(reorder, key)
 
     BackHandler(enabled = menuExpanded) { menuExpanded = false }
+    BackHandler(enabled = selecting) { selection.finish() }
 
     Box(
         Modifier
@@ -431,7 +475,7 @@ fun HomeScreen(
                 .imePadding(),
             contentPadding = PaddingValues(top = statusBarTop + ListTopPadding, bottom = 140.dp),
         ) {
-            item(key = "quick-find") { QuickFind(hidden = searchHidden, onClick = onSearchClick) }
+            item(key = "quick-find") { QuickFind(hidden = searchHidden || selecting, onClick = onSearchClick) }
 
             item(key = "quick-find-gap") { Spacer(Modifier.height(28.dp)) }
 
@@ -469,8 +513,14 @@ fun HomeScreen(
             items(state.looseProjects, key = { "$ProjectPrefix${it.id}" }) { project ->
                 Column {
                     if (gap.beforeProject == project.id) Spacer(Modifier.height(DropGapHeight))
-                    SwipeToDeleteRow(
-                        onDelete = { onDeleteProject(project.id) },
+                    HomeSwipeRow(
+                        selecting = selecting,
+                        selected = selection.isSelected(project.id),
+                        onSwipeLeft = {
+                            selection.start()
+                            selection.toggle(project.id)
+                        },
+                        onToggle = { selection.toggle(project.id) },
                         modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
                     ) {
                         ProjectRow(
@@ -496,11 +546,20 @@ fun HomeScreen(
                             SectionDivider()
                             Spacer(Modifier.height(12.dp))
                         }
-                        SwipeToDeleteRow(onDelete = { onDeleteArea(area.id) }) {
+                        HomeSwipeRow(
+                            selecting = selecting,
+                            selected = selection.isSelected(area.id),
+                            onSwipeLeft = {
+                                selection.start()
+                                selection.toggle(area.id)
+                            },
+                            onToggle = { selection.toggle(area.id) },
+                        ) {
                             AreaRow(
                                 area = area,
                                 expanded = expanded,
                                 editing = editingId == area.id,
+                                selecting = selecting,
                                 onTitleChange = { onTitleChange(area.id, it) },
                                 onEditDone = { onEditDone(area.id) },
                                 onClick = { onAreaClick(area) },
@@ -531,8 +590,14 @@ fun HomeScreen(
                     ) {
                         Column {
                             if (gap.beforeProject == project.id) Spacer(Modifier.height(DropGapHeight))
-                            SwipeToDeleteRow(
-                                onDelete = { onDeleteProject(project.id) },
+                            HomeSwipeRow(
+                                selecting = selecting,
+                                selected = selection.isSelected(project.id),
+                                onSwipeLeft = {
+                                    selection.start()
+                                    selection.toggle(project.id)
+                                },
+                                onToggle = { selection.toggle(project.id) },
                                 modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
                             ) {
                                 ProjectRow(
@@ -582,55 +647,78 @@ fun HomeScreen(
             }
         }
 
-        // Floating add button, 20dp from the right edge and 20dp above the bottom edge.
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(bottom = ThingsSpacing.FabMargin)
-                .height(ThingsSpacing.FabSize)
-        ) {
-            AddButton(
-                onClick = { menuExpanded = true },
-                hidden = menuOnScreen,
-                dragging = dragPos != null,
-                cancelling = cancelling,
-                onBoundsChanged = { fabBounds = it },
-                onDragStart = {
-                    leftFab = false
-                    dragPos = fabBounds?.center
-                    updateDrop(dragPos)
-                },
-                onDrag = { delta ->
-                    val next = dragPos?.plus(delta)
-                    dragPos = next
-                    val center = fabBounds?.center
-                    if (next != null && center != null && (next - center).getDistance() > fabRadiusPx * 1.3f) {
-                        leftFab = true
-                    }
-                    updateDrop(next)
-                },
-                onDragEnd = {
-                    val d = drop
-                    dragPos = null
-                    leftFab = false
-                    drop = null
-                    when (d) {
-                        is HomeDrop.ProjectAt -> currentOnCreateProjectAt(d.areaId, d.index)
-                        is HomeDrop.AreaAt -> currentOnCreateAreaAt(d.index)
-                        null -> Unit
-                    }
-                },
-                onDragCancel = {
-                    dragPos = null
-                    leftFab = false
-                    drop = null
-                },
+        if (selecting) {
+            // The select mode: the Done pill at the top and the bar at the bottom, in place of the +.
+            DonePill(
+                onDone = { selection.finish() },
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = ThingsSpacing.FabMargin),
+                    .align(Alignment.TopEnd)
+                    .padding(top = statusBarTop + 10.dp, end = 16.dp),
             )
+            SelectionBottomBar(
+                enabled = selection.selected.isNotEmpty(),
+                completeLabel = "Mark as Completed",
+                onAction = { action -> runSelectionAction(action) },
+                onMenuOpenChange = {},
+                whenMoveEnabled = projectsOnly,
+                menuGroups = homeMenuGroups(projectsOnly),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(start = ThingsSpacing.FabMargin, end = ThingsSpacing.FabMargin, bottom = ThingsSpacing.FabMargin)
+                    .fillMaxWidth(),
+            )
+        } else {
+            // Floating add button, 20dp from the right edge and 20dp above the bottom edge.
+            Box(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = ThingsSpacing.FabMargin)
+                    .height(ThingsSpacing.FabSize)
+            ) {
+                AddButton(
+                    onClick = { menuExpanded = true },
+                    hidden = menuOnScreen,
+                    dragging = dragPos != null,
+                    cancelling = cancelling,
+                    onBoundsChanged = { fabBounds = it },
+                    onDragStart = {
+                        leftFab = false
+                        dragPos = fabBounds?.center
+                        updateDrop(dragPos)
+                    },
+                    onDrag = { delta ->
+                        val next = dragPos?.plus(delta)
+                        dragPos = next
+                        val center = fabBounds?.center
+                        if (next != null && center != null && (next - center).getDistance() > fabRadiusPx * 1.3f) {
+                            leftFab = true
+                        }
+                        updateDrop(next)
+                    },
+                    onDragEnd = {
+                        val d = drop
+                        dragPos = null
+                        leftFab = false
+                        drop = null
+                        when (d) {
+                            is HomeDrop.ProjectAt -> currentOnCreateProjectAt(d.areaId, d.index)
+                            is HomeDrop.AreaAt -> currentOnCreateAreaAt(d.index)
+                            null -> Unit
+                        }
+                    },
+                    onDragCancel = {
+                        dragPos = null
+                        leftFab = false
+                        drop = null
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = ThingsSpacing.FabMargin),
+                )
+            }
         }
 
         // The new project (or area, near the left edge) under the finger while the + is dragged (not
@@ -880,11 +968,13 @@ private fun SystemRow(
     )
 }
 
+/** An area row. In the select mode ([selecting]) the chevron gives way to the ring of the select mode. */
 @Composable
 private fun AreaRow(
     area: Area,
     expanded: Boolean,
     editing: Boolean,
+    selecting: Boolean,
     onTitleChange: (String) -> Unit,
     onEditDone: () -> Unit,
     onClick: () -> Unit,
@@ -911,21 +1001,23 @@ private fun AreaRow(
             null
         },
         trailing = {
-            Box(
-                Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onToggle),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
-                    tint = ThingsColors.TextSecondary,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .rotate(rotation),
-                )
+            if (!selecting) {
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onToggle),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = if (expanded) "Collapse" else "Expand",
+                        tint = ThingsColors.TextSecondary,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .rotate(rotation),
+                    )
+                }
             }
         },
     )
