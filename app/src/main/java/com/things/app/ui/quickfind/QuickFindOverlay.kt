@@ -197,7 +197,7 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onClose: (
                 tint = ThingsColors.SearchContent,
                 modifier = Modifier.size(24.dp),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                 if (query.isEmpty()) {
                     Text("Quick Find", style = ThingsType.Search)
@@ -212,7 +212,7 @@ private fun SearchRow(query: String, onQueryChange: (String) -> Unit, onClose: (
                 )
             }
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
         Box(
             Modifier
                 .size(ThingsSpacing.RowHeight)
@@ -243,7 +243,7 @@ private fun QuickFindRow(item: QuickFindItem, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { TargetIcon(item) }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
         Text(
             item.title,
             style = ThingsType.RowTitle,

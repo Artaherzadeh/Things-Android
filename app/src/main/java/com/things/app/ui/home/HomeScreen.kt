@@ -1,8 +1,15 @@
 package com.things.app.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -408,8 +415,19 @@ fun HomeScreen(
                         }
                     }
                 }
-                if (area.id !in hiddenAreas) {
-                    items(area.projects, key = { "$ProjectPrefix${it.id}" }) { project ->
+                val isExpanded = area.id !in hiddenAreas
+                items(area.projects, key = { "$ProjectPrefix${it.id}" }) { project ->
+                    AnimatedVisibility(
+                        visible = isExpanded,
+                        enter = expandVertically(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.Top,
+                        ) + fadeIn(tween(280)),
+                        exit = shrinkVertically(
+                            animationSpec = tween(250, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.Top,
+                        ) + fadeOut(tween(250)),
+                    ) {
                         SwipeToDeleteRow(
                             onDelete = { onDeleteProject(project.id) },
                             modifier = rowModifier("$ProjectPrefix${project.id}", project.id),
@@ -440,7 +458,7 @@ fun HomeScreen(
                             .clickable(onClick = onSettingsClick)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Icon(
                             Icons.Outlined.Settings,
@@ -569,7 +587,7 @@ private fun QuickFind(hidden: Boolean, onClick: () -> Unit) {
             .clickable(enabled = !hidden, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(
                 Icons.Outlined.Search,
                 contentDescription = null,

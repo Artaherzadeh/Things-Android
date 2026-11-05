@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -47,6 +48,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -65,7 +68,7 @@ private val CardShape = RoundedCornerShape(20.dp)
  * Space the open card keeps from the row or heading above it. It is also how far the row's title
  * moves down when the card opens, so a small number means a small jump.
  */
-private val CardGapTop = 10.dp
+private val CardGapTop = 4.dp
 
 /**
  * Space the open card keeps from the row or heading below it. It is wider than the shadow reaches,
@@ -133,6 +136,7 @@ fun TaskCard(
     var addingChecklist by rememberSaveable(task.id) { mutableStateOf(false) }
     val showChecklist = details.checklist.isNotEmpty() || addingChecklist
     val titleRequester = remember { FocusRequester() }
+    val notesRequester = remember { FocusRequester() }
     val density = LocalDensity.current
     var lineHeight by remember { mutableStateOf(24.dp) }
     val titlePadding = ((TitleLineHeight - lineHeight) / 2).coerceAtLeast(0.dp)
@@ -170,13 +174,31 @@ fun TaskCard(
             )
             BasicTextField(
                 value = task.title,
-                onValueChange = { text -> onEdit { it.copy(title = text) } },
+                onValueChange = { text ->
+                    if (text.contains('\n')) {
+                        val cleaned = text.replace("\n", "")
+                        onEdit { it.copy(title = cleaned) }
+                        notes = notes.copy(selection = TextRange(notes.text.length))
+                        notesRequester.requestFocus()
+                    } else {
+                        onEdit { it.copy(title = text) }
+                    }
+                },
                 textStyle = ThingsType.RowTitle.copy(
                     color = if (task.checked) ThingsColors.TextSecondary else ThingsColors.TextPrimary,
                     textDecoration = if (task.checked) TextDecoration.LineThrough else null,
                 ),
                 cursorBrush = SolidColor(ThingsColors.Fab),
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = ImeAction.Next,
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = {
+                        notes = notes.copy(selection = TextRange(notes.text.length))
+                        notesRequester.requestFocus()
+                    }
+                ),
                 onTextLayout = { layout ->
                     if (layout.lineCount > 0) {
                         lineHeight = with(density) { (layout.getLineBottom(0) - layout.getLineTop(0)).toDp() }
@@ -212,6 +234,7 @@ fun TaskCard(
                     }
                 }
             },
+            focusRequester = notesRequester,
             modifier = Modifier
                 .padding(start = Indent, end = 8.dp, top = 4.dp)
                 .heightIn(min = if (somethingBelowNotes) 32.dp else 56.dp),

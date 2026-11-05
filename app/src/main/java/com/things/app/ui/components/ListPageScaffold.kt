@@ -108,6 +108,7 @@ sealed interface AddTarget {
 private val HeadingEdge = 72.dp
 private val GhostShape = RoundedCornerShape(20.dp)
 private val GhostHeight = 48.dp
+private val GhostFingerOffset = 16.dp
 
 /** The grey of the cross that stays where the add button was, and the red when it cancels. */
 private val DragGray = Color(0xFF8E8E93)
@@ -236,7 +237,11 @@ fun ListPageScaffold(
     BackHandler(enabled = selecting) { ownSelection.finish() }
 
     fun targetAt(p: Offset): AddTarget {
-        val y = (p.y - listTop).toInt()
+        // Align the drop gap with the ghost box so the ghost box is centered inside the gap
+        val fingerToGapTop = with(density) {
+            (GhostFingerOffset + GhostHeight / 2 + DropGapHeight / 2).toPx()
+        }
+        val y = (p.y - fingerToGapTop - listTop).toInt()
         // Over the title: before everything.
         if (y < headerBottomPx) return if (p.x < edgePx) AddTarget.Heading(null) else AddTarget.Top
         val items = listState.layoutInfo.visibleItemsInfo
@@ -468,7 +473,7 @@ fun ListPageScaffold(
             if (p != null && !cancelling) {
                 val local = p - rootOrigin
                 val heading = dragTarget is AddTarget.Heading
-                val top = (local.y - with(density) { GhostHeight.toPx() } / 2f).roundToInt()
+                val top = (local.y - with(density) { (GhostHeight + GhostFingerOffset).toPx() }).roundToInt()
 
                 // The preview is only as wide as its text. It is centered on the finger and kept on the
                 // screen, so the finger can take it to any part of the page.
