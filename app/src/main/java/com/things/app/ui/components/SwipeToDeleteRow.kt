@@ -16,8 +16,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,43 +45,52 @@ private val DeleteRed = Color(0xFFFF3B30)
  * Swipe the row to the left: it slides 80dp and a red button with a white cross appears behind it.
  * Tapping the button calls [onDelete]. Swiping back, or tapping the row while it is open, closes it.
  *
+ * With [onSwipeLeft] the row does not show the red button: a swipe to the left that goes far enough
+ * (or is fast enough) calls [onSwipeLeft] and the row slides back. The to-do rows use this to start
+ * the select mode with the swiped row ticked.
+ *
  * The swipe is read before the content gets the touch, so a text field or a button inside the row
  * cannot swallow it. It starts only when the finger moves sideways more than up or down, so the
  * list still scrolls.
  */
 @Composable
 fun SwipeToDeleteRow(
-    onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    onDelete: () -> Unit = {},
+    onSwipeLeft: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val revealPx = with(LocalDensity.current) { RevealWidth.toPx() }
     val offsetX = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    val open = offsetX.value < -1f
+    val currentSwipeLeft by rememberUpdatedState(onSwipeLeft)
+    val showDelete = onSwipeLeft == null
+    val open = showDelete && offsetX.value < -1f
 
     Box(modifier.fillMaxWidth()) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .padding(end = ThingsSpacing.PageMargin),
-            contentAlignment = Alignment.CenterEnd,
-        ) {
+        if (showDelete) {
             Box(
                 Modifier
-                    .size(32.dp)
-                    .graphicsLayer { alpha = (-offsetX.value / revealPx).coerceIn(0f, 1f) }
-                    .clip(CircleShape)
-                    .background(DeleteRed)
-                    .clickable(enabled = open, onClickLabel = "Delete", role = Role.Button, onClick = onDelete),
-                contentAlignment = Alignment.Center,
+                    .matchParentSize()
+                    .padding(end = ThingsSpacing.PageMargin),
+                contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    Icons.Rounded.Close,
-                    contentDescription = "Delete",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp),
-                )
+                Box(
+                    Modifier
+                        .size(32.dp)
+                        .graphicsLayer { alpha = (-offsetX.value / revealPx).coerceIn(0f, 1f) }
+                        .clip(CircleShape)
+                        .background(DeleteRed)
+                        .clickable(enabled = open, onClickLabel = "Delete", role = Role.Button, onClick = onDelete),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = "Delete",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
             }
         }
 
@@ -115,8 +126,14 @@ fun SwipeToDeleteRow(
                         }
                         if (swiping) {
                             val velocity = tracker.calculateVelocity().x
-                            val settle = if (offsetX.value < -revealPx / 2f || velocity < -1500f) -revealPx else 0f
-                            scope.launch { offsetX.animateTo(settle) }
+                            val passed = offsetX.value < -revealPx / 2f || velocity < -1500f
+                            val swipeLeft = currentSwipeLeft
+                            if (swipeLeft != null) {
+                                if (passed) swipeLeft()
+                                scope.launch { offsetX.animateTo(0f) }
+                            } else {
+                                scope.launch { offsetX.animateTo(if (passed) -revealPx else 0f) }
+                            }
                         }
                     }
                 },

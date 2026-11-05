@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,6 +20,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -178,13 +181,16 @@ fun rememberTaskExpansion(): TaskExpansion =
  * other way, with the same spring, so it does not snap shut. Opening another to-do, touching
  * anything outside the card (see ListPageScaffold) or going back closes it.
  *
- * - Swipe the closed row to the left: it slides and a red cross appears; tapping it deletes the
- *   to-do. The row folds up from the bottom, the rows under it slide up, then [onDelete] is told so
- *   the page can drop it from its own list.
+ * - Swipe the closed row to the left: the select mode starts with this row ticked (the row slides
+ *   back). There is no delete by swiping; Delete is in the bar of the select mode. When the row is
+ *   deleted from there it folds up from the bottom, the rows under it slide up, then [onDelete] is
+ *   told so the page can drop it from its own list.
  * - In select mode (the page's [selection], or the one ListPageScaffold provides) a tap ticks or
  *   unticks the row instead of opening it.
  * - A new to-do opens with the keyboard on its title. If the keyboard is closed or the card is
  *   closed while the title is empty, the to-do is deleted.
+ * - While the keyboard is open the open card is scrolled into view, so it sits above the keyboard
+ *   even when it was at the bottom of the page.
  * - The calendar button and the date line of the card open the When sheet; the tag button and the
  *   tag chips open the Tags sheet; the flag button and the deadline line open the Deadline sheet.
  *   What is chosen is shown on the card and in the closed row.
@@ -196,7 +202,7 @@ fun rememberTaskExpansion(): TaskExpansion =
  *   [closedRow]; the card, the sheets and everything else stay the same. [closedRow] gets the to-do,
  *   an action that opens the card and the action of the checkbox. Such a row cannot be swiped.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ExpandableTaskRow(
     task: TaskRowModel,
@@ -215,6 +221,7 @@ fun ExpandableTaskRow(
     val deleted = expansion.isDeleted(task.id)
     val expanded = expansion.isExpanded(task.id)
     var sheet by remember { mutableStateOf<TaskSheet?>(null) }
+    val cardInView = remember { BringIntoViewRequester() }
 
     SideEffect { expansion.register(task) }
 
@@ -248,6 +255,15 @@ fun ExpandableTaskRow(
             expansion.collapse()
         }
         imeWasVisible = imeVisible
+    }
+
+    // With the keyboard open the list is only as high as the room above it, so the open card has to
+    // be scrolled up into that room. A short wait lets the keyboard and the card finish moving.
+    LaunchedEffect(expanded, imeVisible) {
+        if (expanded && imeVisible) {
+            delay(250)
+            cardInView.bringIntoView()
+        }
     }
 
     var wasExpanded by remember { mutableStateOf(false) }
@@ -292,7 +308,11 @@ fun ExpandableTaskRow(
                         onToggle = { sel.toggle(task.id) },
                     )
                 } else if (isOpen) {
-                    Box(Modifier.onGloballyPositioned { expansion.cardBounds = it.boundsInRoot() }) {
+                    Box(
+                        Modifier
+                            .bringIntoViewRequester(cardInView)
+                            .onGloballyPositioned { expansion.cardBounds = it.boundsInRoot() }
+                    ) {
                         TaskCard(
                             task = current,
                             onEdit = { change -> expansion.edit(task, change) },
@@ -305,8 +325,14 @@ fun ExpandableTaskRow(
                     }
                 } else if (closedRow != null) {
                     closedRow(current, open, toggle)
-                } else {
-                    SwipeToDeleteRow(onDelete = { expansion.delete(task.id) }) {
+                } else if (sel != null) {
+                    // Swipe to the left: the select mode starts with this row ticked.
+                    SwipeToDeleteRow(
+                        onSwipeLeft = {
+                            sel.start()
+                            sel.toggle(task.id)
+                        },
+                    ) {
                         TaskRow(
                             task = current,
                             recurringStyle = recurringStyle,
@@ -314,6 +340,13 @@ fun ExpandableTaskRow(
                             onToggle = toggle,
                         )
                     }
+                } else {
+                    TaskRow(
+                        task = current,
+                        recurringStyle = recurringStyle,
+                        onClick = open,
+                        onToggle = toggle,
+                    )
                 }
             }
 
