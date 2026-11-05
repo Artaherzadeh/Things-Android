@@ -1,13 +1,17 @@
 package com.things.app.ui.components
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -169,8 +173,9 @@ fun rememberTaskExpansion(): TaskExpansion =
     rememberSaveable(saver = TaskExpansion.Saver) { TaskExpansion(null) }
 
 /**
- * A to-do that opens in place. Tapping the row opens it as a [TaskCard] with an animated change of
- * height, a little slower than the default (a softer spring); opening another to-do, touching
+ * A to-do that opens in place. Tapping the row opens it as a [TaskCard]: the height changes with a
+ * soft spring while the row and the card cross-fade. Closing the card plays the same animation the
+ * other way, with the same spring, so it does not snap shut. Opening another to-do, touching
  * anything outside the card (see ListPageScaffold) or going back closes it.
  *
  * - Swipe the closed row to the left: it slides and a red cross appears; tapping it deletes the
@@ -211,6 +216,9 @@ fun ExpandableTaskRow(
     var sheet by remember { mutableStateOf<TaskSheet?>(null) }
 
     SideEffect { expansion.register(task) }
+
+    // Only the open card takes the back press, not the card that is still fading out.
+    BackHandler(enabled = expanded) { expansion.collapse() }
 
     val toggle = {
         expansion.edit(task) { it.copy(checked = !current.checked) }
@@ -253,18 +261,26 @@ fun ExpandableTaskRow(
         visible = !deleted,
         exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
     ) {
-        Column(
-            modifier.animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = OpenStiffness,
-                    visibilityThreshold = IntSize.VisibilityThreshold,
-                ),
-            )
-        ) {
+        Column(modifier) {
             if (slot.beforeTaskId == task.id) Spacer(Modifier.height(DropGapHeight))
 
-            Box {
+            AnimatedContent(
+                targetState = expanded,
+                transitionSpec = {
+                    (fadeIn(tween(CardFadeInMillis)) togetherWith fadeOut(tween(CardFadeOutMillis)))
+                        .using(
+                            SizeTransform(clip = true) { _, _ ->
+                                spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = OpenStiffness,
+                                    visibilityThreshold = IntSize.VisibilityThreshold,
+                                )
+                            }
+                        )
+                },
+                contentAlignment = Alignment.TopStart,
+                label = "taskCard",
+            ) { isOpen ->
                 if (sel != null && sel.active) {
                     TaskRow(
                         task = current,
@@ -274,8 +290,7 @@ fun ExpandableTaskRow(
                         onClick = { sel.toggle(task.id) },
                         onToggle = { sel.toggle(task.id) },
                     )
-                } else if (expanded) {
-                    BackHandler { expansion.collapse() }
+                } else if (isOpen) {
                     Box(Modifier.onGloballyPositioned { expansion.cardBounds = it.boundsInRoot() }) {
                         TaskCard(
                             task = current,
@@ -332,7 +347,11 @@ fun ExpandableTaskRow(
 }
 
 /**
- * Stiffness of the spring that opens and closes the card. The default is 400; a lower number is a
- * slower animation, and 300 takes about 15 percent longer.
+ * Stiffness of the spring that opens and closes the card, the same both ways. The default is 400; a
+ * lower number is a slower animation, and 300 takes about 15 percent longer.
  */
 private const val OpenStiffness = 300f
+
+/** The card and the row cross-fade while the height changes: the new one in, the old one out. */
+private const val CardFadeInMillis = 200
+private const val CardFadeOutMillis = 140
