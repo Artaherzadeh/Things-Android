@@ -161,8 +161,9 @@ private fun shareText(context: Context, lines: List<String>) {
  * button replaces the top bar, the add button gives way to a bar with When, Move, Delete and more,
  * and [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that
  * are ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and
- * are applied to every ticked to-do through [expansion], as are Delete, the status change and
- * Share. Duplicate is applied through [expansion] unless the page passes its own [selection].
+ * are applied to every ticked to-do through [expansion], and so does Repeat, whose sheet is drawn
+ * here; the same goes for Delete, the status change and Share. Duplicate is applied through
+ * [expansion] unless the page passes its own [selection].
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -429,7 +430,8 @@ fun ListPageScaffold(
                             SelectionAction.Share -> if (expansion != null) {
                                 shareText(context, ids.mapNotNull { expansion.titleOf(it) })
                             }
-                            SelectionAction.When, SelectionAction.SetTags -> bulk = BulkRequest(action, ids)
+                            SelectionAction.When, SelectionAction.SetTags, SelectionAction.Repeat ->
+                                bulk = BulkRequest(action, ids)
                             else -> Unit
                         }
                         onSelectionAction(action, ids)
@@ -536,7 +538,14 @@ fun ListPageScaffold(
         }
 
         bulk?.let { request ->
-            BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
+            if (request.action == SelectionAction.Repeat) {
+                RepeatSheet(
+                    onDismiss = { bulk = null },
+                    onPick = { rule -> expansion?.patchAll(request.ids) { it.withRepeat(rule) } },
+                )
+            } else {
+                BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
+            }
         }
     }
 }

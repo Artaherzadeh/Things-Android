@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.DropdownMenuItem
@@ -67,6 +68,7 @@ enum class SelectionAction(val label: String) {
     MarkCompleted("Mark as Completed"),
     SetTags("Set Tags"),
     SetDeadline("Set Deadline"),
+    Repeat("Repeat"),
     Duplicate("Duplicate"),
     ConvertToProject("Convert to Project"),
     Share("Share"),
@@ -285,6 +287,7 @@ private fun MoreMenu(
             SelectionAction.MarkCompleted to Icons.Outlined.CheckBox,
             SelectionAction.SetTags to Icons.Outlined.LocalOffer,
             SelectionAction.SetDeadline to Icons.Outlined.Flag,
+            SelectionAction.Repeat to Icons.Outlined.Repeat,
         ),
         listOf(
             SelectionAction.Duplicate to Icons.Outlined.ContentCopy,
