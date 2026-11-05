@@ -226,8 +226,8 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  * dropped again. The dragged + creates a project, or an area near the left edge of Home, and a
  * project on the Area page. Holding a project or an area on Home changes the order, swiping one to
  * the left deletes it. The ring of a project on Home follows the to-dos done on its page. Delete
- * Area on an area page removes it. A to-do unticked in the Logbook is kept here and shows up again
- * on the page of the project with its name.
+ * Area on an area page and Delete Project on a project page remove it and go back. A to-do unticked
+ * in the Logbook is kept here and shows up again on the page of the project with its name.
  */
 @Composable
 fun ThingsNavHost() {
@@ -428,6 +428,10 @@ fun ThingsNavHost() {
                         if (current != null && abs(current.progress - progress) > 0.001f) {
                             homeState = homeState.withProgress(projectId, progress)
                         }
+                    },
+                    onDeleteProject = {
+                        deleteFromHome(projectId)
+                        navController.popBackStack()
                     },
                 )
             }

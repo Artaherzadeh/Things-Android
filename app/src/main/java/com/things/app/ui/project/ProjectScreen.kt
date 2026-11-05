@@ -43,6 +43,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -67,13 +68,19 @@ import com.things.app.ui.components.LocalDropSlot
 import com.things.app.ui.components.LocalSelection
 import com.things.app.ui.components.MenuDots
 import com.things.app.ui.components.NotesEditor
+import com.things.app.ui.components.PageMenuAction
+import com.things.app.ui.components.ProjectEnabledMenuActions
+import com.things.app.ui.components.ProjectMenuAction
+import com.things.app.ui.components.ProjectMenuActions
+import com.things.app.ui.components.ProjectTitleMenu
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRowModel
-import com.things.app.ui.components.TitleMenuButton
 import com.things.app.ui.components.insertedAt
+import com.things.app.ui.components.markdownSection
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.components.reorderable
+import com.things.app.ui.components.shareMarkdown
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
@@ -134,6 +141,14 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * Add button: a tap adds a to-do at the top, outside every heading; drag it over the list and the
  * rows make room where the to-do will land (in a heading's area it goes into that heading); drag it
  * to the left edge and it turns into a heading, with the room opening where the heading will go.
+ *
+ * The menu next to the title (see [ProjectTitleMenu]) has Complete Project, When, Add Tags, Add
+ * Deadline and Repeat; Move, Duplicate and Delete Project; Share. Delete Project calls
+ * [onDeleteProject] and the others report through [onProjectMenuAction]. The menu at the top right
+ * has Filter by Tag, New Heading (a new empty heading at the end, named in place), Select, Paste and
+ * Share. Share, in both menus, sends the whole project as Markdown: the title, the notes, the
+ * to-dos with everything they hold, each heading with its to-dos, the later items and the logged
+ * ones. Other entries of the page menu are reported through [onMenuAction].
  */
 @Composable
 fun ProjectScreen(
@@ -147,11 +162,15 @@ fun ProjectScreen(
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
     onProgressChange: (Float) -> Unit = {},
+    onMenuAction: (PageMenuAction) -> Unit = {},
+    onProjectMenuAction: (ProjectMenuAction) -> Unit = {},
+    onDeleteProject: () -> Unit = {},
 ) {
     var showLater by rememberSaveable { mutableStateOf(false) }
     var showLogged by rememberSaveable { mutableStateOf(false) }
     val expansion = rememberTaskExpansion()
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     var title by rememberSaveable(state.id) { mutableStateOf(state.title) }
     var tasks by remember(state) { mutableStateOf(state.tasks) }
@@ -168,6 +187,20 @@ fun ProjectScreen(
     val done = open.count { expansion.resolve(it).checked } + state.loggedTasks.size
     val progress = if (total == 0) 0f else done.toFloat() / total
     LaunchedEffect(progress) { onProgressChange(progress) }
+
+    /** The whole project as Markdown: every to-do with everything it holds, by heading. */
+    fun projectMarkdown(): String {
+        fun live(list: List<TaskRowModel>) =
+            list.filter { !expansion.isDeleted(it.id) }.map { expansion.resolve(it) }
+
+        val parts = mutableListOf(markdownSection(title, 1, live(tasks), notes.text))
+        headings.forEach { heading -> parts += markdownSection(heading.title, 2, live(heading.tasks)) }
+        if (state.laterTasks.isNotEmpty()) parts += markdownSection("Later", 2, live(state.laterTasks))
+        if (state.loggedTasks.isNotEmpty()) {
+            parts += "## Logbook\n\n" + state.loggedTasks.joinToString("\n") { "- [x] ${it.title} (${it.dateLabel})" }
+        }
+        return parts.joinToString("\n\n")
+    }
 
     fun containerOf(key: Any): String? {
         val s = key as? String ?: return null
@@ -302,10 +335,27 @@ fun ProjectScreen(
         },
         modifier = modifier,
         titleTag = "project_title",
-        titleTrailing = { TitleMenuButton("Project menu", onTitleMenuClick) },
+        titleTrailing = {
+            ProjectTitleMenu(onOpen = onTitleMenuClick) { action ->
+                when (action) {
+                    ProjectMenuAction.DeleteProject -> onDeleteProject()
+                    ProjectMenuAction.Share -> shareMarkdown(context, projectMarkdown())
+                    else -> onProjectMenuAction(action)
+                }
+            }
+        },
         titleBottomPadding = 8.dp,
         onBack = onBack,
         onMoreClick = onMoreClick,
+        menuActions = ProjectMenuActions,
+        enabledMenuActions = ProjectEnabledMenuActions,
+        onMenuAction = { action ->
+            when (action) {
+                PageMenuAction.NewHeading -> addTask(AddTarget.Heading(null))
+                PageMenuAction.Share -> shareMarkdown(context, projectMarkdown())
+                else -> onMenuAction(action)
+            }
+        },
         expansion = expansion,
         listState = listState,
         onAddClick = {
