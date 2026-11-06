@@ -1,5 +1,8 @@
 package com.things.app.ui.components
 
+import android.content.Context
+import android.content.Intent
+
 /**
  * The one place that turns to-dos into Markdown text. The Share entry of the select bar uses it;
  * nothing else in the app writes a to-do as Markdown. Pure Kotlin: no Compose, no Android.
@@ -178,3 +181,34 @@ fun TaskExpansion.selectedInDisplayOrder(ordered: List<TaskRowModel>, selected: 
 /** The Markdown of the selected to-dos, see [selectedInDisplayOrder] and [TaskMarkdown]. */
 fun TaskExpansion.markdownForSelection(ordered: List<TaskRowModel>, selected: Set<String>): String =
     TaskMarkdown.export(selectedInDisplayOrder(ordered, selected))
+
+/**
+ * One to-do as Markdown: the same lines [TaskMarkdown.export] writes for it, so the whole app has
+ * one exporter. Kept for callers that write a single to-do.
+ */
+fun TaskRowModel.toMarkdown(): String = TaskMarkdown.block(this).joinToString("\n")
+
+/**
+ * A Markdown heading of [level] (1 is #, 2 is ##) with the [title], then the [notes] if there are
+ * any, then the [tasks] written by [TaskMarkdown]. A project is level 1, its headings level 2;
+ * inside an area a project is level 2 and its headings level 3.
+ * The notes are not reformatted: only line endings are made the same and empty lines at the end
+ * are dropped.
+ */
+fun markdownSection(title: String, level: Int, tasks: List<TaskRowModel>, notes: String = ""): String =
+    buildString {
+        append("#".repeat(level)).append(' ').append(title.ifBlank { "Untitled" })
+        val body = notes.replace("\r\n", "\n").replace('\r', '\n').trimEnd('\n', ' ', '\t')
+        if (body.isNotBlank()) append("\n\n").append(body)
+        if (tasks.isNotEmpty()) append("\n\n").append(TaskMarkdown.export(tasks).trimEnd('\n'))
+    }
+
+/** Opens the Android share sheet with [markdown] as plain text. Nothing happens for blank text. */
+fun shareMarkdown(context: Context, markdown: String) {
+    if (markdown.isBlank()) return
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, markdown)
+    }
+    context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+}
