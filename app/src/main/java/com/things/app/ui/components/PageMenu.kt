@@ -66,12 +66,13 @@ enum class PageMenuAction(val label: String) {
 val DefaultMenuActions: List<PageMenuAction> =
     listOf(PageMenuAction.FilterByTag, PageMenuAction.Select, PageMenuAction.Paste, PageMenuAction.Share)
 
-/** The entries of the menu of a project page, in order. */
+/** The entries of the menu of a project page, in order: Share is a section of its own. */
 val ProjectMenuActions: List<PageMenuAction> = listOf(
     PageMenuAction.FilterByTag,
     PageMenuAction.NewHeading,
     PageMenuAction.Select,
     PageMenuAction.Paste,
+    PageMenuAction.Divider,
     PageMenuAction.Share,
 )
 
@@ -161,48 +162,24 @@ private fun PageMenu(
     onDismiss: () -> Unit,
     onAction: (PageMenuAction) -> Unit,
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        modifier = Modifier.widthIn(min = 216.dp),
-        offset = DpOffset(0.dp, 8.dp),
-        shape = RoundedCornerShape(24.dp),
-        containerColor = ThingsColors.Background,
-        tonalElevation = 0.dp,
-        shadowElevation = 6.dp,
-    ) {
+    // The page scaffold dims the page for this menu itself (see onMenuOpenChange of PageTopBar).
+    ThingsDropdownMenu(expanded = expanded, onDismiss = onDismiss, dimsPage = false) {
         actions.forEach { action ->
             if (action == PageMenuAction.Divider) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = ThingsColors.Divider,
-                )
+                ThingsMenuDivider()
             } else {
-                DropdownMenuItem(
-                    text = {
-                        Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
-                    },
+                ThingsMenuItem(
+                    label = action.label,
                     onClick = { onAction(action) },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    leadingIcon = {
-                        Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) { ActionIcon(action) }
-                    },
                     enabled = action in enabledActions,
-                    colors = MenuDefaults.itemColors(
-                        textColor = ThingsColors.TextPrimary,
-                        leadingIconColor = ThingsColors.Fab,
-                        disabledTextColor = ThingsColors.TextSecondary,
-                        disabledLeadingIconColor = ThingsColors.TextSecondary,
-                    ),
-                )
+                ) { color -> ActionIcon(action, color) }
             }
         }
     }
 }
 
 @Composable
-private fun ActionIcon(action: PageMenuAction) {
-    val color = LocalContentColor.current
+private fun ActionIcon(action: PageMenuAction, color: Color) {
     val size = Modifier.size(24.dp)
     when (action) {
         PageMenuAction.FilterByTag, PageMenuAction.AddTags -> TagIcon(size, color)

@@ -1,11 +1,7 @@
 package com.things.app.ui.components
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -16,12 +12,7 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,10 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
-import com.things.app.ui.theme.ThingsColors
-import com.things.app.ui.theme.ThingsType
 
 /** What the menu next to a project's title offers. */
 enum class ProjectMenuAction(val label: String) {
@@ -49,7 +37,7 @@ enum class ProjectMenuAction(val label: String) {
 }
 
 /** The entries of the project menu: three sections with a thin line between them. */
-private val ProjectMenuGroups: List<List<ProjectMenuAction>> = listOf(
+val ProjectMenuGroups: List<List<ProjectMenuAction>> = listOf(
     listOf(
         ProjectMenuAction.CompleteProject,
         ProjectMenuAction.When,
@@ -77,10 +65,22 @@ private fun ProjectMenuAction.icon(): ImageVector = when (this) {
     ProjectMenuAction.Share -> Icons.Outlined.Share
 }
 
+/** The icon of an entry: the same Tag and Share icons as the page menu, outlined icons for the rest. */
+@Composable
+private fun ProjectMenuIcon(action: ProjectMenuAction, color: Color) {
+    val size = Modifier.size(24.dp)
+    when (action) {
+        ProjectMenuAction.AddTags -> TagIcon(size, color)
+        ProjectMenuAction.Share -> ShareIcon(size, color)
+        else -> Icon(action.icon(), contentDescription = null, tint = color, modifier = size)
+    }
+}
+
 /**
  * The grey dots right after a project's title, with the menu they open. The menu has three sections:
  * Complete Project, When, Add Tags, Add Deadline and Repeat; then Move, Duplicate and Delete Project;
- * then Share. [onOpen] is called when the menu opens and [onAction] gets the chosen entry.
+ * then Share. It looks like the page menu (see [ThingsMenu]) and dims the page while it is open.
+ * [onOpen] is called when the menu opens and [onAction] gets the chosen entry.
  */
 @Composable
 fun ProjectTitleMenu(onOpen: () -> Unit = {}, onAction: (ProjectMenuAction) -> Unit) {
@@ -94,41 +94,17 @@ fun ProjectTitleMenu(onOpen: () -> Unit = {}, onAction: (ProjectMenuAction) -> U
                 onOpen()
             },
         )
-        DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            modifier = Modifier.widthIn(min = 216.dp),
-            offset = DpOffset(0.dp, 0.dp),
-            shape = RoundedCornerShape(24.dp),
-            containerColor = ThingsColors.Background,
-            tonalElevation = 0.dp,
-            shadowElevation = 6.dp,
-        ) {
+        ThingsDropdownMenu(expanded = open, onDismiss = { open = false }) {
             ProjectMenuGroups.forEachIndexed { index, group ->
-                if (index > 0) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                        color = ThingsColors.Divider,
-                    )
-                }
+                if (index > 0) ThingsMenuDivider()
                 group.forEach { action ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(action.label, style = ThingsType.RowTitle.copy(color = Color.Unspecified))
-                        },
+                    ThingsMenuItem(
+                        label = action.label,
                         onClick = {
                             open = false
                             onAction(action)
                         },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                        leadingIcon = {
-                            Icon(action.icon(), contentDescription = null, modifier = Modifier.size(24.dp))
-                        },
-                        colors = MenuDefaults.itemColors(
-                            textColor = ThingsColors.TextPrimary,
-                            leadingIconColor = ThingsColors.Fab,
-                        ),
-                    )
+                    ) { color -> ProjectMenuIcon(action, color) }
                 }
             }
         }

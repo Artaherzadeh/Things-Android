@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -73,6 +74,7 @@ import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.LocalDropSlot
 import com.things.app.ui.components.LocalSelection
 import com.things.app.ui.components.MenuDots
+import com.things.app.ui.components.MenuScrimHost
 import com.things.app.ui.components.NotesEditor
 import com.things.app.ui.components.PageMenuAction
 import com.things.app.ui.components.ProjectEnabledMenuActions
@@ -105,7 +107,7 @@ private const val TopLevel = ""
 private val ToggleHeight = 40.dp
 private val ToggleFontSize = 15.sp
 
-/** The red of destructive choices, the same as the Delete entries of the menus. */
+/** The red of destructive choices. */
 private val DestructiveRed = Color(0xFFFF3B30)
 
 // The Later items and the Logged items open and close with the very same motion: they unfold from
@@ -155,11 +157,12 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * The menu next to the title (see [ProjectTitleMenu]) has Complete Project, When, Add Tags, Add
  * Deadline and Repeat; Move, Duplicate and Delete Project; Share. Delete Project calls
  * [onDeleteProject] and the others report through [onProjectMenuAction]. The menu at the top right
- * has Filter by Tag, New Heading (a new empty heading at the end, named in place), Select, Paste and
- * Share. Share, in both menus, sends the whole project as Markdown through the shared exporter
- * (exportProject): the title, the notes, the to-dos with everything they hold, each heading with its
- * to-dos, the later items and the logged ones. Other entries of the page menu are reported through
- * [onMenuAction].
+ * has Filter by Tag, New Heading (a new empty heading at the end, named in place), Select and Paste,
+ * then Share in a section of its own. Share, in both menus, sends the whole project as Markdown
+ * through the shared exporter (exportProject): the title, the notes, the to-dos with everything they
+ * hold, each heading with its to-dos, the later items and the logged ones. Other entries of the page
+ * menu are reported through [onMenuAction]. Every dropdown menu of the page (the top right menu, the
+ * title menu and the heading menus) looks the same and dims the page while it is open.
  *
  * Delete in a heading's menu asks first when the heading has to-dos: delete the heading and its
  * to-dos, or delete only the heading and keep its to-dos at the top of the page, outside every
@@ -186,6 +189,45 @@ fun ProjectScreen(
     onMenuAction: (PageMenuAction) -> Unit = {},
     onProjectMenuAction: (ProjectMenuAction) -> Unit = {},
     onDeleteProject: () -> Unit = {},
+) {
+    // The title menu and the heading menus dim the page through this host; the top right menu is
+    // dimmed by the scaffold itself.
+    MenuScrimHost(Modifier.fillMaxSize()) {
+        ProjectScreenBody(
+            state = state,
+            modifier = modifier,
+            onBack = onBack,
+            onMoreClick = onMoreClick,
+            onTitleMenuClick = onTitleMenuClick,
+            onHeadingMenuClick = onHeadingMenuClick,
+            onConvertHeadingToProject = onConvertHeadingToProject,
+            onAddClick = onAddClick,
+            onTaskClick = onTaskClick,
+            onToggleTask = onToggleTask,
+            onProgressChange = onProgressChange,
+            onMenuAction = onMenuAction,
+            onProjectMenuAction = onProjectMenuAction,
+            onDeleteProject = onDeleteProject,
+        )
+    }
+}
+
+@Composable
+private fun ProjectScreenBody(
+    state: ProjectUiState,
+    modifier: Modifier,
+    onBack: () -> Unit,
+    onMoreClick: () -> Unit,
+    onTitleMenuClick: () -> Unit,
+    onHeadingMenuClick: (String) -> Unit,
+    onConvertHeadingToProject: (headingId: String, source: ProjectUiState) -> Unit,
+    onAddClick: () -> Unit,
+    onTaskClick: (String) -> Unit,
+    onToggleTask: (String) -> Unit,
+    onProgressChange: (Float) -> Unit,
+    onMenuAction: (PageMenuAction) -> Unit,
+    onProjectMenuAction: (ProjectMenuAction) -> Unit,
+    onDeleteProject: () -> Unit,
 ) {
     var showLater by rememberSaveable { mutableStateOf(false) }
     var showLogged by rememberSaveable { mutableStateOf(false) }
