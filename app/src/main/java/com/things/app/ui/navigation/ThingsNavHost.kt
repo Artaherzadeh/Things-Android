@@ -13,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,7 +24,10 @@ import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.area.AreaScreen
 import com.things.app.ui.area.AreaUiState
 import com.things.app.ui.area.sampleAreaState
+import com.things.app.ui.components.ExportArea
 import com.things.app.ui.components.TaskRowModel
+import com.things.app.ui.components.exportArea
+import com.things.app.ui.components.shareMarkdown
 import com.things.app.ui.home.Area
 import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.HomeUiState
@@ -40,6 +44,7 @@ import com.things.app.ui.project.ProjectUiState
 import com.things.app.ui.project.convertHeading
 import com.things.app.ui.project.sampleProjectState
 import com.things.app.ui.project.sampleVacationProjectState
+import com.things.app.ui.project.toExportProject
 import com.things.app.ui.quickfind.QuickFindOverlay
 import com.things.app.ui.quickfind.QuickFindTarget
 import com.things.app.ui.quickfind.sampleQuickFindState
@@ -235,6 +240,7 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
 @Composable
 fun ThingsNavHost() {
     val navController = rememberNavController()
+    val context = LocalContext.current
 
     var quickFindOpen by rememberSaveable { mutableStateOf(false) }
     var homeState by remember { mutableStateOf(sampleHomeState()) }
@@ -282,6 +288,20 @@ fun ThingsNavHost() {
         }
 
         navController.navigate(Routes.project(newProjectId)) { launchSingleTop = true }
+    }
+
+    /**
+     * Shares an area and all its projects as Markdown through the shared exporter. The contents come
+     * from the data the app keeps for each project (what [projectStateFor] returns): edits typed on a
+     * project page that were not stored here are not in it.
+     */
+    fun shareArea(areaId: String) {
+        val area = homeState.areas.firstOrNull { it.id == areaId } ?: return
+        val projects = area.projects.map { project ->
+            val export = projectStateFor(project.id, homeState, restoredTasks, projectStates).toExportProject()
+            if (export.title.isBlank()) export.copy(title = project.title) else export
+        }
+        shareMarkdown(context, exportArea(ExportArea(area.title, projects)))
     }
 
     /** Adds an empty project to an area (or to the loose projects), names it in place. */
@@ -495,6 +515,7 @@ fun ThingsNavHost() {
                         deleteFromHome(areaId)
                         navController.popBackStack()
                     },
+                    onShare = { shareArea(areaId) },
                     onCreateProjectAt = { index -> createProject(areaId, index) },
                     editingId = editingId,
                     onTitleChange = { id, title -> renameInHome(id, title) },

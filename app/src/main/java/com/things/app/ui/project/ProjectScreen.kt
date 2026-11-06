@@ -65,6 +65,8 @@ import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
 import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.ExpandableTaskRow
+import com.things.app.ui.components.ExportHeading
+import com.things.app.ui.components.ExportProject
 import com.things.app.ui.components.HeadingMenu
 import com.things.app.ui.components.HeadingMenuAction
 import com.things.app.ui.components.ListPageScaffold
@@ -79,9 +81,9 @@ import com.things.app.ui.components.ProjectMenuActions
 import com.things.app.ui.components.ProjectTitleMenu
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRowModel
+import com.things.app.ui.components.exportProject
 import com.things.app.ui.components.insertedAt
 import com.things.app.ui.components.liveTasks
-import com.things.app.ui.components.markdownSection
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.components.reorderable
@@ -154,9 +156,10 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * Deadline and Repeat; Move, Duplicate and Delete Project; Share. Delete Project calls
  * [onDeleteProject] and the others report through [onProjectMenuAction]. The menu at the top right
  * has Filter by Tag, New Heading (a new empty heading at the end, named in place), Select, Paste and
- * Share. Share, in both menus, sends the whole project as Markdown: the title, the notes, the
- * to-dos with everything they hold, each heading with its to-dos, the later items and the logged
- * ones. Other entries of the page menu are reported through [onMenuAction].
+ * Share. Share, in both menus, sends the whole project as Markdown through the shared exporter
+ * (exportProject): the title, the notes, the to-dos with everything they hold, each heading with its
+ * to-dos, the later items and the logged ones. Other entries of the page menu are reported through
+ * [onMenuAction].
  *
  * Delete in a heading's menu asks first when the heading has to-dos: delete the heading and its
  * to-dos, or delete only the heading and keep its to-dos at the top of the page, outside every
@@ -207,19 +210,21 @@ fun ProjectScreen(
     val progress = if (total == 0) 0f else done.toFloat() / total
     LaunchedEffect(progress) { onProgressChange(progress) }
 
-    /** The whole project as Markdown: every to-do with everything it holds, by heading. */
-    fun projectMarkdown(): String {
-        fun live(list: List<TaskRowModel>) =
-            list.filter { !expansion.isDeleted(it.id) }.map { expansion.resolve(it) }
-
-        val parts = mutableListOf(markdownSection(title, 1, live(tasks), notes.text))
-        headings.forEach { heading -> parts += markdownSection(heading.title, 2, live(heading.tasks)) }
-        if (state.laterTasks.isNotEmpty()) parts += markdownSection("Later", 2, live(state.laterTasks))
-        if (state.loggedTasks.isNotEmpty()) {
-            parts += "## Logbook\n\n" + state.loggedTasks.joinToString("\n") { "- [x] ${it.title} (${it.dateLabel})" }
-        }
-        return parts.joinToString("\n\n")
-    }
+    /**
+     * The whole project as Markdown, written by the shared exporter: every to-do with everything it
+     * holds (edits applied, deleted ones left out, copies after their original), by heading, then
+     * the later items and the logged ones.
+     */
+    fun projectMarkdown(): String = exportProject(
+        ExportProject(
+            title = title,
+            notes = notes.text,
+            tasks = expansion.liveTasks(tasks),
+            headings = headings.map { ExportHeading(it.title, expansion.liveTasks(it.tasks)) },
+            later = expansion.liveTasks(state.laterTasks),
+            logged = state.loggedTasks.map { it.toLoggedExport() },
+        ),
+    )
 
     fun containerOf(key: Any): String? {
         val s = key as? String ?: return null

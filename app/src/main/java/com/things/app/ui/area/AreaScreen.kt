@@ -1,6 +1,5 @@
 package com.things.app.ui.area
 
-import android.content.Intent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,7 +27,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -57,7 +55,9 @@ private const val ProjectKeyPrefix = "area-project-"
  * chevron). Tapping a project reports its id. Every action is a callback.
  *
  * The three-dots menu of this page has Add Tags (opens the tag list), Delete Area ([onDeleteArea])
- * and Share (the area name and its projects, through the Android share sheet).
+ * and Share ([onShare]). The page does not know the contents of its projects, only their names, so
+ * it does not write the Markdown itself: the owner of the data builds the export with the shared
+ * exporter and opens the Android share sheet.
  *
  * Add button: a tap adds a project at the top; hold it and drag over the list and the rows make
  * room where the project will land; let go and [onCreateProjectAt] gets the index. The page that
@@ -76,12 +76,12 @@ fun AreaScreen(
     onAddClick: () -> Unit = {},
     onProjectClick: (String) -> Unit = {},
     onDeleteArea: () -> Unit = {},
+    onShare: () -> Unit = {},
     onCreateProjectAt: (index: Int) -> Unit = {},
     editingId: String? = null,
     onTitleChange: (id: String, title: String) -> Unit = { _, _ -> },
     onEditDone: (id: String) -> Unit = {},
 ) {
-    val context = LocalContext.current
     var tagsOpen by remember { mutableStateOf(false) }
     var areaTags by remember(state.id) { mutableStateOf(emptyList<String>()) }
 
@@ -100,14 +100,7 @@ fun AreaScreen(
             when (action) {
                 PageMenuAction.AddTags -> tagsOpen = true
                 PageMenuAction.DeleteArea -> onDeleteArea()
-                PageMenuAction.Share -> {
-                    val text = (listOf(state.title) + state.projects.map { "- ${it.title}" }).joinToString("\n")
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, text)
-                    }
-                    context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
+                PageMenuAction.Share -> onShare()
                 else -> Unit
             }
         },
