@@ -7,6 +7,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,7 @@ import com.things.app.ui.area.AreaScreen
 import com.things.app.ui.area.AreaUiState
 import com.things.app.ui.area.sampleAreaState
 import com.things.app.ui.components.ExportArea
+import com.things.app.ui.components.LocalConvertTasksToProjects
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.exportArea
 import com.things.app.ui.components.shareMarkdown
@@ -35,6 +37,7 @@ import com.things.app.ui.home.Project
 import com.things.app.ui.home.SystemList
 import com.things.app.ui.home.markdownForHomeSelection
 import com.things.app.ui.home.sampleHomeState
+import com.things.app.ui.home.withProjectsAdded
 import com.things.app.ui.inbox.InboxScreen
 import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.logbook.LogbookEntry
@@ -46,6 +49,8 @@ import com.things.app.ui.project.convertHeading
 import com.things.app.ui.project.sampleProjectState
 import com.things.app.ui.project.sampleVacationProjectState
 import com.things.app.ui.project.toExportProject
+import com.things.app.ui.project.toProjectState
+import com.things.app.ui.project.withoutTasks
 import com.things.app.ui.quickfind.QuickFindOverlay
 import com.things.app.ui.quickfind.QuickFindTarget
 import com.things.app.ui.quickfind.sampleQuickFindState
@@ -237,6 +242,9 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  * the left deletes it. The ring of a project on Home follows the to-dos done on its page. Delete
  * Area on an area page removes it. A to-do unticked in the Logbook is kept here and shows up again
  * on the page of the project with its name.
+ *
+ * Convert to Project in the select bar of any list page reaches [convertTasksToProjects] through
+ * [LocalConvertTasksToProjects].
  */
 @Composable
 fun ThingsNavHost() {
@@ -289,6 +297,31 @@ fun ThingsNavHost() {
         }
 
         navController.navigate(Routes.project(newProjectId)) { launchSingleTop = true }
+    }
+
+    /**
+     * Makes a project of each of [tasks] (see toProjectState), puts them on Home right after the
+     * project [sourceProjectId] the to-dos came from (at the end of the projects without an area when
+     * they did not come from a project), takes the to-dos out of that project's stored data, and
+     * opens the page of the first new project. The to-dos of the other pages are only taken off the
+     * page that is on screen: those pages are static samples and keep no changes.
+     */
+    fun convertTasksToProjects(tasks: List<TaskRowModel>, sourceProjectId: String?) {
+        if (tasks.isEmpty()) return
+        val created = tasks.map { task -> task.toProjectState("proj-" + UUID.randomUUID()) }
+
+        var updatedStates = projectStates + created.associateBy { it.id }
+        if (sourceProjectId != null) {
+            val source = projectStateFor(sourceProjectId, homeState, restoredTasks, projectStates)
+            updatedStates = updatedStates + (sourceProjectId to source.withoutTasks(tasks.map { it.id }.toSet()))
+        }
+        projectStates = updatedStates
+        homeState = homeState.withProjectsAdded(
+            added = created.map { Project(it.id, it.title, it.progress) },
+            afterId = sourceProjectId,
+        )
+
+        navController.navigate(Routes.project(created.first().id)) { launchSingleTop = true }
     }
 
     /**
@@ -379,176 +412,187 @@ fun ThingsNavHost() {
         if (empty) deleteFromHome(id)
     }
 
-    Box(Modifier.fillMaxSize()) {
-        NavHost(
-            navController = navController,
-            startDestination = Routes.HOME,
-            enterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(PushMillis, easing = PushEasing),
-                )
-            },
-            exitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.Start,
-                    tween(PushMillis, easing = PushEasing),
-                    targetOffset = { it / 3 },
-                )
-            },
-            popEnterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = PushEasing),
-                    initialOffset = { it / 3 },
-                )
-            },
-            popExitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = PushEasing),
-                )
-            },
-            predictivePopEnterTransition = {
-                slideIntoContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = GestureEasing),
-                    initialOffset = { it / 3 },
-                )
-            },
-            predictivePopExitTransition = {
-                slideOutOfContainer(
-                    AnimatedContentTransitionScope.SlideDirection.End,
-                    tween(PushMillis, easing = GestureEasing),
-                )
-            },
-        ) {
-            composable(Routes.HOME) {
-                HomeScreen(
-                    state = homeState,
-                    onSearchClick = { quickFindOpen = true },
-                    searchHidden = quickFindOpen,
-                    onNewProject = { createProject(null, null) },
-                    onNewArea = { createArea(null) },
-                    onCreateProjectAt = { areaId, index -> createProject(areaId, index) },
-                    onCreateAreaAt = { index -> createArea(index) },
-                    editingId = editingId,
-                    onTitleChange = { id, title -> renameInHome(id, title) },
-                    onEditDone = { id -> finishNaming(id) },
-                    onMoveProject = { from, to -> homeState = homeState.withProjectMoved(from, to) },
-                    onMoveArea = { from, to -> homeState = homeState.withAreaMoved(from, to) },
-                    onDeleteProject = { id -> deleteFromHome(id) },
-                    onDeleteArea = { id -> deleteFromHome(id) },
-                    onShareSelection = { ids -> shareHomeSelection(ids) },
-                    onAreaClick = { area ->
-                        navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
-                    },
-                    onProjectClick = { project ->
-                        navController.navigate(Routes.project(project.id)) { launchSingleTop = true }
-                    },
-                    onSystemListClick = { list ->
-                        navController.navigate(routeFor(list)) { launchSingleTop = true }
-                    },
-                )
-            }
-            composable(Routes.TODAY) {
-                TodayScreen(
-                    state = sampleTodayState(),
-                    onBack = { navController.popBackStack() },
-                    onProjectClick = { projectId ->
-                        navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
-                    },
-                )
-            }
-            composable(Routes.UPCOMING) {
-                UpcomingScreen(
-                    state = sampleUpcomingState(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(Routes.ANYTIME) {
-                AnytimeScreen(
-                    state = sampleAnytimeState(),
-                    onBack = { navController.popBackStack() },
-                    onProjectClick = { projectId ->
-                        navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
-                    },
-                )
-            }
-            composable(Routes.LOGBOOK) {
-                LogbookScreen(
-                    state = sampleLogbookState(),
-                    onBack = { navController.popBackStack() },
-                    onRestoreEntry = { id ->
-                        val entry = sampleLogbookState().months.flatMap { it.entries }.firstOrNull { it.id == id }
-                        if (entry != null) restoredTasks = restoredTasks + entry.restored()
-                    },
+    CompositionLocalProvider(
+        LocalConvertTasksToProjects provides { tasks: List<TaskRowModel> -> convertTasksToProjects(tasks, null) },
+    ) {
+        Box(Modifier.fillMaxSize()) {
+            NavHost(
+                navController = navController,
+                startDestination = Routes.HOME,
+                enterTransition = {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Start,
+                        tween(PushMillis, easing = PushEasing),
                     )
+                },
+                exitTransition = {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.Start,
+                        tween(PushMillis, easing = PushEasing),
+                        targetOffset = { it / 3 },
+                    )
+                },
+                popEnterTransition = {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(PushMillis, easing = PushEasing),
+                        initialOffset = { it / 3 },
+                    )
+                },
+                popExitTransition = {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(PushMillis, easing = PushEasing),
+                    )
+                },
+                predictivePopEnterTransition = {
+                    slideIntoContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(PushMillis, easing = GestureEasing),
+                        initialOffset = { it / 3 },
+                    )
+                },
+                predictivePopExitTransition = {
+                    slideOutOfContainer(
+                        AnimatedContentTransitionScope.SlideDirection.End,
+                        tween(PushMillis, easing = GestureEasing),
+                    )
+                },
+            ) {
+                composable(Routes.HOME) {
+                    HomeScreen(
+                        state = homeState,
+                        onSearchClick = { quickFindOpen = true },
+                        searchHidden = quickFindOpen,
+                        onNewProject = { createProject(null, null) },
+                        onNewArea = { createArea(null) },
+                        onCreateProjectAt = { areaId, index -> createProject(areaId, index) },
+                        onCreateAreaAt = { index -> createArea(index) },
+                        editingId = editingId,
+                        onTitleChange = { id, title -> renameInHome(id, title) },
+                        onEditDone = { id -> finishNaming(id) },
+                        onMoveProject = { from, to -> homeState = homeState.withProjectMoved(from, to) },
+                        onMoveArea = { from, to -> homeState = homeState.withAreaMoved(from, to) },
+                        onDeleteProject = { id -> deleteFromHome(id) },
+                        onDeleteArea = { id -> deleteFromHome(id) },
+                        onShareSelection = { ids -> shareHomeSelection(ids) },
+                        onAreaClick = { area ->
+                            navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
+                        },
+                        onProjectClick = { project ->
+                            navController.navigate(Routes.project(project.id)) { launchSingleTop = true }
+                        },
+                        onSystemListClick = { list ->
+                            navController.navigate(routeFor(list)) { launchSingleTop = true }
+                        },
+                    )
+                }
+                composable(Routes.TODAY) {
+                    TodayScreen(
+                        state = sampleTodayState(),
+                        onBack = { navController.popBackStack() },
+                        onProjectClick = { projectId ->
+                            navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                        },
+                    )
+                }
+                composable(Routes.UPCOMING) {
+                    UpcomingScreen(
+                        state = sampleUpcomingState(),
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.ANYTIME) {
+                    AnytimeScreen(
+                        state = sampleAnytimeState(),
+                        onBack = { navController.popBackStack() },
+                        onProjectClick = { projectId ->
+                            navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                        },
+                    )
+                }
+                composable(Routes.LOGBOOK) {
+                    LogbookScreen(
+                        state = sampleLogbookState(),
+                        onBack = { navController.popBackStack() },
+                        onRestoreEntry = { id ->
+                            val entry = sampleLogbookState().months.flatMap { it.entries }.firstOrNull { it.id == id }
+                            if (entry != null) restoredTasks = restoredTasks + entry.restored()
+                        },
+                    )
+                }
+                composable(Routes.INBOX) {
+                    InboxScreen(
+                        state = sampleInboxState(),
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.SOMEDAY) {
+                    SomedayScreen(
+                        state = sampleSomedayState(),
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(
+                    route = Routes.PROJECT,
+                    arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
+                ) { entry ->
+                    val projectId = entry.arguments?.getString("projectId").orEmpty()
+                    // To-dos converted on a project page land next to that project and leave its data.
+                    CompositionLocalProvider(
+                        LocalConvertTasksToProjects provides { tasks: List<TaskRowModel> ->
+                            convertTasksToProjects(tasks, projectId)
+                        },
+                    ) {
+                        ProjectScreen(
+                            state = projectStateFor(projectId, homeState, restoredTasks, projectStates),
+                            onBack = { navController.popBackStack() },
+                            onProgressChange = { progress ->
+                                val current = (homeState.looseProjects + homeState.areas.flatMap { it.projects })
+                                    .firstOrNull { it.id == projectId }
+                                if (current != null && abs(current.progress - progress) > 0.001f) {
+                                    homeState = homeState.withProgress(projectId, progress)
+                                }
+                            },
+                            onConvertHeadingToProject = { headingId, source ->
+                                convertHeadingToProject(projectId, headingId, source)
+                            },
+                        )
+                    }
+                }
+                composable(
+                    route = Routes.AREA,
+                    arguments = listOf(navArgument("areaId") { type = NavType.StringType }),
+                ) { entry ->
+                    val areaId = entry.arguments?.getString("areaId").orEmpty()
+                    AreaScreen(
+                        state = areaStateFor(areaId, homeState),
+                        onBack = { navController.popBackStack() },
+                        onProjectClick = { projectId ->
+                            navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
+                        },
+                        onDeleteArea = {
+                            deleteFromHome(areaId)
+                            navController.popBackStack()
+                        },
+                        onShare = { shareArea(areaId) },
+                        onCreateProjectAt = { index -> createProject(areaId, index) },
+                        editingId = editingId,
+                        onTitleChange = { id, title -> renameInHome(id, title) },
+                        onEditDone = { id -> finishNaming(id) },
+                    )
+                }
             }
-            composable(Routes.INBOX) {
-                InboxScreen(
-                    state = sampleInboxState(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(Routes.SOMEDAY) {
-                SomedayScreen(
-                    state = sampleSomedayState(),
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(
-                route = Routes.PROJECT,
-                arguments = listOf(navArgument("projectId") { type = NavType.StringType }),
-            ) { entry ->
-                val projectId = entry.arguments?.getString("projectId").orEmpty()
-                ProjectScreen(
-                    state = projectStateFor(projectId, homeState, restoredTasks, projectStates),
-                    onBack = { navController.popBackStack() },
-                    onProgressChange = { progress ->
-                        val current = (homeState.looseProjects + homeState.areas.flatMap { it.projects })
-                            .firstOrNull { it.id == projectId }
-                        if (current != null && abs(current.progress - progress) > 0.001f) {
-                            homeState = homeState.withProgress(projectId, progress)
-                        }
-                    },
-                    onConvertHeadingToProject = { headingId, source ->
-                        convertHeadingToProject(projectId, headingId, source)
-                    },
-                )
-            }
-            composable(
-                route = Routes.AREA,
-                arguments = listOf(navArgument("areaId") { type = NavType.StringType }),
-            ) { entry ->
-                val areaId = entry.arguments?.getString("areaId").orEmpty()
-                AreaScreen(
-                    state = areaStateFor(areaId, homeState),
-                    onBack = { navController.popBackStack() },
-                    onProjectClick = { projectId ->
-                        navController.navigate(Routes.project(projectId)) { launchSingleTop = true }
-                    },
-                    onDeleteArea = {
-                        deleteFromHome(areaId)
-                        navController.popBackStack()
-                    },
-                    onShare = { shareArea(areaId) },
-                    onCreateProjectAt = { index -> createProject(areaId, index) },
-                    editingId = editingId,
-                    onTitleChange = { id, title -> renameInHome(id, title) },
-                    onEditDone = { id -> finishNaming(id) },
-                )
-            }
-        }
 
-        QuickFindOverlay(
-            visible = quickFindOpen,
-            state = sampleQuickFindState(),
-            onDismiss = { quickFindOpen = false },
-            onItemClick = { item ->
-                quickFindOpen = false
-                navController.navigate(routeFor(item.target)) { launchSingleTop = true }
-            },
-        )
+            QuickFindOverlay(
+                visible = quickFindOpen,
+                state = sampleQuickFindState(),
+                onDismiss = { quickFindOpen = false },
+                onItemClick = { item ->
+                    quickFindOpen = false
+                    navController.navigate(routeFor(item.target)) { launchSingleTop = true }
+                },
+            )
+        }
     }
 }

@@ -162,13 +162,18 @@ private fun shareText(context: Context, lines: List<String>) {
  * and [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that
  * are ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and
  * are applied to every ticked to-do through [expansion], as are Delete and the status change.
+ * Set Deadline opens the Deadline sheet (the one of the to-do card) and sets the chosen day on every
+ * ticked to-do. Convert to Project makes a project of each ticked to-do through
+ * [LocalConvertTasksToProjects]: the title and the notes of the to-do go to the project, its checklist
+ * items become the to-dos of the project, and the ticked to-dos are taken off this page.
  * Duplicate is applied through [expansion] unless the page passes its own [selection].
  *
  * Share sends the ticked to-dos as Markdown (see [TaskMarkdown]): every field, the notes as typed,
  * the edits made on the page. [shareableTasks] must give every to-do of the page in the order the
  * page shows them, including the ones that are off screen or folded away, because the scaffold
  * cannot know that order (lists are lazy and can be reordered); it is read when Share is chosen.
- * A page whose to-dos can be ticked passes it; without it Share has nothing to send.
+ * A page whose to-dos can be ticked passes it; without it Share has nothing to send. Convert to
+ * Project reads the same list.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -202,6 +207,7 @@ fun ListPageScaffold(
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val context = LocalContext.current
+    val convertTasks = LocalConvertTasksToProjects.current
     val ownSelection = selection ?: rememberSelectionState()
     val selecting = ownSelection.active
 
@@ -222,6 +228,7 @@ fun ListPageScaffold(
     var selectionMenuOpen by remember { mutableStateOf(false) }
     var imeWasVisible by remember { mutableStateOf(false) }
     var bulk by remember { mutableStateOf<BulkRequest?>(null) }
+    var deadlineIds by remember { mutableStateOf<Set<String>?>(null) }
     val scrimAlpha by animateFloatAsState(
         if (pageMenuOpen || selectionMenuOpen) 0.4f else 0f,
         label = "menuScrim",
@@ -439,6 +446,15 @@ fun ListPageScaffold(
                                 val markdown = expansion.markdownForSelection(ordered, ids)
                                 if (markdown.isNotEmpty()) shareText(context, listOf(markdown))
                             }
+                            SelectionAction.SetDeadline -> if (expansion != null) deadlineIds = ids
+                            SelectionAction.ConvertToProject -> if (expansion != null && convertTasks != null) {
+                                val ordered = currentShareableTasks?.invoke().orEmpty()
+                                val tasks = expansion.selectedInDisplayOrder(ordered, ids)
+                                if (tasks.isNotEmpty()) {
+                                    expansion.deleteAll(tasks.map { it.id }.toSet())
+                                    convertTasks(tasks)
+                                }
+                            }
                             SelectionAction.When, SelectionAction.SetTags -> bulk = BulkRequest(action, ids)
                             else -> Unit
                         }
@@ -547,6 +563,14 @@ fun ListPageScaffold(
 
         bulk?.let { request ->
             BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
+        }
+
+        deadlineIds?.let { ids ->
+            DeadlineSheet(
+                current = null,
+                onDismiss = { deadlineIds = null },
+                onPick = { deadline -> expansion?.patchAll(ids) { it.withDeadline(deadline) } },
+            )
         }
     }
 }
