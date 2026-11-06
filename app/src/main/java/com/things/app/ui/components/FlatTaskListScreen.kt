@@ -33,6 +33,7 @@ fun FlatTaskListScreen(
         onMoreClick = onMoreClick,
         expansion = expansion,
         onAddClick = onAddClick,
+        shareableTasks = { tasks },
     ) {
         items(tasks, key = { "task-${it.id}" }) { task ->
             ExpandableTaskRow(

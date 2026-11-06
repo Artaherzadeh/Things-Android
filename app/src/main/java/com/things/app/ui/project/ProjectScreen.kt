@@ -63,6 +63,8 @@ import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
 import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.ExpandableTaskRow
+import com.things.app.ui.components.HeadingMenu
+import com.things.app.ui.components.HeadingMenuAction
 import com.things.app.ui.components.ListPageScaffold
 import com.things.app.ui.components.LocalDropSlot
 import com.things.app.ui.components.LocalSelection
@@ -158,6 +160,7 @@ fun ProjectScreen(
     onMoreClick: () -> Unit = {},
     onTitleMenuClick: () -> Unit = {},
     onHeadingMenuClick: (String) -> Unit = {},
+    onConvertHeadingToProject: (ProjectHeadingModel) -> Unit = {},
     onAddClick: () -> Unit = {},
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
@@ -208,6 +211,38 @@ fun ProjectScreen(
         val id = s.removePrefix(TaskPrefix)
         if (tasks.any { it.id == id }) return TopLevel
         return headings.firstOrNull { h -> h.tasks.any { it.id == id } }?.id
+    }
+
+    fun duplicateHeading(headingId: String) {
+        val index = headings.indexOfFirst { it.id == headingId }
+        if (index < 0) return
+        val original = headings[index]
+        val newHeadingId = "heading-" + UUID.randomUUID()
+        val copiedTasks = original.tasks.map { task ->
+            task.copy(id = "task-" + UUID.randomUUID())
+        }
+        val duplicatedHeading = ProjectHeadingModel(
+            id = newHeadingId,
+            title = original.title,
+            tasks = copiedTasks,
+        )
+        headings = headings.toMutableList().also {
+            it.add(index + 1, duplicatedHeading)
+        }
+    }
+
+    fun deleteHeading(headingId: String) {
+        val heading = headings.firstOrNull { it.id == headingId } ?: return
+        heading.tasks.forEach { task ->
+            expansion.delete(task.id)
+        }
+        headings = headings.filter { it.id != headingId }
+    }
+
+    fun convertHeadingToProject(headingId: String) {
+        val heading = headings.firstOrNull { it.id == headingId } ?: return
+        headings = headings.filter { it.id != headingId }
+        onConvertHeadingToProject(heading)
     }
 
     fun insertHeading(atKey: Any?) {
@@ -376,6 +411,8 @@ fun ProjectScreen(
             (key as? String)?.takeIf { it.startsWith(TaskPrefix) }?.removePrefix(TaskPrefix)
         },
         onTitleChange = { title = it },
+        // Display order: to-dos outside headings, each heading's to-dos, then the later items.
+        shareableTasks = { tasks + headings.flatMap { it.tasks } + state.laterTasks },
     ) {
         item(key = "notes") {
             Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
@@ -414,7 +451,16 @@ fun ProjectScreen(
                             }
                         }
                     },
-                    onMenuClick = { onHeadingMenuClick(heading.id) },
+                    onMenuAction = { action ->
+                        when (action) {
+                            HeadingMenuAction.Duplicate -> duplicateHeading(heading.id)
+                            HeadingMenuAction.Delete -> deleteHeading(heading.id)
+                            HeadingMenuAction.ConvertToProject -> convertHeadingToProject(heading.id)
+                            HeadingMenuAction.Archive, HeadingMenuAction.Move -> {
+                                onHeadingMenuClick(heading.id)
+                            }
+                        }
+                    },
                     modifier = if (active || editingHeadingId == heading.id) {
                         Modifier
                     } else {
@@ -502,13 +548,14 @@ private fun HeadingRow(
     autoFocus: Boolean,
     onTitleChange: (String) -> Unit,
     onEditDone: () -> Unit,
-    onMenuClick: () -> Unit,
+    onMenuAction: (HeadingMenuAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val titleStyle = ThingsType.RowTitleBold.copy(color = ThingsColors.ProjectBlue)
     val focusManager = LocalFocusManager.current
     val requester = remember { FocusRequester() }
     var hadFocus by remember { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     val slot = LocalDropSlot.current
     val gapBelow = slot.afterGroupId == id
     val gapAbove = slot.beforeGroupId == id
@@ -559,11 +606,21 @@ private fun HeadingRow(
                     }
                     .semantics { heading() },
             )
-            IconButton(
-                onClick = onMenuClick,
-                modifier = Modifier.semantics { contentDescription = "Heading menu: $title" },
-            ) {
-                MenuDots(ThingsColors.ProjectBlue)
+            Box {
+                IconButton(
+                    onClick = { menuOpen = true },
+                    modifier = Modifier.semantics { contentDescription = "Heading menu: $title" },
+                ) {
+                    MenuDots(ThingsColors.ProjectBlue)
+                }
+                HeadingMenu(
+                    expanded = menuOpen,
+                    onDismiss = { menuOpen = false },
+                    onAction = { action ->
+                        menuOpen = false
+                        onMenuAction(action)
+                    },
+                )
             }
         }
         HorizontalDivider(

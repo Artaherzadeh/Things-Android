@@ -64,6 +64,7 @@ fun UpcomingScreen(
         onMoreClick = onMoreClick,
         expansion = expansion,
         onAddClick = onAddClick,
+        shareableTasks = { state.days.flatMap { it.tasks } },
     ) {
         state.days.forEach { day ->
             item(key = "day-${day.id}") { DayHeader(day) }

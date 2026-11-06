@@ -161,9 +161,14 @@ private fun shareText(context: Context, lines: List<String>) {
  * button replaces the top bar, the add button gives way to a bar with When, Move, Delete and more,
  * and [onSelectionAction] receives the chosen action with the ids of the ticked to-dos. Rows that
  * are ExpandableTaskRow pick the mode up on their own. When and Set Tags open their sheet here and
- * are applied to every ticked to-do through [expansion], and so does Repeat, whose sheet is drawn
- * here; the same goes for Delete, the status change and Share. Duplicate is applied through
- * [expansion] unless the page passes its own [selection].
+ * are applied to every ticked to-do through [expansion], as are Delete and the status change.
+ * Duplicate is applied through [expansion] unless the page passes its own [selection].
+ *
+ * Share sends the ticked to-dos as Markdown (see [TaskMarkdown]): every field, the notes as typed,
+ * the edits made on the page. [shareableTasks] must give every to-do of the page in the order the
+ * page shows them, including the ones that are off screen or folded away, because the scaffold
+ * cannot know that order (lists are lazy and can be reordered); it is read when Share is chosen.
+ * A page whose to-dos can be ticked passes it; without it Share has nothing to send.
  */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -188,6 +193,7 @@ fun ListPageScaffold(
     taskIdForKey: (Any) -> String? = { null },
     selection: SelectionState? = null,
     onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
+    shareableTasks: (() -> List<TaskRowModel>)? = null,
     onTitleChange: ((String) -> Unit)? = null,
     menuActions: List<PageMenuAction> = DefaultMenuActions,
     content: LazyListScope.() -> Unit,
@@ -202,6 +208,7 @@ fun ListPageScaffold(
     val currentOnAddAt by rememberUpdatedState(onAddAt)
     val currentGroupForKey by rememberUpdatedState(groupForKey)
     val currentTaskIdForKey by rememberUpdatedState(taskIdForKey)
+    val currentShareableTasks by rememberUpdatedState(shareableTasks)
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
     var listTop by remember { mutableFloatStateOf(0f) }
     var titleHeightPx by remember { mutableIntStateOf(0) }
@@ -428,10 +435,11 @@ fun ListPageScaffold(
                             SelectionAction.MarkCompleted -> expansion?.toggleCompleted(ids)
                             SelectionAction.Duplicate -> if (selection == null) expansion?.duplicate(ids)
                             SelectionAction.Share -> if (expansion != null) {
-                                shareText(context, ids.mapNotNull { expansion.titleOf(it) })
+                                val ordered = currentShareableTasks?.invoke().orEmpty()
+                                val markdown = expansion.markdownForSelection(ordered, ids)
+                                if (markdown.isNotEmpty()) shareText(context, listOf(markdown))
                             }
-                            SelectionAction.When, SelectionAction.SetTags, SelectionAction.Repeat ->
-                                bulk = BulkRequest(action, ids)
+                            SelectionAction.When, SelectionAction.SetTags -> bulk = BulkRequest(action, ids)
                             else -> Unit
                         }
                         onSelectionAction(action, ids)
@@ -538,14 +546,7 @@ fun ListPageScaffold(
         }
 
         bulk?.let { request ->
-            if (request.action == SelectionAction.Repeat) {
-                RepeatSheet(
-                    onDismiss = { bulk = null },
-                    onPick = { rule -> expansion?.patchAll(request.ids) { it.withRepeat(rule) } },
-                )
-            } else {
-                BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
-            }
+            BulkSheets(request = request, expansion = expansion, onClose = { bulk = null })
         }
     }
 }

@@ -59,6 +59,9 @@ fun AnytimeScreen(
         onMoreClick = onMoreClick,
         expansion = expansion,
         onAddClick = onAddClick,
+        // Display order: the to-dos without a project, then each project's to-dos, also the ones
+        // hidden behind "Show N more".
+        shareableTasks = { state.looseTasks + state.groups.flatMap { it.items } },
     ) {
         items(state.looseTasks, key = { "task-${it.id}" }) { task ->
             ExpandableTaskRow(

@@ -218,6 +218,8 @@ fun TodayScreen(
         },
         selection = selection,
         onSelectionAction = { action, ids -> runSelectionAction(action, ids) },
+        // Display order: the to-dos without a project, then each project's to-dos (folded or not).
+        shareableTasks = { looseItems + groups.flatMap { it.items } },
     ) {
         items(looseItems, key = { "$TodoPrefix${it.id}" }) { item ->
             ExpandableTaskRow(

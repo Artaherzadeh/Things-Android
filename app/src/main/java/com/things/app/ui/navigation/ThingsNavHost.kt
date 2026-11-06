@@ -35,6 +35,7 @@ import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.logbook.LogbookEntry
 import com.things.app.ui.logbook.LogbookScreen
 import com.things.app.ui.logbook.sampleLogbookState
+import com.things.app.ui.project.ProjectHeadingModel
 import com.things.app.ui.project.ProjectScreen
 import com.things.app.ui.project.ProjectUiState
 import com.things.app.ui.project.sampleProjectState
@@ -122,7 +123,9 @@ private fun projectStateFor(
     projectId: String,
     home: HomeUiState,
     restored: List<RestoredTask>,
+    projectStates: Map<String, ProjectUiState>,
 ): ProjectUiState {
+    projectStates[projectId]?.let { return it }
     val homeProject = (home.looseProjects + home.areas.flatMap { it.projects })
         .firstOrNull { it.id == projectId }
     val anytimeGroup = sampleAnytimeState().groups.firstOrNull { it.projectId == projectId }
@@ -226,8 +229,8 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  * dropped again. The dragged + creates a project, or an area near the left edge of Home, and a
  * project on the Area page. Holding a project or an area on Home changes the order, swiping one to
  * the left deletes it. The ring of a project on Home follows the to-dos done on its page. Delete
- * Area on an area page and Delete Project on a project page remove it and go back. A to-do unticked
- * in the Logbook is kept here and shows up again on the page of the project with its name.
+ * Area on an area page removes it. A to-do unticked in the Logbook is kept here and shows up again
+ * on the page of the project with its name.
  */
 @Composable
 fun ThingsNavHost() {
@@ -237,6 +240,60 @@ fun ThingsNavHost() {
     var homeState by remember { mutableStateOf(sampleHomeState()) }
     var editingId by remember { mutableStateOf<String?>(null) }
     var restoredTasks by remember { mutableStateOf(emptyList<RestoredTask>()) }
+    var projectStates by remember { mutableStateOf(mapOf<String, ProjectUiState>()) }
+
+    fun convertHeadingToProject(sourceProjectId: String, heading: ProjectHeadingModel) {
+        val newProjectId = "proj-" + UUID.randomUUID()
+        val newProjectTitle = heading.title.ifBlank { "New Project" }
+        val childTasks = heading.tasks
+
+        val doneCount = childTasks.count { it.checked }
+        val totalCount = childTasks.size
+        val newProgress = if (totalCount == 0) 0f else doneCount.toFloat() / totalCount
+
+        val newProjectState = ProjectUiState(
+            id = newProjectId,
+            title = newProjectTitle,
+            progress = newProgress,
+            tasks = childTasks,
+        )
+
+        val currentSourceState = projectStateFor(sourceProjectId, homeState, restoredTasks, projectStates)
+        val updatedSourceHeadings = currentSourceState.headings.filter { it.id != heading.id }
+        val sourceOpen = (currentSourceState.tasks + updatedSourceHeadings.flatMap { it.tasks })
+        val sourceTotal = sourceOpen.size + currentSourceState.loggedTasks.size
+        val sourceDone = sourceOpen.count { it.checked } + currentSourceState.loggedTasks.size
+        val sourceProgress = if (sourceTotal == 0) 0f else sourceDone.toFloat() / sourceTotal
+        val updatedSourceState = currentSourceState.copy(headings = updatedSourceHeadings, progress = sourceProgress)
+
+        projectStates = projectStates + (newProjectId to newProjectState) + (sourceProjectId to updatedSourceState)
+
+        val newHomeProject = Project(id = newProjectId, title = newProjectTitle, progress = newProgress)
+        val areaWithSource = homeState.areas.firstOrNull { a -> a.projects.any { it.id == sourceProjectId } }
+        homeState = if (areaWithSource != null) {
+            homeState.copy(
+                areas = homeState.areas.map { area ->
+                    if (area.id == areaWithSource.id) {
+                        val idx = area.projects.indexOfFirst { it.id == sourceProjectId }
+                        val updatedProjects = area.projects.toMutableList().also {
+                            it.add(if (idx >= 0) idx + 1 else it.size, newHomeProject)
+                        }
+                        area.copy(projects = updatedProjects)
+                    } else {
+                        area
+                    }
+                }
+            )
+        } else {
+            val idx = homeState.looseProjects.indexOfFirst { it.id == sourceProjectId }
+            val updatedLoose = homeState.looseProjects.toMutableList().also {
+                it.add(if (idx >= 0) idx + 1 else it.size, newHomeProject)
+            }
+            homeState.copy(looseProjects = updatedLoose)
+        }
+
+        navController.navigate(Routes.project(newProjectId)) { launchSingleTop = true }
+    }
 
     /** Adds an empty project to an area (or to the loose projects), names it in place. */
     fun createProject(areaId: String?, index: Int?) {
@@ -420,7 +477,7 @@ fun ThingsNavHost() {
             ) { entry ->
                 val projectId = entry.arguments?.getString("projectId").orEmpty()
                 ProjectScreen(
-                    state = projectStateFor(projectId, homeState, restoredTasks),
+                    state = projectStateFor(projectId, homeState, restoredTasks, projectStates),
                     onBack = { navController.popBackStack() },
                     onProgressChange = { progress ->
                         val current = (homeState.looseProjects + homeState.areas.flatMap { it.projects })
@@ -429,9 +486,8 @@ fun ThingsNavHost() {
                             homeState = homeState.withProgress(projectId, progress)
                         }
                     },
-                    onDeleteProject = {
-                        deleteFromHome(projectId)
-                        navController.popBackStack()
+                    onConvertHeadingToProject = { heading ->
+                        convertHeadingToProject(projectId, heading)
                     },
                 )
             }
