@@ -2,6 +2,7 @@ package com.things.app.ui.components
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -114,6 +115,9 @@ private val GhostFingerOffset = 16.dp
 private val DragGray = Color(0xFF8E8E93)
 private val CancelRed = Color(0xFFFF3B30)
 
+private fun showMessage(context: Context, text: String) =
+    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+
 private fun shareText(context: Context, lines: List<String>) {
     if (lines.isEmpty()) return
     val send = Intent(Intent.ACTION_SEND).apply {
@@ -165,7 +169,9 @@ private fun shareText(context: Context, lines: List<String>) {
  * Set Deadline opens the Deadline sheet (the one of the to-do card) and sets the chosen day on every
  * ticked to-do. Convert to Project makes a project of each ticked to-do through
  * [LocalConvertTasksToProjects]: the title and the notes of the to-do go to the project, its checklist
- * items become the to-dos of the project, and the ticked to-dos are taken off this page.
+ * items become the to-dos of the project, and the ticked to-dos are taken off this page, but only
+ * after every project was created. If the conversion fails the to-dos and the selection stay as they
+ * were and the reason is shown. A second tap while a conversion runs is ignored.
  * Duplicate is applied through [expansion] unless the page passes its own [selection].
  *
  * Share sends the ticked to-dos as Markdown (see [TaskMarkdown]): every field, the notes as typed,
@@ -229,6 +235,7 @@ fun ListPageScaffold(
     var imeWasVisible by remember { mutableStateOf(false) }
     var bulk by remember { mutableStateOf<BulkRequest?>(null) }
     var deadlineIds by remember { mutableStateOf<Set<String>?>(null) }
+    var converting by remember { mutableStateOf(false) }
     val scrimAlpha by animateFloatAsState(
         if (pageMenuOpen || selectionMenuOpen) 0.4f else 0f,
         label = "menuScrim",
@@ -437,6 +444,7 @@ fun ListPageScaffold(
                     completeLabel = expansion?.completionLabel(ownSelection.selected) ?: "Mark as Completed",
                     onAction = { action ->
                         val ids = ownSelection.selected
+                        var keepSelection = false
                         when (action) {
                             SelectionAction.Delete -> expansion?.deleteAll(ids)
                             SelectionAction.MarkCompleted -> expansion?.toggleCompleted(ids)
@@ -448,18 +456,47 @@ fun ListPageScaffold(
                             }
                             SelectionAction.SetDeadline -> if (expansion != null) deadlineIds = ids
                             SelectionAction.ConvertToProject -> if (expansion != null && convertTasks != null) {
-                                val ordered = currentShareableTasks?.invoke().orEmpty()
-                                val tasks = expansion.selectedInDisplayOrder(ordered, ids)
-                                if (tasks.isNotEmpty()) {
-                                    expansion.deleteAll(tasks.map { it.id }.toSet())
-                                    convertTasks(tasks)
+                                if (converting) {
+                                    keepSelection = true
+                                } else {
+                                    converting = true
+                                    try {
+                                        val ordered = currentShareableTasks?.invoke().orEmpty()
+                                        val tasks = expansion.selectedInDisplayOrder(ordered, ids)
+                                        if (tasks.isNotEmpty()) {
+                                            // The to-dos leave the page only after every project exists.
+                                            when (val result = convertTasks(tasks)) {
+                                                is ConvertResult.Success -> {
+                                                    try {
+                                                        expansion.deleteAll(tasks.map { it.id }.toSet())
+                                                    } catch (e: Exception) {
+                                                        showMessage(context, "Projects were created, but the original to-dos could not be removed.")
+                                                    }
+                                                    if (result.warnings.isNotEmpty()) {
+                                                        showMessage(context, result.warnings.joinToString(" "))
+                                                    }
+                                                }
+                                                is ConvertResult.Failure -> {
+                                                    keepSelection = true
+                                                    showMessage(context, result.message)
+                                                }
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        keepSelection = true
+                                        showMessage(context, "Could not convert: ${e.message ?: e::class.simpleName}")
+                                    } finally {
+                                        converting = false
+                                    }
                                 }
                             }
                             SelectionAction.When, SelectionAction.SetTags -> bulk = BulkRequest(action, ids)
                             else -> Unit
                         }
-                        onSelectionAction(action, ids)
-                        ownSelection.finish()
+                        if (!keepSelection) {
+                            onSelectionAction(action, ids)
+                            ownSelection.finish()
+                        }
                     },
                     onMenuOpenChange = { selectionMenuOpen = it },
                     modifier = Modifier
