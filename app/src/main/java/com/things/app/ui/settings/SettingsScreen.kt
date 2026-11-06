@@ -1,5 +1,6 @@
 package com.things.app.ui.settings
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -11,8 +12,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -44,13 +47,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.things.app.ui.theme.ThingsColors
+import com.things.app.ui.theme.ThingsTheme
 import com.things.app.ui.theme.ThingsType
 
 private val SheetBackground = Color(0xFFF9FAFB)
@@ -80,13 +87,24 @@ fun SettingsDialog(
     onDismiss: () -> Unit,
     accountEmail: String = "",
     lastUpdated: String = "",
-    cloudEnabled: Boolean = true,
+    cloudEnabled: Boolean = false,
+    cloudSupported: Boolean = false,
     onCloudEnabledChange: (Boolean) -> Unit = {},
     onOpenItem: (String) -> Unit = {},
 ) {
     var page by rememberSaveable { mutableStateOf(SettingsPage.Menu) }
+
+    val handleDismiss = {
+        page = SettingsPage.Menu
+        onDismiss()
+    }
+
+    BackHandler(enabled = (page == SettingsPage.ThingsCloud)) {
+        page = SettingsPage.Menu
+    }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = handleDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
@@ -99,7 +117,7 @@ fun SettingsDialog(
         ) {
             when (page) {
                 SettingsPage.Menu -> SettingsMenu(
-                    onClose = onDismiss,
+                    onClose = handleDismiss,
                     onThingsCloud = { page = SettingsPage.ThingsCloud },
                     onOther = onOpenItem,
                 )
@@ -107,9 +125,10 @@ fun SettingsDialog(
                     email = accountEmail,
                     lastUpdated = lastUpdated,
                     enabled = cloudEnabled,
+                    cloudSupported = cloudSupported,
                     onEnabledChange = onCloudEnabledChange,
                     onBack = { page = SettingsPage.Menu },
-                    onClose = onDismiss,
+                    onClose = handleDismiss,
                     onOpenItem = onOpenItem,
                 )
             }
@@ -138,7 +157,12 @@ private fun SettingsMenu(
         SettingsItem("About", Icons.Filled.Info, CloudBlue, onClick = { onOther("About") }),
     )
 
-    Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp),
+    ) {
         Box(Modifier.fillMaxWidth().height(48.dp)) {
             Text(
                 text = "Settings",
@@ -212,13 +236,20 @@ private fun ThingsCloudPage(
     email: String,
     lastUpdated: String,
     enabled: Boolean,
+    cloudSupported: Boolean,
     onEnabledChange: (Boolean) -> Unit,
     onBack: () -> Unit,
     onClose: () -> Unit,
     onOpenItem: (String) -> Unit,
 ) {
+    val isSignedOut = email.isBlank()
+    val isConnected = !isSignedOut && cloudSupported
+
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(Modifier.fillMaxWidth().height(48.dp)) {
@@ -246,35 +277,65 @@ private fun ThingsCloudPage(
         Icon(
             imageVector = Icons.Filled.CloudDone,
             contentDescription = null,
-            tint = CloudBlue,
+            tint = if (isConnected) CloudBlue else IconGray,
             modifier = Modifier.size(112.dp),
         )
         Spacer(Modifier.height(16.dp))
         Switch(
-            checked = enabled,
-            onCheckedChange = onEnabledChange,
+            checked = enabled && cloudSupported,
+            onCheckedChange = if (cloudSupported) onEnabledChange else null,
+            enabled = cloudSupported,
             colors = SwitchDefaults.colors(
                 checkedTrackColor = CloudBlue,
                 checkedThumbColor = Color.White,
             ),
+            modifier = Modifier.semantics {
+                contentDescription = "Things Cloud Sync"
+            },
         )
         Spacer(Modifier.height(16.dp))
-        Text(
-            text = email,
-            fontSize = 19.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = ThingsColors.TextPrimary,
-        )
-        Text(
-            text = "Your account is active.",
-            fontSize = 15.sp,
-            color = ThingsColors.TextSecondary,
-        )
-        Text(
-            text = "Last Updated: $lastUpdated",
-            fontSize = 15.sp,
-            color = ThingsColors.TextSecondary,
-        )
+        if (isConnected) {
+            Text(
+                text = email,
+                fontSize = 19.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = ThingsColors.TextPrimary,
+            )
+            Text(
+                text = "Your account is active.",
+                fontSize = 15.sp,
+                color = ThingsColors.TextSecondary,
+            )
+            if (lastUpdated.isNotBlank()) {
+                Text(
+                    text = "Last Updated: $lastUpdated",
+                    fontSize = 15.sp,
+                    color = ThingsColors.TextSecondary,
+                )
+            }
+        } else {
+            if (email.isNotBlank()) {
+                Text(
+                    text = email,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ThingsColors.TextPrimary,
+                )
+            } else {
+                Text(
+                    text = "Signed Out",
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = ThingsColors.TextPrimary,
+                )
+            }
+            Text(
+                text = "Things Cloud sync is currently unavailable.",
+                fontSize = 15.sp,
+                color = ThingsColors.TextSecondary,
+                textAlign = TextAlign.Center,
+            )
+        }
         Spacer(Modifier.height(24.dp))
         CloudRow("Edit Account", Icons.Filled.Key) { onOpenItem("Edit Account") }
         CloudRow("Mail to Things", Icons.Filled.Mail) { onOpenItem("Mail to Things") }
@@ -328,5 +389,27 @@ private fun CircleButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = description, tint = ThingsColors.TextPrimary, modifier = Modifier.size(22.dp))
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsDialogPreview() {
+    ThingsTheme {
+        SettingsDialog(onDismiss = {})
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SettingsDialogConnectedPreview() {
+    ThingsTheme {
+        SettingsDialog(
+            onDismiss = {},
+            accountEmail = "user@example.com",
+            lastUpdated = "Just now",
+            cloudEnabled = true,
+            cloudSupported = true,
+        )
     }
 }

@@ -56,6 +56,7 @@ import com.things.app.ui.project.withoutTasks
 import com.things.app.ui.quickfind.QuickFindOverlay
 import com.things.app.ui.quickfind.QuickFindTarget
 import com.things.app.ui.quickfind.sampleQuickFindState
+import com.things.app.ui.settings.SettingsDialog
 import com.things.app.ui.someday.SomedayScreen
 import com.things.app.ui.someday.sampleSomedayState
 import com.things.app.ui.today.TodayScreen
@@ -254,6 +255,7 @@ fun ThingsNavHost() {
     val context = LocalContext.current
 
     var quickFindOpen by rememberSaveable { mutableStateOf(false) }
+    var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var homeState by remember { mutableStateOf(sampleHomeState()) }
     var editingId by remember { mutableStateOf<String?>(null) }
     var restoredTasks by remember { mutableStateOf(emptyList<RestoredTask>()) }
@@ -493,8 +495,15 @@ fun ThingsNavHost() {
                 composable(Routes.HOME) {
                     HomeScreen(
                         state = homeState,
-                        onSearchClick = { quickFindOpen = true },
+                        onSearchClick = {
+                            settingsOpen = false
+                            quickFindOpen = true
+                        },
                         searchHidden = quickFindOpen,
+                        onSettingsClick = {
+                            quickFindOpen = false
+                            settingsOpen = true
+                        },
                         onNewProject = { createProject(null, null) },
                         onNewArea = { createArea(null) },
                         onCreateProjectAt = { areaId, index -> createProject(areaId, index) },
@@ -624,6 +633,12 @@ fun ThingsNavHost() {
                     navController.navigate(routeFor(item.target)) { launchSingleTop = true }
                 },
             )
+
+            if (settingsOpen) {
+                SettingsDialog(
+                    onDismiss = { settingsOpen = false },
+                )
+            }
         }
     }
 }
