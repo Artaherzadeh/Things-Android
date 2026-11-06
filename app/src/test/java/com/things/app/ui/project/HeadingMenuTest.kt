@@ -183,4 +183,40 @@ class HeadingMenuTest {
         assertEquals(0f, progressOf(emptyList()), 0.001f)
         assertEquals(0.75f, progressOf(listOf(plain("a", true), plain("b")), loggedCount = 2), 0.001f)
     }
+
+    @Test
+    fun deletingAHeadingButKeepingItsTasksPutsThemAtTheTopInOrder() {
+        val top = listOf(plain("top1"), plain("top2"))
+        val headings = listOf(
+            ProjectHeadingModel("h1", "A", listOf(populated("a1"), plain("a2"))),
+            ProjectHeadingModel("h2", "B", listOf(plain("b1"))),
+        )
+
+        val result = removeHeadingKeepingTasks(top, headings, "h1")
+
+        assertNotNull(result)
+        assertEquals(listOf("a1", "a2", "top1", "top2"), result!!.tasks.map { it.id })
+        assertEquals(populated("a1"), result.tasks.first())
+        assertEquals(listOf("h2"), result.headings.map { it.id })
+        assertEquals(listOf("b1"), result.headings.single().tasks.map { it.id })
+    }
+
+    @Test
+    fun deletingAnEmptyHeadingKeepingTasksChangesOnlyTheHeadings() {
+        val top = listOf(plain("top1"))
+        val headings = listOf(ProjectHeadingModel("h1", "Empty", emptyList()))
+
+        val result = removeHeadingKeepingTasks(top, headings, "h1")!!
+
+        assertEquals(top, result.tasks)
+        assertTrue(result.headings.isEmpty())
+    }
+
+    @Test
+    fun deletingAnUnknownHeadingKeepingTasksChangesNothing() {
+        val top = listOf(plain("top1"))
+        val headings = listOf(ProjectHeadingModel("h1", "A", listOf(plain("a1"))))
+
+        assertNull(removeHeadingKeepingTasks(top, headings, "missing"))
+    }
 }

@@ -47,3 +47,29 @@ fun convertHeading(source: ProjectUiState, headingId: String, newProjectId: Stri
  */
 fun copyHeading(heading: ProjectHeadingModel, newHeadingId: String, newTaskId: () -> String): ProjectHeadingModel =
     heading.copy(id = newHeadingId, tasks = heading.tasks.map { it.copy(id = newTaskId()) })
+
+/**
+ * The page after a heading was deleted but its to-dos were kept: [tasks] are the to-dos that are in
+ * no heading, [headings] the headings that are left.
+ */
+data class HeadingRemoval(val tasks: List<TaskRowModel>, val headings: List<ProjectHeadingModel>)
+
+/**
+ * Deletes the heading [headingId] and keeps its to-dos: they become to-dos of no heading, at the top
+ * of the page (before the to-dos that already were in no heading), in the order they had. They are
+ * the very same objects, so ids, ticks, notes, checklists, tags, dates, reminders, deadlines, repeats
+ * and the edits held for them are kept. The other headings are not touched.
+ *
+ * Returns null, changing nothing, when there is no such heading.
+ */
+fun removeHeadingKeepingTasks(
+    tasks: List<TaskRowModel>,
+    headings: List<ProjectHeadingModel>,
+    headingId: String,
+): HeadingRemoval? {
+    val heading = headings.firstOrNull { it.id == headingId } ?: return null
+    return HeadingRemoval(
+        tasks = heading.tasks + tasks,
+        headings = headings.filter { it.id != headingId },
+    )
+}

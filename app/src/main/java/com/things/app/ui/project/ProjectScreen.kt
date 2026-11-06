@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -58,6 +59,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.things.app.ui.components.AddTarget
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
@@ -100,6 +102,9 @@ private const val TopLevel = ""
 /** The show/hide lines are 40dp high with a 15sp label, so two of them under each other sit close. */
 private val ToggleHeight = 40.dp
 private val ToggleFontSize = 15.sp
+
+/** The red of destructive choices, the same as the Delete entries of the menus. */
+private val DestructiveRed = Color(0xFFFF3B30)
 
 // The Later items and the Logged items open and close with the very same motion: they unfold from
 // the top edge downwards while fading in, quick and smooth, and fold back up the same way. Opening
@@ -153,6 +158,10 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * to-dos with everything they hold, each heading with its to-dos, the later items and the logged
  * ones. Other entries of the page menu are reported through [onMenuAction].
  *
+ * Delete in a heading's menu asks first when the heading has to-dos: delete the heading and its
+ * to-dos, or delete only the heading and keep its to-dos at the top of the page, outside every
+ * heading. A heading with no to-dos is deleted at once.
+ *
  * Convert to a Project in a heading's menu does not change this page itself: it reports the id of
  * the heading and the current state of the whole page (every edit applied) through
  * [onConvertHeadingToProject], and the owner of the data builds the new project and the page
@@ -186,6 +195,7 @@ fun ProjectScreen(
     var headings by remember(state) { mutableStateOf(state.headings) }
     var editingHeadingId by remember { mutableStateOf<String?>(null) }
     var holdingHeading by remember { mutableStateOf<String?>(null) }
+    var pendingDeleteHeadingId by remember { mutableStateOf<String?>(null) }
     var notes by rememberSaveable(state.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.notes))
     }
@@ -248,6 +258,23 @@ fun ProjectScreen(
             expansion.delete(task.id)
         }
         headings = headings.filter { it.id != headingId }
+    }
+
+    /** Deletes only the heading: its to-dos go to the top of the page, outside every heading. */
+    fun deleteHeadingKeepingTasks(headingId: String) {
+        val removal = removeHeadingKeepingTasks(tasks, headings, headingId) ?: return
+        tasks = removal.tasks
+        headings = removal.headings
+    }
+
+    /** A heading with to-dos asks what to do with them; one without is deleted at once. */
+    fun requestDeleteHeading(headingId: String) {
+        val heading = headings.firstOrNull { it.id == headingId } ?: return
+        if (expansion.liveTasks(heading.tasks).isEmpty()) {
+            deleteHeading(headingId)
+        } else {
+            pendingDeleteHeadingId = headingId
+        }
     }
 
     // Nothing is removed here: the owner builds the new project and the page without the heading in
@@ -471,7 +498,7 @@ fun ProjectScreen(
                     onMenuAction = { action ->
                         when (action) {
                             HeadingMenuAction.Duplicate -> duplicateHeading(heading.id)
-                            HeadingMenuAction.Delete -> deleteHeading(heading.id)
+                            HeadingMenuAction.Delete -> requestDeleteHeading(heading.id)
                             HeadingMenuAction.ConvertToProject -> convertHeadingToProject(heading.id)
                             HeadingMenuAction.Archive, HeadingMenuAction.Move -> {
                                 onHeadingMenuClick(heading.id)
@@ -546,6 +573,84 @@ fun ProjectScreen(
                 }
             }
         }
+    }
+
+    pendingDeleteHeadingId?.let { id ->
+        val headingTitle = headings.firstOrNull { it.id == id }?.title.orEmpty()
+        DeleteHeadingDialog(
+            headingTitle = headingTitle,
+            onDeleteAll = {
+                pendingDeleteHeadingId = null
+                deleteHeading(id)
+            },
+            onKeepTasks = {
+                pendingDeleteHeadingId = null
+                deleteHeadingKeepingTasks(id)
+            },
+            onCancel = { pendingDeleteHeadingId = null },
+        )
+    }
+}
+
+/**
+ * Asks what to do with the to-dos of a heading that is being deleted: delete them too, or keep them
+ * at the top of the page outside every heading. Cancel (or a touch outside) changes nothing.
+ */
+@Composable
+private fun DeleteHeadingDialog(
+    headingTitle: String,
+    onDeleteAll: () -> Unit,
+    onKeepTasks: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Dialog(onDismissRequest = onCancel) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(ThingsColors.Background)
+                .padding(vertical = 8.dp),
+        ) {
+            Text(
+                "Delete heading?",
+                style = ThingsType.RowTitleBold,
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 4.dp),
+            )
+            Text(
+                if (headingTitle.isBlank()) {
+                    "This heading has to-dos. Delete them too, or keep them at the top of the page without a heading?"
+                } else {
+                    "\"$headingTitle\" has to-dos. Delete them too, or keep them at the top of the page without a heading?"
+                },
+                style = ThingsType.RowTitle.copy(color = ThingsColors.TextSecondary),
+                modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 12.dp),
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                color = ThingsColors.Divider,
+            )
+            DialogOption("Delete Heading and Tasks", DestructiveRed, onDeleteAll)
+            DialogOption("Delete Heading Only", ThingsColors.TextPrimary, onKeepTasks)
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                color = ThingsColors.Divider,
+            )
+            DialogOption("Cancel", ThingsColors.TextSecondary, onCancel)
+        }
+    }
+}
+
+@Composable
+private fun DialogOption(text: String, color: Color, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 24.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(text, style = ThingsType.RowTitle.copy(color = color))
     }
 }
 
