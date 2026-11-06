@@ -25,6 +25,7 @@ import com.things.app.ui.anytime.sampleAnytimeState
 import com.things.app.ui.area.AreaScreen
 import com.things.app.ui.area.AreaUiState
 import com.things.app.ui.area.sampleAreaState
+import com.things.app.ui.components.ConvertResult
 import com.things.app.ui.components.ExportArea
 import com.things.app.ui.components.LocalConvertTasksToProjects
 import com.things.app.ui.components.TaskRowModel
@@ -50,6 +51,7 @@ import com.things.app.ui.project.sampleProjectState
 import com.things.app.ui.project.sampleVacationProjectState
 import com.things.app.ui.project.toExportProject
 import com.things.app.ui.project.toProjectState
+import com.things.app.ui.project.unsupportedProjectFields
 import com.things.app.ui.project.withoutTasks
 import com.things.app.ui.quickfind.QuickFindOverlay
 import com.things.app.ui.quickfind.QuickFindTarget
@@ -244,7 +246,7 @@ private fun HomeUiState.withProgress(id: String, progress: Float): HomeUiState =
  * on the page of the project with its name.
  *
  * Convert to Project in the select bar of any list page reaches [convertTasksToProjects] through
- * [LocalConvertTasksToProjects].
+ * [LocalConvertTasksToProjects] and gets a [ConvertResult] back.
  */
 @Composable
 fun ThingsNavHost() {
@@ -305,23 +307,52 @@ fun ThingsNavHost() {
      * they did not come from a project), takes the to-dos out of that project's stored data, and
      * opens the page of the first new project. The to-dos of the other pages are only taken off the
      * page that is on screen: those pages are static samples and keep no changes.
+     *
+     * Everything is worked out first and stored in one step, so a failure leaves the app exactly as
+     * it was and returns [ConvertResult.Failure]. The caller removes the source to-dos only after
+     * [ConvertResult.Success]. Opening the first project comes last: if that fails the created
+     * projects stay and the result is still a success, with a warning. Fields a project cannot hold
+     * yet (tags, when, deadline, repeat) are listed in the warnings instead of being dropped silently.
      */
-    fun convertTasksToProjects(tasks: List<TaskRowModel>, sourceProjectId: String?) {
-        if (tasks.isEmpty()) return
-        val created = tasks.map { task -> task.toProjectState("proj-" + UUID.randomUUID()) }
+    fun convertTasksToProjects(tasks: List<TaskRowModel>, sourceProjectId: String?): ConvertResult {
+        val sources = tasks.distinctBy { it.id }
+        if (sources.isEmpty()) return ConvertResult.Failure("Nothing to convert.")
 
-        var updatedStates = projectStates + created.associateBy { it.id }
-        if (sourceProjectId != null) {
-            val source = projectStateFor(sourceProjectId, homeState, restoredTasks, projectStates)
-            updatedStates = updatedStates + (sourceProjectId to source.withoutTasks(tasks.map { it.id }.toSet()))
+        // Prepare everything first; nothing is stored until all of it succeeded.
+        val prepared = try {
+            val created = sources.map { task -> task.toProjectState("proj-" + UUID.randomUUID()) }
+            var states = projectStates + created.associateBy { it.id }
+            if (sourceProjectId != null) {
+                val source = projectStateFor(sourceProjectId, homeState, restoredTasks, projectStates)
+                states = states + (sourceProjectId to source.withoutTasks(sources.map { it.id }.toSet()))
+            }
+            val home = homeState.withProjectsAdded(
+                added = created.map { Project(it.id, it.title, it.progress) },
+                afterId = sourceProjectId,
+            )
+            val onHome = (home.looseProjects + home.areas.flatMap { it.projects }).map { it.id }.toSet()
+            if (created.size != sources.size || created.any { it.id !in onHome || it.id !in states }) {
+                return ConvertResult.Failure("Could not create the projects.")
+            }
+            Triple(created, states, home)
+        } catch (e: Exception) {
+            return ConvertResult.Failure("Could not create the projects: ${e.message ?: e::class.simpleName}")
         }
-        projectStates = updatedStates
-        homeState = homeState.withProjectsAdded(
-            added = created.map { Project(it.id, it.title, it.progress) },
-            afterId = sourceProjectId,
-        )
+        val (created, newStates, newHome) = prepared
 
-        navController.navigate(Routes.project(created.first().id)) { launchSingleTop = true }
+        projectStates = newStates
+        homeState = newHome
+
+        // Navigation follows the data; if it fails the converted data stays.
+        val warnings = mutableListOf<String>()
+        val dropped = sources.flatMap { it.unsupportedProjectFields() }.distinct()
+        if (dropped.isNotEmpty()) warnings += "Not carried to the project: ${dropped.joinToString()}."
+        try {
+            navController.navigate(Routes.project(created.first().id)) { launchSingleTop = true }
+        } catch (e: Exception) {
+            warnings += "Projects were created, but the first one could not be opened."
+        }
+        return ConvertResult.Success(created.map { it.id }, warnings)
     }
 
     /**
