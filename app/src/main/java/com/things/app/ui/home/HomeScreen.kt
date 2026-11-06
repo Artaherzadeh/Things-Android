@@ -1,6 +1,5 @@
 package com.things.app.ui.home
 
-import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -76,7 +75,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -183,8 +181,8 @@ private data class HomeGap(
  *   a bar with When, Move, Delete and a three-dots menu. When an area is among the ticked rows, When
  *   and Move are off and the menu has Set Tags and Share; with only projects ticked everything is on
  *   and the menu has Mark as Completed, Set Tags, Set Deadline, Repeat, Duplicate and Share. Delete
- *   ([onDeleteProject], [onDeleteArea]; an area goes with its projects) and Share are done here; the
- *   other actions are reported through [onSelectionAction].
+ *   ([onDeleteProject], [onDeleteArea]; an area goes with its projects) is done here; Share is reported
+ *   through [onShareSelection] with the ticked ids, and the other actions through [onSelectionAction].
  * - A long name goes on to the next lines; the icon stays level with the first line.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -209,6 +207,7 @@ fun HomeScreen(
     onDeleteProject: (id: String) -> Unit = {},
     onDeleteArea: (id: String) -> Unit = {},
     onSelectionAction: (SelectionAction, Set<String>) -> Unit = { _, _ -> },
+    onShareSelection: (Set<String>) -> Unit = {},
     searchHidden: Boolean = false,
 ) {
     var collapsedAreas by rememberSaveable { mutableStateOf(emptySet<String>()) }
@@ -216,7 +215,6 @@ fun HomeScreen(
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val imeVisible = WindowInsets.isImeVisible
     var imeWasVisible by remember { mutableStateOf(false) }
@@ -327,17 +325,7 @@ fun HomeScreen(
                 selection.finish()
             }
             SelectionAction.Share -> {
-                val projects = state.looseProjects + state.areas.flatMap { it.projects }
-                val titles = ids.mapNotNull { id ->
-                    state.areas.firstOrNull { it.id == id }?.title ?: projects.firstOrNull { it.id == id }?.title
-                }.filter { it.isNotBlank() }
-                if (titles.isNotEmpty()) {
-                    val send = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, titles.joinToString("\n"))
-                    }
-                    context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                }
+                onShareSelection(ids.toSet())
                 selection.finish()
             }
             else -> onSelectionAction(action, ids)

@@ -33,6 +33,7 @@ import com.things.app.ui.home.HomeScreen
 import com.things.app.ui.home.HomeUiState
 import com.things.app.ui.home.Project
 import com.things.app.ui.home.SystemList
+import com.things.app.ui.home.markdownForHomeSelection
 import com.things.app.ui.home.sampleHomeState
 import com.things.app.ui.inbox.InboxScreen
 import com.things.app.ui.inbox.sampleInboxState
@@ -304,6 +305,21 @@ fun ThingsNavHost() {
         shareMarkdown(context, exportArea(ExportArea(area.title, projects)))
     }
 
+    /**
+     * Shares the projects and areas ticked on Home through the shared exporter, in Home order. A
+     * project ticked together with its own area is written once, inside the area.
+     */
+    fun shareHomeSelection(ids: Set<String>) {
+        val markdown = markdownForHomeSelection(
+            home = homeState,
+            selected = ids,
+            resolveProject = { projectId ->
+                projectStateFor(projectId, homeState, restoredTasks, projectStates).toExportProject()
+            },
+        )
+        shareMarkdown(context, markdown)
+    }
+
     /** Adds an empty project to an area (or to the loose projects), names it in place. */
     fun createProject(areaId: String?, index: Int?) {
         val project = Project(NewIdPrefix + UUID.randomUUID(), "", 0f)
@@ -423,6 +439,7 @@ fun ThingsNavHost() {
                     onMoveArea = { from, to -> homeState = homeState.withAreaMoved(from, to) },
                     onDeleteProject = { id -> deleteFromHome(id) },
                     onDeleteArea = { id -> deleteFromHome(id) },
+                    onShareSelection = { ids -> shareHomeSelection(ids) },
                     onAreaClick = { area ->
                         navController.navigate(Routes.area(area.id)) { launchSingleTop = true }
                     },
