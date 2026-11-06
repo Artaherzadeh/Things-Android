@@ -35,9 +35,9 @@ import com.things.app.ui.inbox.sampleInboxState
 import com.things.app.ui.logbook.LogbookEntry
 import com.things.app.ui.logbook.LogbookScreen
 import com.things.app.ui.logbook.sampleLogbookState
-import com.things.app.ui.project.ProjectHeadingModel
 import com.things.app.ui.project.ProjectScreen
 import com.things.app.ui.project.ProjectUiState
+import com.things.app.ui.project.convertHeading
 import com.things.app.ui.project.sampleProjectState
 import com.things.app.ui.project.sampleVacationProjectState
 import com.things.app.ui.quickfind.QuickFindOverlay
@@ -242,33 +242,22 @@ fun ThingsNavHost() {
     var restoredTasks by remember { mutableStateOf(emptyList<RestoredTask>()) }
     var projectStates by remember { mutableStateOf(mapOf<String, ProjectUiState>()) }
 
-    fun convertHeadingToProject(sourceProjectId: String, heading: ProjectHeadingModel) {
+    /**
+     * Turns a heading of the project [sourceProjectId] into a project. [source] is the page as it is
+     * now (edits applied). The new project and the source without the heading are both worked out
+     * first and stored together: if there is no such heading nothing changes and nothing opens.
+     */
+    fun convertHeadingToProject(sourceProjectId: String, headingId: String, source: ProjectUiState) {
         val newProjectId = "proj-" + UUID.randomUUID()
-        val newProjectTitle = heading.title.ifBlank { "New Project" }
-        val childTasks = heading.tasks
+        val result = convertHeading(source, headingId, newProjectId) ?: return
 
-        val doneCount = childTasks.count { it.checked }
-        val totalCount = childTasks.size
-        val newProgress = if (totalCount == 0) 0f else doneCount.toFloat() / totalCount
+        projectStates = projectStates + (newProjectId to result.newProject) + (sourceProjectId to result.source)
 
-        val newProjectState = ProjectUiState(
+        val newHomeProject = Project(
             id = newProjectId,
-            title = newProjectTitle,
-            progress = newProgress,
-            tasks = childTasks,
+            title = result.newProject.title,
+            progress = result.newProject.progress,
         )
-
-        val currentSourceState = projectStateFor(sourceProjectId, homeState, restoredTasks, projectStates)
-        val updatedSourceHeadings = currentSourceState.headings.filter { it.id != heading.id }
-        val sourceOpen = (currentSourceState.tasks + updatedSourceHeadings.flatMap { it.tasks })
-        val sourceTotal = sourceOpen.size + currentSourceState.loggedTasks.size
-        val sourceDone = sourceOpen.count { it.checked } + currentSourceState.loggedTasks.size
-        val sourceProgress = if (sourceTotal == 0) 0f else sourceDone.toFloat() / sourceTotal
-        val updatedSourceState = currentSourceState.copy(headings = updatedSourceHeadings, progress = sourceProgress)
-
-        projectStates = projectStates + (newProjectId to newProjectState) + (sourceProjectId to updatedSourceState)
-
-        val newHomeProject = Project(id = newProjectId, title = newProjectTitle, progress = newProgress)
         val areaWithSource = homeState.areas.firstOrNull { a -> a.projects.any { it.id == sourceProjectId } }
         homeState = if (areaWithSource != null) {
             homeState.copy(
@@ -486,8 +475,8 @@ fun ThingsNavHost() {
                             homeState = homeState.withProgress(projectId, progress)
                         }
                     },
-                    onConvertHeadingToProject = { heading ->
-                        convertHeadingToProject(projectId, heading)
+                    onConvertHeadingToProject = { headingId, source ->
+                        convertHeadingToProject(projectId, headingId, source)
                     },
                 )
             }

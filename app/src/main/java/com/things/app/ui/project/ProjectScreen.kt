@@ -78,6 +78,7 @@ import com.things.app.ui.components.ProjectTitleMenu
 import com.things.app.ui.components.RepeatIcon
 import com.things.app.ui.components.TaskRowModel
 import com.things.app.ui.components.insertedAt
+import com.things.app.ui.components.liveTasks
 import com.things.app.ui.components.markdownSection
 import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberTaskExpansion
@@ -151,6 +152,11 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * Share. Share, in both menus, sends the whole project as Markdown: the title, the notes, the
  * to-dos with everything they hold, each heading with its to-dos, the later items and the logged
  * ones. Other entries of the page menu are reported through [onMenuAction].
+ *
+ * Convert to a Project in a heading's menu does not change this page itself: it reports the id of
+ * the heading and the current state of the whole page (every edit applied) through
+ * [onConvertHeadingToProject], and the owner of the data builds the new project and the page
+ * without the heading in one step.
  */
 @Composable
 fun ProjectScreen(
@@ -160,7 +166,7 @@ fun ProjectScreen(
     onMoreClick: () -> Unit = {},
     onTitleMenuClick: () -> Unit = {},
     onHeadingMenuClick: (String) -> Unit = {},
-    onConvertHeadingToProject: (ProjectHeadingModel) -> Unit = {},
+    onConvertHeadingToProject: (headingId: String, source: ProjectUiState) -> Unit = { _, _ -> },
     onAddClick: () -> Unit = {},
     onTaskClick: (String) -> Unit = {},
     onToggleTask: (String) -> Unit = {},
@@ -213,18 +219,23 @@ fun ProjectScreen(
         return headings.firstOrNull { h -> h.tasks.any { it.id == id } }?.id
     }
 
+    /** The page as it is now: title, notes, order and every to-do with the edits made to it. */
+    fun currentState(): ProjectUiState = state.copy(
+        title = title,
+        notes = notes.text,
+        tasks = expansion.liveTasks(tasks, includeCopies = false),
+        headings = headings.map { it.copy(tasks = expansion.liveTasks(it.tasks, includeCopies = false)) },
+        laterTasks = expansion.liveTasks(state.laterTasks, includeCopies = false),
+    )
+
     fun duplicateHeading(headingId: String) {
         val index = headings.indexOfFirst { it.id == headingId }
         if (index < 0) return
         val original = headings[index]
-        val newHeadingId = "heading-" + UUID.randomUUID()
-        val copiedTasks = original.tasks.map { task ->
-            task.copy(id = "task-" + UUID.randomUUID())
-        }
-        val duplicatedHeading = ProjectHeadingModel(
-            id = newHeadingId,
-            title = original.title,
-            tasks = copiedTasks,
+        val duplicatedHeading = copyHeading(
+            heading = original.copy(tasks = expansion.liveTasks(original.tasks)),
+            newHeadingId = "heading-" + UUID.randomUUID(),
+            newTaskId = { "task-" + UUID.randomUUID() },
         )
         headings = headings.toMutableList().also {
             it.add(index + 1, duplicatedHeading)
@@ -239,10 +250,16 @@ fun ProjectScreen(
         headings = headings.filter { it.id != headingId }
     }
 
+    // Nothing is removed here: the owner builds the new project and the page without the heading in
+    // one step, and this page is drawn again from that.
     fun convertHeadingToProject(headingId: String) {
         val heading = headings.firstOrNull { it.id == headingId } ?: return
-        headings = headings.filter { it.id != headingId }
-        onConvertHeadingToProject(heading)
+        val snapshot = currentState()
+        val moved = heading.copy(tasks = expansion.liveTasks(heading.tasks))
+        onConvertHeadingToProject(
+            headingId,
+            snapshot.copy(headings = snapshot.headings.map { if (it.id == headingId) moved else it }),
+        )
     }
 
     fun insertHeading(atKey: Any?) {
