@@ -35,8 +35,9 @@ import com.things.app.ui.theme.ThingsType
 
 /**
  * The look of every dropdown menu of the app. It is the look of the three-dots menu at the top right
- * of a page: a 216dp wide card with 24dp rounded corners on the page color and a soft shadow, 48dp
- * high entries with a 24dp icon, a thin line between sections, and the page dimmed while it is open.
+ * of a page: a 216dp wide card with 24dp rounded corners on the dark menu surface (the one of the
+ * add menu and the sheets) and a soft shadow, 48dp high entries with a 24dp icon and light text, a
+ * thin light line between sections, and the page dimmed while it is open.
  * The page menu, the project title menu and the heading menu all use these pieces, so a change here
  * changes all of them.
  */
@@ -46,6 +47,9 @@ object ThingsMenu {
     val Shape = RoundedCornerShape(24.dp)
     val ItemMinHeight = 48.dp
     val IconSize = 24.dp
+
+    /** The text of a disabled entry and its icon: the grey of the dark menus, a little faded. */
+    val DisabledAlpha = 0.6f
 }
 
 /**
@@ -67,7 +71,7 @@ fun ThingsDropdownMenu(
         modifier = modifier.widthIn(min = ThingsMenu.MinWidth),
         offset = ThingsMenu.Offset,
         shape = ThingsMenu.Shape,
-        containerColor = ThingsColors.Background,
+        containerColor = ThingsColors.MenuSurface,
         tonalElevation = 0.dp,
         shadowElevation = 6.dp,
         content = content,
@@ -97,10 +101,10 @@ fun ThingsMenuItem(
         },
         enabled = enabled,
         colors = MenuDefaults.itemColors(
-            textColor = ThingsColors.TextPrimary,
+            textColor = ThingsColors.MenuTitle,
             leadingIconColor = ThingsColors.Fab,
-            disabledTextColor = ThingsColors.TextSecondary,
-            disabledLeadingIconColor = ThingsColors.TextSecondary,
+            disabledTextColor = ThingsColors.MenuDescription.copy(alpha = ThingsMenu.DisabledAlpha),
+            disabledLeadingIconColor = ThingsColors.MenuDescription.copy(alpha = ThingsMenu.DisabledAlpha),
         ),
     )
 }
@@ -110,7 +114,7 @@ fun ThingsMenuItem(
 fun ThingsMenuDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-        color = ThingsColors.Divider,
+        color = ThingsColors.MenuTitle.copy(alpha = 0.15f),
     )
 }
 

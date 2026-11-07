@@ -18,4 +18,8 @@ fun ProjectUiState.toExportProject(): ExportProject = ExportProject(
     headings = headings.map { ExportHeading(it.title, it.tasks) },
     later = laterTasks,
     logged = loggedTasks.map { it.toLoggedExport() },
+    tags = tags,
+    schedule = schedule,
+    deadline = deadline,
+    repeat = repeat,
 )

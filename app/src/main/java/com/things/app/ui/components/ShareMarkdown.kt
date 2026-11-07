@@ -5,8 +5,8 @@ import android.content.Intent
 
 /**
  * The one place that turns to-dos into Markdown text. Every Share of the app (the select bar, the
- * project page, the area page) goes through it: only the content and the heading level change, the
- * rules are the same everywhere. Pure Kotlin: no Compose, no Android.
+ * project page, the area page, Home) goes through it: only the content and the heading level change,
+ * the rules are the same everywhere. Pure Kotlin: no Compose, no Android.
  *
  * Every to-do is a task-list item. What the to-do knows about itself goes under the title as a
  * nested list (In, Label, When, Reminder, Completed, Deadline, Repeat, Tags, Checklist), and the
@@ -27,15 +27,18 @@ import android.content.Intent
  *  - Titles, checklist lines and the other fields are plain text in the app, so the characters that
  *    Markdown would read as formatting are escaped with a backslash, and so is a title that starts
  *    like a heading or a list. Heading texts (area, project, heading) are escaped the same way.
- *  - Notes are Markdown already and are never reformatted: every line is only moved two spaces to
- *    the right so it stays inside its item. Empty lines stay empty (no trailing spaces are added),
- *    spaces at the end of a line are kept, and so is the indentation of nested lists and code. Only
- *    the empty lines at the very end are dropped. Notes that are only blank are left out.
+ *  - Notes are Markdown already and are never reformatted. Line ends are made the same (\n); then
+ *    the only thing removed is the empty lines at the very end ([notesLines]): the spaces and tabs at
+ *    the end of a line that has text, the indentation of nested lists and code, and the empty lines
+ *    in the middle all stay. A to-do's notes are also moved two spaces to the right so every line
+ *    stays inside its item (empty lines get no spaces). A project's notes are written as they are.
+ *    Notes that are only blank are left out.
  *  - A blank line separates the notes from the list before them, and when such a list exists a
  *    "Notes:" line comes between, so a list at the start of the notes can never merge with it.
  *
  * Projects and areas: [exportProject] and [exportArea] write the headings (# area, ## project, ###
- * heading; a lone project is # with ## headings) and put every to-do through the same writer.
+ * heading; a lone project is # with ## headings), what the project itself holds (When, Reminder,
+ * Deadline, Repeat and Tags as a list under its title) and put every to-do through the same writer.
  */
 object TaskMarkdown {
     private const val Indent = "  "
@@ -81,6 +84,31 @@ object TaskMarkdown {
     /** The text of an area, project or heading title, safe to put after the # marks. */
     internal fun headingText(title: String): String = plain(title).ifEmpty { Untitled }
 
+    /**
+     * The lines of notes as they are written: line ends made the same and the empty lines at the very
+     * end dropped. Nothing else changes, so the spaces and tabs at the end of a line with text stay.
+     * Every export of notes (to-dos and projects) takes its lines from here.
+     */
+    internal fun notesLines(notes: String): List<String> =
+        notes.replace("\r\n", "\n").replace('\r', '\n').split('\n').dropLastWhile { it.isEmpty() }
+
+    /**
+     * What a project holds itself, as a list under its title: When, Reminder, Deadline, Repeat and
+     * Tags, written like the same fields of a to-do. Empty when it holds none of them.
+     */
+    internal fun projectFacts(project: ExportProject): List<String> {
+        val out = mutableListOf<String>()
+        project.schedule?.let { schedule ->
+            plain(schedule.label).takeIf { it.isNotEmpty() }?.let { out += "- When: $it" }
+            schedule.reminder?.let { plain(it) }?.takeIf { it.isNotEmpty() }?.let { out += "- Reminder: $it" }
+        }
+        project.deadline?.let { deadlineText(it) }?.let { out += "- Deadline: $it" }
+        repeatText(project.repeat)?.let { out += "- Repeat: $it" }
+        val tags = project.tags.map { plain(it) }.filter { it.isNotEmpty() }
+        if (tags.isNotEmpty()) out += "- Tags: ${tags.joinToString(", ")}"
+        return out
+    }
+
     /** The logged to-dos as to-do blocks, separated by a blank line, with no line break at the end. */
     internal fun exportLogged(entries: List<LoggedExport>): String =
         entries.joinToString(separator = "\n\n") { entry ->
@@ -118,19 +146,11 @@ object TaskMarkdown {
 
         completedOn?.let { plain(it) }?.takeIf { it.isNotEmpty() }?.let { fact("Completed", it) }
 
-        details.deadline?.let { deadline ->
-            val date = plain(deadline.dateLabel)
-            val left = deadline.remainingLabel?.let { plain(it) }?.takeIf { it.isNotEmpty() }
-            if (date.isNotEmpty()) fact("Deadline", if (left != null) "$date ($left)" else date)
-        }
+        details.deadline?.let { deadlineText(it) }?.let { fact("Deadline", it) }
 
-        val repeat = details.repeat
-        val repeatSummary = repeat?.summary?.let { plain(it) }.orEmpty()
-        val repeatTitle = repeat?.title?.let { plain(it) }.orEmpty()
+        val repeatValue = repeatText(details.repeat)
         when {
-            repeatSummary.isNotEmpty() && repeatTitle.isNotEmpty() -> fact("Repeat", "$repeatSummary ($repeatTitle)")
-            repeatSummary.isNotEmpty() -> fact("Repeat", repeatSummary)
-            repeatTitle.isNotEmpty() -> fact("Repeat", repeatTitle)
+            repeatValue != null -> fact("Repeat", repeatValue)
             task.isRepeatingTemplate -> fact("Repeat", "repeating template")
             task.isRecurring -> fact("Repeat", "copy of a repeating to-do")
         }
@@ -148,14 +168,29 @@ object TaskMarkdown {
         return out
     }
 
-    /**
-     * The notes moved two spaces to the right, line by line. Nothing else changes: not the spaces at
-     * the end of a line, not the indentation, not the empty lines in the middle.
-     */
-    private fun indentNotes(notes: String): List<String> {
-        val lines = notes.replace("\r\n", "\n").replace('\r', '\n').split('\n').dropLastWhile { it.isEmpty() }
-        return lines.map { if (it.isEmpty()) it else Indent + it }
+    /** The date of a deadline and, in brackets, how long is left; null when it has no date. */
+    private fun deadlineText(deadline: DeadlineModel): String? {
+        val date = plain(deadline.dateLabel)
+        if (date.isEmpty()) return null
+        val left = deadline.remainingLabel?.let { plain(it) }?.takeIf { it.isNotEmpty() }
+        return if (left != null) "$date ($left)" else date
     }
+
+    /** The summary of a repeat and, in brackets, its title; null when it has neither. */
+    private fun repeatText(repeat: RepeatInfoModel?): String? {
+        val summary = repeat?.summary?.let { plain(it) }.orEmpty()
+        val title = repeat?.title?.let { plain(it) }.orEmpty()
+        return when {
+            summary.isNotEmpty() && title.isNotEmpty() -> "$summary ($title)"
+            summary.isNotEmpty() -> summary
+            title.isNotEmpty() -> title
+            else -> null
+        }
+    }
+
+    /** The notes of a to-do moved two spaces to the right, line by line (see [notesLines]). */
+    private fun indentNotes(notes: String): List<String> =
+        notesLines(notes).map { if (it.isEmpty()) it else Indent + it }
 
     private fun checkbox(done: Boolean) = if (done) "[x]" else "[ ]"
 
@@ -186,9 +221,10 @@ data class ExportHeading(val title: String, val tasks: List<TaskRowModel>)
 data class LoggedExport(val title: String, val dateLabel: String, val isRecurring: Boolean = false)
 
 /**
- * Everything of a project that is exported, in the order it is written: the notes, the to-dos in no
- * heading, each heading with its to-dos, the later items and the logged ones. The lists must already
- * hold the current data (edits applied, deleted to-dos left out) in the order the page shows them.
+ * Everything of a project that is exported, in the order it is written: what the project holds
+ * itself (When, Deadline, Repeat, Tags), the notes, the to-dos in no heading, each heading with its
+ * to-dos, the later items and the logged ones. The lists must already hold the current data (edits
+ * applied, deleted to-dos left out) in the order the page shows them.
  */
 data class ExportProject(
     val title: String,
@@ -197,6 +233,10 @@ data class ExportProject(
     val headings: List<ExportHeading> = emptyList(),
     val later: List<TaskRowModel> = emptyList(),
     val logged: List<LoggedExport> = emptyList(),
+    val tags: List<String> = emptyList(),
+    val schedule: ScheduleModel? = null,
+    val deadline: DeadlineModel? = null,
+    val repeat: RepeatInfoModel? = null,
 )
 
 /** An area and its projects, for [exportArea]. */
@@ -207,14 +247,18 @@ private const val MaxHeadingLevel = 6
 private fun headingLine(level: Int, title: String): String =
     "#".repeat(level.coerceIn(1, MaxHeadingLevel)) + " " + TaskMarkdown.headingText(title)
 
-/** Project notes as they were typed: only the line ends are made the same and the empty end is cut. */
+/**
+ * Project notes as they were typed: the line ends are made the same and the empty lines at the end
+ * are cut, like the notes of a to-do (see [TaskMarkdown.notesLines]); spaces and tabs stay.
+ */
 private fun notesText(notes: String): String? {
-    val text = notes.replace("\r\n", "\n").replace('\r', '\n').trimEnd('\n', ' ', '\t')
-    return text.takeIf { it.isNotBlank() }
+    if (notes.isBlank()) return null
+    return TaskMarkdown.notesLines(notes).joinToString("\n")
 }
 
 private fun projectParts(project: ExportProject, level: Int): List<String> {
     val parts = mutableListOf(headingLine(level, project.title))
+    TaskMarkdown.projectFacts(project).takeIf { it.isNotEmpty() }?.let { parts += it.joinToString("\n") }
     notesText(project.notes)?.let { parts += it }
     if (project.tasks.isNotEmpty()) parts += TaskMarkdown.export(project.tasks).trimEnd('\n')
     project.headings.forEach { heading ->
@@ -233,9 +277,9 @@ private fun projectParts(project: ExportProject, level: Int): List<String> {
 }
 
 /**
- * A project as Markdown: "# title", its notes, its to-dos, then "## heading" with the to-dos of each
- * heading, "## Later" and "## Logbook". [level] is the level of the project title (1 for a project on
- * its own, 2 inside an area). Ends with one line break.
+ * A project as Markdown: "# title", what the project holds itself, its notes, its to-dos, then "##
+ * heading" with the to-dos of each heading, "## Later" and "## Logbook". [level] is the level of the
+ * project title (1 for a project on its own, 2 inside an area). Ends with one line break.
  */
 fun exportProject(project: ExportProject, level: Int = 1): String =
     projectParts(project, level).joinToString("\n\n") + "\n"

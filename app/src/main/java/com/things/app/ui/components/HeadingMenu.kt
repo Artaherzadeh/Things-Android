@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.things.app.ui.home.ArchiveIcon
@@ -58,11 +59,16 @@ fun HeadingMenu(
     enabledActions: Set<HeadingMenuAction> = DefaultEnabledHeadingActions,
 ) {
     ThingsDropdownMenu(expanded = expanded, onDismiss = onDismiss, modifier = modifier) {
+        val archiveEnabled = HeadingMenuAction.Archive in enabledActions
         ThingsMenuItem(
             label = HeadingMenuAction.Archive.label,
             onClick = { onAction(HeadingMenuAction.Archive) },
-            enabled = HeadingMenuAction.Archive in enabledActions,
-        ) { ArchiveIcon(Modifier.size(24.dp)) }
+            enabled = archiveEnabled,
+        ) {
+            // The Archive icon has its own colors (the same one the Someday list uses); a disabled
+            // entry fades it like the other disabled icons of the menu.
+            ArchiveIcon(Modifier.size(24.dp).alpha(if (archiveEnabled) 1f else ThingsMenu.DisabledAlpha))
+        }
 
         ThingsMenuDivider()
 

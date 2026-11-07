@@ -1,5 +1,8 @@
 package com.things.app.ui.project
 
+import com.things.app.ui.components.DeadlineModel
+import com.things.app.ui.components.RepeatInfoModel
+import com.things.app.ui.components.ScheduleModel
 import com.things.app.ui.components.TaskRowModel
 
 /** A completed to-do shown at the bottom of a project once logged items are revealed. */
@@ -23,6 +26,10 @@ data class ProjectHeadingModel(
  * Everything the project page draws. Which to-dos are active, later or logged is decided by the
  * logic layer; this model only describes the groups. [tasks] are the to-dos that are not under a
  * heading; they come first, then each heading with its own to-dos.
+ *
+ * [tags], [schedule], [deadline] and [repeat] are what the project itself holds (the When, Add Tags,
+ * Add Deadline and Repeat entries of its menu); each is optional and shows as a line under the title
+ * only while it is set.
  */
 data class ProjectUiState(
     val id: String,
@@ -34,6 +41,10 @@ data class ProjectUiState(
     val headings: List<ProjectHeadingModel> = emptyList(),
     val laterTasks: List<TaskRowModel> = emptyList(),
     val loggedTasks: List<LoggedTaskModel> = emptyList(),
+    val tags: List<String> = emptyList(),
+    val schedule: ScheduleModel? = null,
+    val deadline: DeadlineModel? = null,
+    val repeat: RepeatInfoModel? = null,
 )
 
 /** Static sample content for previews and the first static version of the page. */
