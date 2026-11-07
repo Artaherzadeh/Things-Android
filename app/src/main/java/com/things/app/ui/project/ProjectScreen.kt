@@ -64,6 +64,7 @@ import androidx.compose.ui.window.Dialog
 import com.things.app.ui.components.AddTarget
 import com.things.app.ui.components.CheckMark
 import com.things.app.ui.components.ChecklistIcon
+import com.things.app.ui.components.DeadlineSheet
 import com.things.app.ui.components.DropGapHeight
 import com.things.app.ui.components.ExpandableTaskRow
 import com.things.app.ui.components.ExportHeading
@@ -82,7 +83,12 @@ import com.things.app.ui.components.ProjectMenuAction
 import com.things.app.ui.components.ProjectMenuActions
 import com.things.app.ui.components.ProjectTitleMenu
 import com.things.app.ui.components.RepeatIcon
+import com.things.app.ui.components.RepeatSheet
+import com.things.app.ui.components.ScheduleKind
+import com.things.app.ui.components.ScheduleModel
+import com.things.app.ui.components.TagsSheet
 import com.things.app.ui.components.TaskRowModel
+import com.things.app.ui.components.WhenSheet
 import com.things.app.ui.components.exportProject
 import com.things.app.ui.components.insertedAt
 import com.things.app.ui.components.liveTasks
@@ -90,6 +96,7 @@ import com.things.app.ui.components.rememberReorderState
 import com.things.app.ui.components.rememberTaskExpansion
 import com.things.app.ui.components.reorderable
 import com.things.app.ui.components.shareMarkdown
+import com.things.app.ui.components.toInfo
 import com.things.app.ui.home.ProgressIcon
 import com.things.app.ui.theme.ThingsColors
 import com.things.app.ui.theme.ThingsSpacing
@@ -109,6 +116,9 @@ private val ToggleFontSize = 15.sp
 
 /** The red of destructive choices. */
 private val DestructiveRed = Color(0xFFFF3B30)
+
+/** Which sheet of the project's own When, tags, deadline or repeat is open. */
+private enum class ProjectSheet { When, Tags, Deadline, Repeat }
 
 // The Later items and the Logged items open and close with the very same motion: they unfold from
 // the top edge downwards while fading in, quick and smooth, and fold back up the same way. Opening
@@ -130,17 +140,20 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
     }
 
 /**
- * Project page: ring and title with the project menu, notes, the to-dos that are not under a
- * heading, then each heading with its to-dos, then two toggles that reveal later items (future
- * start dates, repeating templates) and logged items. Later and logged items are hidden until
- * revealed; both unfold from the top and fold back with the same animation. Active and later
- * to-dos open in place when tapped. Every action is a callback.
+ * Project page: ring and title with the project menu, what the project holds itself (tags, When,
+ * deadline, repeat), notes, the to-dos that are not under a heading, then each heading with its
+ * to-dos, then two toggles that reveal later items (future start dates, repeating templates) and
+ * logged items. Later and logged items are hidden until revealed; both unfold from the top and fold
+ * back with the same animation. Active and later to-dos open in place when tapped. Every action is
+ * a callback.
  *
  * The ring next to the title shows how much of the project is done: the completed to-dos (the
  * logged ones and the ones that are ticked) over all of them. Five of ten is half full; untick one
  * of five of ten and it drops to forty percent. The ring moves smoothly to its new value.
  * [onProgressChange] reports every change of it so Home can draw the same ring. Later items and
- * deleted to-dos do not count.
+ * deleted to-dos do not count. A new ring value does not reset what was edited on the page: the
+ * to-dos and headings of the page are only taken from [state] again when its own id, to-dos or
+ * headings change.
  *
  * The project title, the heading titles and the notes under the title can be edited in place; with
  * no notes the line shows a grey "Notes". Select mode and swipe-to-delete come from the shared
@@ -155,14 +168,17 @@ private fun <T> List<T>.move(from: Int, to: Int): List<T> =
  * to the left edge and it turns into a heading, with the room opening where the heading will go.
  *
  * The menu next to the title (see [ProjectTitleMenu]) has Complete Project, When, Add Tags, Add
- * Deadline and Repeat; Move, Duplicate and Delete Project; Share. Delete Project calls
- * [onDeleteProject] and the others report through [onProjectMenuAction]. The menu at the top right
+ * Deadline and Repeat; Move, Duplicate and Delete Project; Share. When, Add Tags, Add Deadline and
+ * Repeat open the sheet of the to-do card; what is chosen is kept on the page and shown under the
+ * title (see [ProjectDetailRows]). Delete Project calls [onDeleteProject] and the others, these
+ * four included, report through [onProjectMenuAction]. The menu at the top right
  * has Filter by Tag, New Heading (a new empty heading at the end, named in place), Select and Paste,
  * then Share in a section of its own. Share, in both menus, sends the whole project as Markdown
- * through the shared exporter (exportProject): the title, the notes, the to-dos with everything they
- * hold, each heading with its to-dos, the later items and the logged ones. Other entries of the page
- * menu are reported through [onMenuAction]. Every dropdown menu of the page (the top right menu, the
- * title menu and the heading menus) looks the same and dims the page while it is open.
+ * through the shared exporter (exportProject): the title, what the project holds itself, the notes,
+ * the to-dos with everything they hold, each heading with its to-dos, the later items and the
+ * logged ones. Other entries of the page menu are reported through [onMenuAction]. Every dropdown
+ * menu of the page (the top right menu, the title menu and the heading menus) looks the same and
+ * dims the page while it is open. [modifier] is applied to the root of the page.
  *
  * Delete in a heading's menu asks first when the heading has to-dos: delete the heading and its
  * to-dos, or delete only the heading and keep its to-dos at the top of the page, outside every
@@ -191,11 +207,11 @@ fun ProjectScreen(
     onDeleteProject: () -> Unit = {},
 ) {
     // The title menu and the heading menus dim the page through this host; the top right menu is
-    // dimmed by the scaffold itself.
-    MenuScrimHost(Modifier.fillMaxSize()) {
+    // dimmed by the scaffold itself. The host is the root of the page, so it takes the caller's
+    // modifier and the page inside gets none.
+    MenuScrimHost(modifier.fillMaxSize()) {
         ProjectScreenBody(
             state = state,
-            modifier = modifier,
             onBack = onBack,
             onMoreClick = onMoreClick,
             onTitleMenuClick = onTitleMenuClick,
@@ -215,7 +231,6 @@ fun ProjectScreen(
 @Composable
 private fun ProjectScreenBody(
     state: ProjectUiState,
-    modifier: Modifier,
     onBack: () -> Unit,
     onMoreClick: () -> Unit,
     onTitleMenuClick: () -> Unit,
@@ -236,14 +251,24 @@ private fun ProjectScreenBody(
     val context = LocalContext.current
 
     var title by rememberSaveable(state.id) { mutableStateOf(state.title) }
-    var tasks by remember(state) { mutableStateOf(state.tasks) }
-    var headings by remember(state) { mutableStateOf(state.headings) }
+    // Keyed by what the data owner can change (id, to-dos, headings) and not by the whole state: the
+    // ring (progress) is reported by this page and comes back in the state, and that must not throw
+    // away a heading that was deleted or a list that was reordered here.
+    var tasks by remember(state.id, state.tasks, state.headings) { mutableStateOf(state.tasks) }
+    var headings by remember(state.id, state.tasks, state.headings) { mutableStateOf(state.headings) }
     var editingHeadingId by remember { mutableStateOf<String?>(null) }
     var holdingHeading by remember { mutableStateOf<String?>(null) }
     var pendingDeleteHeadingId by remember { mutableStateOf<String?>(null) }
     var notes by rememberSaveable(state.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(state.notes))
     }
+
+    // What the project holds itself, and the sheet that edits it.
+    var projectTags by remember(state.id) { mutableStateOf(state.tags) }
+    var projectSchedule by remember(state.id) { mutableStateOf(state.schedule) }
+    var projectDeadline by remember(state.id) { mutableStateOf(state.deadline) }
+    var projectRepeat by remember(state.id) { mutableStateOf(state.repeat) }
+    var sheet by remember { mutableStateOf<ProjectSheet?>(null) }
 
     // How much of the project is done: logged to-dos count as done, ticked ones too.
     val open = (tasks + headings.flatMap { it.tasks }).filter { !expansion.isDeleted(it.id) }
@@ -253,9 +278,9 @@ private fun ProjectScreenBody(
     LaunchedEffect(progress) { onProgressChange(progress) }
 
     /**
-     * The whole project as Markdown, written by the shared exporter: every to-do with everything it
-     * holds (edits applied, deleted ones left out, copies after their original), by heading, then
-     * the later items and the logged ones.
+     * The whole project as Markdown, written by the shared exporter: what the project holds itself,
+     * every to-do with everything it holds (edits applied, deleted ones left out, copies after their
+     * original), by heading, then the later items and the logged ones.
      */
     fun projectMarkdown(): String = exportProject(
         ExportProject(
@@ -265,6 +290,10 @@ private fun ProjectScreenBody(
             headings = headings.map { ExportHeading(it.title, expansion.liveTasks(it.tasks)) },
             later = expansion.liveTasks(state.laterTasks),
             logged = state.loggedTasks.map { it.toLoggedExport() },
+            tags = projectTags,
+            schedule = projectSchedule,
+            deadline = projectDeadline,
+            repeat = projectRepeat,
         ),
     )
 
@@ -276,13 +305,17 @@ private fun ProjectScreenBody(
         return headings.firstOrNull { h -> h.tasks.any { it.id == id } }?.id
     }
 
-    /** The page as it is now: title, notes, order and every to-do with the edits made to it. */
+    /** The page as it is now: title, notes, own fields, order and every to-do with the edits made to it. */
     fun currentState(): ProjectUiState = state.copy(
         title = title,
         notes = notes.text,
         tasks = expansion.liveTasks(tasks, includeCopies = false),
         headings = headings.map { it.copy(tasks = expansion.liveTasks(it.tasks, includeCopies = false)) },
         laterTasks = expansion.liveTasks(state.laterTasks, includeCopies = false),
+        tags = projectTags,
+        schedule = projectSchedule,
+        deadline = projectDeadline,
+        repeat = projectRepeat,
     )
 
     fun duplicateHeading(headingId: String) {
@@ -459,14 +492,22 @@ private fun ProjectScreenBody(
                 color = ThingsColors.ProjectBlue,
             )
         },
-        modifier = modifier,
         titleTag = "project_title",
         titleTrailing = {
             ProjectTitleMenu(onOpen = onTitleMenuClick) { action ->
                 when (action) {
                     ProjectMenuAction.DeleteProject -> onDeleteProject()
                     ProjectMenuAction.Share -> shareMarkdown(context, projectMarkdown())
-                    else -> onProjectMenuAction(action)
+                    else -> {
+                        when (action) {
+                            ProjectMenuAction.When -> sheet = ProjectSheet.When
+                            ProjectMenuAction.AddTags -> sheet = ProjectSheet.Tags
+                            ProjectMenuAction.AddDeadline -> sheet = ProjectSheet.Deadline
+                            ProjectMenuAction.Repeat -> sheet = ProjectSheet.Repeat
+                            else -> Unit
+                        }
+                        onProjectMenuAction(action)
+                    }
                 }
             }
         },
@@ -505,6 +546,18 @@ private fun ProjectScreenBody(
         // Display order: to-dos outside headings, each heading's to-dos, then the later items.
         shareableTasks = { tasks + headings.flatMap { it.tasks } + state.laterTasks },
     ) {
+        item(key = "details") {
+            ProjectDetailRows(
+                tags = projectTags,
+                schedule = projectSchedule,
+                deadline = projectDeadline,
+                repeat = projectRepeat,
+                onTags = { sheet = ProjectSheet.Tags },
+                onSchedule = { sheet = ProjectSheet.When },
+                onDeadline = { sheet = ProjectSheet.Deadline },
+            )
+        }
+
         item(key = "notes") {
             Column(Modifier.padding(horizontal = ThingsSpacing.PageMargin)) {
                 NotesEditor(value = notes, onValueChange = { notes = it }, placeholder = "Notes")
@@ -636,6 +689,33 @@ private fun ProjectScreenBody(
             },
             onCancel = { pendingDeleteHeadingId = null },
         )
+    }
+
+    // The sheets of the project's own When, tags, deadline and repeat: the ones of the to-do card.
+    when (sheet) {
+        ProjectSheet.When -> WhenSheet(
+            current = projectSchedule,
+            onDismiss = { sheet = null },
+            onPick = { projectSchedule = it },
+        )
+        ProjectSheet.Deadline -> DeadlineSheet(
+            current = projectDeadline,
+            onDismiss = { sheet = null },
+            onPick = { projectDeadline = it },
+        )
+        ProjectSheet.Tags -> TagsSheet(
+            selected = projectTags,
+            onDismiss = { sheet = null },
+            onDone = { projectTags = it },
+        )
+        ProjectSheet.Repeat -> RepeatSheet(
+            onDismiss = { sheet = null },
+            onPick = { rule ->
+                projectRepeat = rule.toInfo()
+                projectSchedule = ScheduleModel(ScheduleKind.Date, rule.next, projectSchedule?.reminder)
+            },
+        )
+        null -> Unit
     }
 }
 

@@ -183,6 +183,7 @@ private data class HomeGap(
  *   and the menu has Mark as Completed, Set Tags, Set Deadline, Repeat, Duplicate and Share. Delete
  *   ([onDeleteProject], [onDeleteArea]; an area goes with its projects) is done here; Share is reported
  *   through [onShareSelection] with the ticked ids, and the other actions through [onSelectionAction].
+ *   While the three-dots menu of the bar is open the page is dimmed, like a list page is for its menu.
  * - A long name goes on to the next lines; the icon stays level with the first line.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -250,6 +251,14 @@ fun HomeScreen(
     // The select mode: which projects and areas are ticked. Only projects ticked turns everything on.
     val selection = rememberSelectionState()
     val selecting = selection.active
+
+    // The bottom More menu of the select bar dims the page like the menu of a list page.
+    var selectionMenuOpen by remember { mutableStateOf(false) }
+    val scrimAlpha by animateFloatAsState(
+        if (selecting && selectionMenuOpen) 0.4f else 0f,
+        label = "menuScrim",
+    )
+    LaunchedEffect(selecting) { if (!selecting) selectionMenuOpen = false }
     val areaIds = state.areas.map { it.id }.toSet()
     val projectsOnly = selection.selected.isNotEmpty() && selection.selected.none { it in areaIds }
 
@@ -647,7 +656,7 @@ fun HomeScreen(
                 enabled = selection.selected.isNotEmpty(),
                 completeLabel = "Mark as Completed",
                 onAction = { action -> runSelectionAction(action) },
-                onMenuOpenChange = {},
+                onMenuOpenChange = { selectionMenuOpen = it },
                 whenMoveEnabled = projectsOnly,
                 menuGroups = homeMenuGroups(projectsOnly),
                 modifier = Modifier
@@ -756,6 +765,15 @@ fun HomeScreen(
                     )
                 }
             }
+        }
+
+        // Dims the page while the More menu of the select bar is open. The menu itself is drawn above it.
+        if (scrimAlpha > 0f) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+            )
         }
 
         // Scrim + morphing menu, drawn above everything else while open or animating.
