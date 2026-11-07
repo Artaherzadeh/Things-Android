@@ -4,12 +4,10 @@ import com.things.app.ui.components.ChecklistItemModel
 import com.things.app.ui.components.TaskRowModel
 
 /**
- * The project a to-do turns into: the to-do's title is the project's name ("New Project" when it has
- * none), its notes are the project's notes, and each checklist item becomes a to-do of the project
- * (done stays done). [checklistTaskId] gives the id of the to-do made from a checklist item. The
- * to-do must already hold its current data (edits applied). The tags, dates, deadline and repeat of
- * the to-do are not carried: a project has no place for them yet (see [unsupportedProjectFields],
- * which names what is left out so the caller can tell the user).
+ * Converts current to-do data into a project. Title and notes are preserved;
+ * checklist items become project tasks in the same order and completion state.
+ * The project's own schedule (including its reminder), deadline, tags and repeat
+ * are copied directly from the to-do's details without reformatting or inference.
  */
 fun TaskRowModel.toProjectState(
     projectId: String,
@@ -24,18 +22,18 @@ fun TaskRowModel.toProjectState(
         progress = progressOf(tasks),
         notes = details.notes,
         tasks = tasks,
+        tags = details.tags.toList(),
+        schedule = details.schedule,
+        deadline = details.deadline,
+        repeat = details.repeat,
     )
 }
 
-/** Names of the fields of this to-do that a project cannot hold yet (see [toProjectState]). */
-fun TaskRowModel.unsupportedProjectFields(): List<String> = buildList {
-    if (details.tags.isNotEmpty()) add("tags")
-    if (details.schedule != null) add("when")
-    if (details.deadline != null) add("deadline")
-    if (details.repeat != null) add("repeat")
-}
+/** Compatibility hook: all four formerly unsupported detail fields are now carried. */
+@Suppress("UNUSED_PARAMETER")
+fun TaskRowModel.unsupportedProjectFields(): List<String> = emptyList()
 
-/** The project without the to-dos with these [ids], wherever they are; the ring is worked out again. */
+/** The project without these task IDs; progress is recalculated. */
 fun ProjectUiState.withoutTasks(ids: Set<String>): ProjectUiState {
     val remaining = tasks.filter { it.id !in ids }
     val remainingHeadings = headings.map { heading -> heading.copy(tasks = heading.tasks.filter { it.id !in ids }) }
